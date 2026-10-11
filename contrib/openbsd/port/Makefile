@@ -3,8 +3,8 @@
 # Submit: send diff to ports@openbsd.org
 
 COMMENT =	Kubernetes pods metrics CLI (sample to SQLite)
-DISTNAME =	kpm_v0.2.0_openbsd_${MACHINE_ARCH:S/aarch64/arm64/}
-PKGNAME =	kpm-0.2.0
+DISTNAME =	kpm_v0.3.0_openbsd_${MACHINE_ARCH:S/aarch64/arm64/}
+PKGNAME =	kpm-0.3.0
 CATEGORIES =	sysutils
 HOMEPAGE =	https://github.com/hrodrig/kpm
 MAINTAINER =	hrodrig@usb.ve
@@ -16,8 +16,8 @@ PERMIT_DISTFILES =	Yes
 # Local test before release: copy tarball to DISTDIR or use
 #   make fetch MASTER_SITES=file:///absolute/path/to/dir/
 # See README.md "Test with a local tarball".
-MASTER_SITES =	https://github.com/hrodrig/kpm/releases/download/v0.2.0/
-DISTFILES =	kpm_v0.2.0_openbsd_${MACHINE_ARCH:S/aarch64/arm64/}.tar.gz
+MASTER_SITES =	https://github.com/hrodrig/kpm/releases/download/v0.3.0/
+DISTFILES =	kpm_v0.3.0_openbsd_${MACHINE_ARCH:S/aarch64/arm64/}.tar.gz
 EXTRACT_SUFX =	.tar.gz
 
 ONLY_FOR_ARCHS =	amd64 arm64 aarch64

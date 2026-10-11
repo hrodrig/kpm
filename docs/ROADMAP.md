@@ -20,7 +20,8 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 | Band | Focus | Plan |
 |------|-------|------|
 | **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
-| **Next** | **0.3.x Insights** — live+capacity in flight; then recommend/tui | [plan-0.3.0.md](./plan-0.3.0.md) |
+| **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
+| **Next** | **0.4.x Notifications** | — |
 
 ---
 
