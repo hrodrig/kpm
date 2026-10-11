@@ -65,7 +65,7 @@ without mutating the cluster. Core sample path stays unaware of notify.
 ### Gates / band exit
 
 - [x] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC §6 → mark Normative in status banner (draft bump polish)
+- [x] SPEC §6 → mark Normative in status banner (draft bump polish)
 - [x] PR `feat/0.4-notify` → `develop` opened ([#23](https://github.com/hrodrig/kpm/pull/23))
 - [x] PR `#23` merged
 - [x] Version-cut artifacts on `chore/release-0.4.0` (VERSION / CHANGELOG / man / badge)
@@ -73,7 +73,7 @@ without mutating the cluster. Core sample path stays unaware of notify.
 - [x] VHS re-record (#25)
 - [x] SPEC §6 (+ §3–5) normative banner / CLI map (docs train)
 - [x] SPEC §6.4 anonymized notify payload examples (slack/webhook/smtp/config)
-- [ ] PR develop → main + tag `v0.4.0` (operador OK)
+- [x] PR develop → main + tag `v0.4.0` (#26) + sync (#28)
 
 [↑ Back to top](#top)
 
@@ -107,7 +107,7 @@ internal/sample/  — unchanged (no import of notify)
 | 4 | `#14` | slack + webhook presets + smtp + FanOut | [x] |
 | 5 | `#15` | daemon wire + `notify-test` | [x] |
 | 6 | docs | SPEC §6 / man / CHANGELOG | [x] |
-| 7 | ship | PR → develop; later cut `v0.4.0` | [ ] |
+| 7 | ship | PR → develop; cut `v0.4.0` shipped | [x] |
 
 **Suggested PRs:** single `feat/0.4-notify` (plan + code) → develop.
 
@@ -138,7 +138,7 @@ PagerDuty → generic webhook to Events API / automation.
 - [x] `kpm notify-test` hits all configured sinks
 - [x] Core sample works with notify disabled / absent
 - [x] Cover ≥ 80%; gocyclo ≤ 14
-- [ ] Merged to develop + release cut
+- [x] Merged to develop + release cut (`v0.4.0`)
 
 ## Out of scope
 
