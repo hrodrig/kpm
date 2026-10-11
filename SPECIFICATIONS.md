@@ -479,12 +479,22 @@ JSON REST `/api/*` and charts belong to **server** mode (§8 / P5), not MCP.
 
 Prefer **stdio** (`kpm mcp`) on a laptop. Use **HTTP/SSE** when the sample
 daemon already runs with `mcp.enabled: true`. Paths below are anonymized;
-replace with a real absolute config path and `which kpm`. The HTTP MCP path
-`/sse` is a draft until `#17` locks the mount.
+replace with a real absolute config path and `which kpm`. HTTP mounts:
+`/sse` (SSE) and `/mcp` (streamable).
 
 **Preflight:** `kpm sample --config /home/ops/kpm.yaml` so the store has rows;
 then attach a client. Smoke tools: `get_status`, `list_samples`,
 `summarize_window`, `list_recommendations`.
+
+**Bearer token** (HTTP only): opaque shared secret — not a JWT. Generate once,
+export as the env named by `mcp.token_env` (sample: `KPM_MCP_TOKEN`):
+
+```bash
+export KPM_MCP_TOKEN="$(openssl rand -hex 32)"
+```
+
+Clients send `Authorization: Bearer <same value>`. Off-loopback listen requires
+`token_env` set and non-empty (SPEC §7.2).
 
 #### Cursor — `~/.cursor/mcp.json` or project `.cursor/mcp.json`
 

@@ -116,6 +116,7 @@ tui:
 #   enabled: true
 #   listen: "127.0.0.1:9740"
 #   token_env: KPM_MCP_TOKEN   # recommended; required if bind is non-loopback
+#   # generate: export KPM_MCP_TOKEN="$(openssl rand -hex 32)"
 #   trusted_proxies: ["10.0.0.0/8"]   # peers allowed to set XFF / X-Real-IP
 #   allowlist_cidrs: ["10.0.0.0/8"]   # empty = off; bearer still bypasses IP check
 #   rate_limit:

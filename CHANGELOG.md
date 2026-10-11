@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Daemon HTTP access control (gghstats mold): `mcp.trusted_proxies`,
   `mcp.allowlist_cidrs`, per-IP `mcp.rate_limit` (ops paths exempt)
   `(0.5.x #17)`.
+- SPEC §7.5 + sample: how to generate `KPM_MCP_TOKEN` (`openssl rand -hex 32`).
 
 ## [0.4.0] - 2026-10-11
 
