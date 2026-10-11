@@ -19,7 +19,8 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x Core** | `#1` config load → `#2` sample → SQLite | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **0.2.x Core** | P1 `#1`–`#7` **done in-tree** — PR then version cut | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **Next** | **0.3.x Insights** (`#8`–`#11`) after Core lands on `develop` | — |
 
 ---
 
@@ -39,7 +40,7 @@ flowchart LR
 | Band | SPEC | Status |
 |------|------|--------|
 | **0.1.x** Scaffold | mold + CLI version/sample-config | **Shipped** `v0.1.0` |
-| **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **Current** |
+| **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **In tree** (SPEC draft v0.4 normative Core) |
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | Planned |
 | **0.4.x** Notify (P3) | §6 webhook thresholds | Planned |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE | Planned |

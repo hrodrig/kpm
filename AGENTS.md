@@ -13,8 +13,8 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
   `internal/config`, `internal/identity` (`client.id` cascade),
   `internal/cluster`, `internal/store`, `internal/sample`,
   `internal/exitcode`, `configs` (embedded sample YAML).
-- **Config contract:** [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.3**.
-  Path to v1: [docs/ROADMAP.md](docs/ROADMAP.md). Example:
+- **Config contract:** [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.4**
+  (Core normative). Path to v1: [docs/ROADMAP.md](docs/ROADMAP.md). Example:
   `configs/kpm.sample.yml`.
 - **Kubernetes client:** **`client-go`** + Metrics API (no `kubectl` subprocess).
 

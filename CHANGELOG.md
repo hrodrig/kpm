@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(0.2.x #6)`.
 - Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7)`.
 
+### Changed
+
+- [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.4**: §1, §2 (Core), §9.2.1
+  (`client.id`), and exit codes `0`/`1`/`2` marked **normative**; adjacent and
+  optional layers remain draft. Backup documented as `VACUUM INTO`.
+
 ## [0.1.0] - 2026-10-11
 
 ### Added

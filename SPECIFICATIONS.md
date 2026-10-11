@@ -1,8 +1,9 @@
 # SPECIFICATIONS — kpm
 
-> **Status: draft v0.3 (daemon facades clarified).**  
-> Scaffold (§1) is the only shipped behavior. Everything else is agreed
-> product direction for phased implementation.
+> **Status: draft v0.4 — Core (§2) + scaffold (§1) + `client.id` (§9.2.1)
+> normative in-tree.** Adjacent (§3–5) and optional facades (§6–8) remain
+> draft until their bands ship. Semver tag for Core still pending
+> (`docs/ROADMAP.md` band `0.2.x`).
 
 | Term | Meaning |
 |------|---------|
@@ -63,17 +64,22 @@ copy.
 | `kpm version` | version, commit, build date, branch, Go runtime |
 | `kpm --print-sample-config` | embedded sample YAML → stdout, exit 0 |
 | Bare `kpm` | help, exit 0 |
-| Exit codes | `0` / `1` via `internal/exitcode` |
+| Exit codes | `0` / `1` / `2` (cluster) via `internal/exitcode` |
 
 ---
 
-## 2. CORE — capture, store, backup, export
+## 2. CORE — capture, store, backup, export (normative today)
+
+Implemented in-tree (`kpm sample` / `backup` / `export`). Must not regress
+without CHANGELOG.
 
 ### 2.1 Capture (`kpm sample`)
 
 - **client-go** + Metrics API only (no `kubectl` subprocess).
 - Container grain: util, request, limit, identities, `sampled_at` UTC.
-- Missing pod metrics → **skip** (+ count); API/RBAC failure → **fail closed**.
+- Rows also persist resolved `client_id` + `cluster_name` (§9.2.1).
+- Missing pod metrics → **skip** (+ count); API/RBAC failure → **fail closed**
+  (exit `2`).
 - One process ↔ one cluster.
 
 ### 2.2 Store (SQLite)
@@ -106,9 +112,10 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ### 2.4 Backup / export
 
-- `kpm backup` — safe copy of DB (prefer SQLite backup API while daemon runs).
+- `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
 - `kpm export` — **csv** and **tsv** only for the foreseeable future (json later
-  only if demanded). Offline filters: window, namespace, workload, pod.
+  only if demanded). Offline filters: `--since` / `--until` (RFC3339),
+  `--namespace`, `--pod`, `--workload` (`owner_name`).
 
 ---
 
@@ -307,7 +314,7 @@ core sampling.
 `cluster`, `kube`, `client`, `store`, `sample`, `scope`, `recommend`, `tui`,
 `notifications`, `mcp`, `server`.
 
-### 9.2.1 Client identity (decided — kwd/pgwd pattern)
+### 9.2.1 Client identity (normative today — kwd/pgwd pattern)
 
 | Field | Role |
 |-------|------|
@@ -352,28 +359,33 @@ tui:
 
 ---
 
-## 11. CLI map (draft)
+## 11. CLI map
 
-| Command | Layer | Cluster? | Store? |
-|---------|-------|----------|--------|
-| `sample` | Core | Yes | Write |
-| `backup` | Core | No | Yes |
-| `export` | Core | No | Yes |
-| `recommend` | Adjacent | No | Yes |
-| `capacity` | Adjacent | Yes | No |
-| `tui` / `capacity --tui` | Adjacent | Yes | No* |
-| `mcp` | Optional | No** | Read |
-| `notify-test` | Optional | No | No |
-| daemon `sample` loop | **always** Write store; optional notify/MCP/server if enabled | Yes | Write |
+| Command | Layer | Status | Cluster? | Store? |
+|---------|-------|--------|----------|--------|
+| `sample` | Core | **Normative** | Yes | Write |
+| `backup` | Core | **Normative** | No | Yes |
+| `export` | Core | **Normative** | No | Yes |
+| `recommend` | Adjacent | Draft | No | Yes |
+| `capacity` | Adjacent | Draft | Yes | No |
+| `tui` / `capacity --tui` | Adjacent | Draft | Yes | No* |
+| `mcp` | Optional | Draft | No** | Read |
+| `notify-test` | Optional | Draft | No | No |
+| daemon `sample` loop | Core | **Normative** (sample-only; facades draft) | Yes | Write |
 
 \*TUI may optionally show history snippets from store later; v1 is live.  
 \*\*MCP read tools use store; cluster tools optional and read-only.
 
 ---
 
-## 12. Exit codes (draft)
+## 12. Exit codes
 
-`0` ok · `1` generic · `2` cluster/metrics/RBAC · `3` empty/insufficient store data
+| Code | Meaning | Status |
+|------|---------|--------|
+| `0` | ok | **Normative** |
+| `1` | generic failure | **Normative** |
+| `2` | cluster / Metrics API / RBAC | **Normative** |
+| `3` | empty / insufficient store data | Draft (recommend band) |
 
 ---
 
@@ -386,13 +398,13 @@ tui:
 
 ## 14. Implementation phasing
 
-| Phase | Deliver |
-|-------|---------|
-| **P1 — Core** | sample → SQLite; backup; export csv/tsv |
-| **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list |
-| **P3 — Notify** | sustained thresholds + webhook |
-| **P4 — MCP** | stdio + localhost HTTP/SSE, bearer on HTTP |
-| **P5 — Server** | embedded charts UI + optional auth |
+| Phase | Deliver | Status |
+|-------|---------|--------|
+| **P1 — Core** | sample → SQLite; backup; export csv/tsv; daemon sample-only | **In tree** (band `0.2.x`) |
+| **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | Planned |
+| **P3 — Notify** | sustained thresholds + webhook | Planned |
+| **P4 — MCP** | stdio + localhost HTTP/SSE, bearer on HTTP | Planned |
+| **P5 — Server** | embedded charts UI + optional auth | Planned |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 
@@ -448,6 +460,15 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | `client.id` | Same cascade as kwd/pgwd (`KPM_CLIENT_ID` → YAML → hostname → IPv4 → MAC → `unknown`) |
 | Payloads | Always include resolved `client.id` + `cluster.name` |
 | SQLite rows | Persist `client_id` + `cluster_name` on each sample for multi-writer history |
+
+### 15.7 Core P1 in-tree (draft v0.4)
+
+| Topic | Decision |
+|-------|----------|
+| Backup mechanism | SQLite **`VACUUM INTO`** (not online backup API) |
+| Export formats | csv + tsv only; filters since/until/namespace/pod/workload |
+| Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
+| SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
 ---
 

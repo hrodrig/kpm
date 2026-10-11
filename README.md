@@ -18,13 +18,12 @@
 <a id="early-development-disclaimer"></a>
 
 > **Early development (pre-1.0).** kpm is under active development.
-> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.3**; config schema, CLI
-> surface, SQLite layout, and recommend semantics may change without a
-> stability guarantee until **v1.0.0**. The binary today ships only `version`
-> and `--print-sample-config`. **Do not** treat this as a production
-> rightsizing gate before then. **Use at your own risk.** The software is
-> provided under the [MIT License](./LICENSE) **“AS IS”**, without warranty of
-> any kind (see [LICENSE](./LICENSE)).
+> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core (`sample` /
+> `backup` / `export` / daemon sample-only) is **normative in-tree**; recommend /
+> TUI / notify / MCP / server remain draft until **v1.0.0**. **Do not** treat
+> this as a production rightsizing gate before then. **Use at your own risk.**
+> The software is provided under the [MIT License](./LICENSE) **“AS IS”**,
+> without warranty of any kind (see [LICENSE](./LICENSE)).
 
 **The problem:** Cluster CPU/memory **requests** often dwarf real utilization
 (oversizing). Snapshots (`kubectl top`, kube-capacity) lack history. Full
