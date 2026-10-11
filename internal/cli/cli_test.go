@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -44,12 +45,23 @@ func TestPrintSampleConfig(t *testing.T) {
 	}
 }
 
-func TestExecuteContextPrintSample(t *testing.T) {
+func TestExecuteContextBareIsHelp(t *testing.T) {
 	printSampleConfig = false
-	// ExecuteContext builds a fresh root; drive flags via os.Args pattern is
-	// awkward — assert the sentinel filter with a direct call path instead.
+	old := os.Args
+	t.Cleanup(func() { os.Args = old })
+	os.Args = []string{"kpm"}
 	if err := ExecuteContext(t.Context()); err != nil {
-		// bare Execute with no args runs Help — should succeed
 		t.Fatal(err)
+	}
+}
+
+func TestExecuteContextPrintSampleFiltersSentinel(t *testing.T) {
+	printSampleConfig = false
+	old := os.Args
+	t.Cleanup(func() { os.Args = old })
+	os.Args = []string{"kpm", "--print-sample-config"}
+	// Without the filter in ExecuteContext, cobra would return errPrintSampleDone.
+	if err := ExecuteContext(t.Context()); err != nil {
+		t.Fatalf("ExecuteContext should swallow errPrintSampleDone: %v", err)
 	}
 }
