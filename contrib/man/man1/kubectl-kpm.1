@@ -1,5 +1,5 @@
 .\" kubectl-kpm(1) - kubectl plugin shim for kpm
-.TH KUBECTL-KPM 1 "2026-10-11" "kpm v0.2.0" "User Commands"
+.TH KUBECTL-KPM 1 "2026-10-11" "kpm v0.3.0" "User Commands"
 .SH NAME
 kubectl-kpm \- kubectl plugin entrypoint for kpm
 .SH SYNOPSIS
@@ -44,11 +44,27 @@ Safe SQLite copy via
 .TP
 .B export
 Export samples as csv or tsv.
+.TP
+.B capacity
+Live pod CPU/memory table (no SQLite).
+.TP
+.B recommend
+Offline rightsizing from SQLite
+.RB ( \-\-record ,
+.BR \-\-score ).
+.TP
+.B tui
+Interactive live heatmap
+.RB ( \-\-config ,
+.BR \-\-kubeconfig );
+alias
+.BR "capacity \-\-tui" .
 .SH EXAMPLES
 .nf
 make install-kubectl-plugin
 kubectl kpm version
 kubectl kpm sample --config ./kpm.yaml
+kubectl kpm capacity --config ./kpm.yaml
 .fi
 .SH SEE ALSO
 .BR kpm (1)

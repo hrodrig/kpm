@@ -121,17 +121,26 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ## 3. ADJACENT — recommend
 
-- Grains: workload+container **and** pod+container (default both).
-- Verdicts vs request **and** limit; CPU/memory ratios **separate**.
-- `suggested_request = round_up(p / target_utilization)` (default **0.70**).
-- Offline; no auto-apply.
+- `kpm recommend` — **offline** from SQLite (no cluster access).
+- Grains: workload+container **and** pod+container (both emitted).
+- Window / percentile / `min_samples` / `target_utilization` from `recommend.*`.
+- `suggested_request = round_up(p / target_utilization)` — CPU ceil **10m**, mem ceil **1 MiB**.
+- Verdicts vs request **and** limit (oversize / undersize ratios); CPU/mem **separate**.
+- Keys below `min_samples` skipped; **no advice rows → exit `3`**.
+- Output: `--format table` (default) or `tsv`.
+- **No auto-apply** (read-only). Later: patch/Kustomize export + server `#18b`.
 
 ---
 
 ## 4. ADJACENT — capacity (non-interactive)
 
-- `kpm capacity` — one-shot table (kube-capacity-like).
-- Shares query helpers with TUI/server; does not require SQLite.
+- `kpm capacity` — one-shot **live** table (kube-capacity-like); **no SQLite**.
+- Shared read model: `internal/live` (also for TUI/server).
+- Default grain: **one row per pod** — sum util / sum request / sum limit.
+- Pods without Metrics: still listed; util and ratios shown as `n/a`.
+- Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
+- Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
+- Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
 
 ---
 
@@ -167,6 +176,33 @@ If empty → all pods matching `scope` (same as capacity default).
   (aligned with `target_utilization` / notify thresholds where sensible).
 - Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
   vs **vs limit**.
+- **vs last recommendation (P2):** when a `#9b` snapshot exists for the grain
+  key, show deviation (**live request − last recorded suggested request**);
+  otherwise `n/a`. Read-only join — TUI does not write the store. Populate
+  snapshots with `kpm recommend --record` first.
+- **Δ is not “drift vs cluster policy / Git / Helm defaults”.** It compares
+  today’s live allocation to the **last `recommend --record` snapshot only**.
+  The bar percent is a separate signal (live util ÷ live request|limit).
+
+#### 5.3.1 Worked example (anonymized)
+
+Header mode: `cpu/request`, `delta=on`. One row:
+
+```text
+> app/db-0   ████████████░░  113%   Δcpu -60m   Δmem +3Mi
+```
+
+| Field | Meaning |
+|-------|---------|
+| `113%` | Live CPU **util ÷ live request** ≈ 1.13 — bar red (≥ 90% band). How hot the pod is **right now** vs what the cluster currently grants. **Not** Δ. |
+| `Δcpu -60m` | `live_cpu_request − last_suggested_cpu` = −60 millicores. Distance from the **last recorded recommendation**, not from some other infra baseline. Advice asked for **more** CPU request than live request. |
+| `Δmem +3Mi` | Live mem request ~3 MiB **above** last suggested mem — nearly aligned with that snapshot. |
+
+**Do not confuse:** a high `%` can coexist with a negative Δ (hot vs current request, yet still below last advice) or the reverse. Infra “desired” manifests / GitOps source of truth are out of scope for Δ.
+
+**Operator takeaway:** pressure is on CPU util vs request; vs last recommend the CPU request is still **short** (−60m). Typical follow-up is a GitOps PR to raise CPU request toward the suggestion (kpm never applies). Memory can stay as-is.
+
+Without a prior `--record` (or no matching grain key) both Δ columns show `n/a`.
 
 ### 5.4 Sorting
 
@@ -301,6 +337,15 @@ core sampling.
 - Server JSON endpoints may power charts; TUI talks to cluster (and optionally
   store) directly — no hard dependency on server process.
 
+### 8.3 Recommend export in UI (planned)
+
+- Server **must not** apply resource patches to Deployments/StatefulSets/etc.
+- When recommend data is shown, UI exposes **copy/download** of suggested changes
+  as **Kustomize patch/diff** (and/or strategic-merge / JSON patch) per workload
+  (and optionally bulk). Operator pastes into Git / opens a PR — GitOps remains
+  source of truth.
+- Reuses the same formatters as CLI recommend export when those land.
+
 ---
 
 ## 9. Configuration (draft)
@@ -368,12 +413,12 @@ tui:
 | `export` | Core | **Normative** | No | Yes |
 | `recommend` | Adjacent | Draft | No | Yes |
 | `capacity` | Adjacent | Draft | Yes | No |
-| `tui` / `capacity --tui` | Adjacent | Draft | Yes | No* |
+| `tui` / `capacity --tui` | Adjacent | Draft | Yes | Read* |
 | `mcp` | Optional | Draft | No** | Read |
 | `notify-test` | Optional | Draft | No | No |
 | daemon `sample` loop | Core | **Normative** (sample-only; facades draft) | Yes | Write |
 
-\*TUI may optionally show history snippets from store later; v1 is live.  
+\*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
 \*\*MCP read tools use store; cluster tools optional and read-only.
 
 ---
@@ -470,11 +515,32 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
 | SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
+### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
+
+| Topic | Decision |
+|-------|----------|
+| Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
+| Schema | SQLite schema v2: `recommendations` table + indexes |
+| Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
+| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A) |
+| TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
+| Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
+
+### 15.9 Recommend apply vs GitOps export (decided 2026-10-11)
+
+| Topic | Decision |
+|-------|----------|
+| Cluster apply | **Rejected** for kpm (read-only; CI/GitOps would overwrite) |
+| CLI path | Export artifacts for PR (tsv → later patch / Kustomize overlay) |
+| Server (`0.6.x`) | Show **Kustomize patch/diff** (copy/download) per workload / bulk; no apply |
+| Apply-all / apply-one | Out of product binary for v1; possible future separate tool only |
+
 ---
 
 ## Related docs
 
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
+  · [docs/plan-0.3.0.md](docs/plan-0.3.0.md)
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)

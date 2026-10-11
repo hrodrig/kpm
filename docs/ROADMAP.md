@@ -19,8 +19,9 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x Core** | P1 `#1`–`#7` **done in-tree** — PR then version cut | [plan-0.2.0.md](./plan-0.2.0.md) |
-| **Next** | **0.3.x Insights** (`#8`–`#11`) after Core lands on `develop` | — |
+| **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
+| **Next** | **0.4.x Notifications** | — |
 
 ---
 
@@ -83,12 +84,16 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 
 | ID | Item | Status |
 |----|------|--------|
-| `#8` | Shared read model (live snapshot helpers) | Planned |
-| `#9` | `kpm recommend` (dual grain, p/0.70, offline) | Planned |
-| `#10` | `kpm capacity` table | Planned |
-| `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |
+| `#8` | Shared read model (live snapshot helpers) | **In tree** (`internal/live`) |
+| `#9` | `kpm recommend` (dual grain, p/0.70, offline) | **In tree** (`kpm recommend`) |
+| `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | **In tree** (`--record` / `--score`) |
+| `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
+| `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | **In tree** (`kpm tui`) |
 
-**Success:** SPEC §3–5 normative; re-record VHS if CLI help strings change.
+**Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md).
+
+**Success (P2 exit):** `#8`–`#11` **and** `#9b`; SPEC §3–5 normative; VHS if help/UX change.
+TUI **must** show deviation vs last recommendation when a `#9b` snapshot exists.
 
 ### 0.4.x — Notifications (P3)
 
@@ -115,9 +120,11 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | ID | Item | Status |
 |----|------|--------|
 | `#18` | Embedded `net/http` + templates/HTMX charts | Planned |
+| `#18b` | Recommend UI: **Kustomize patch/diff** copy/download (no cluster apply) | Planned |
 | `#19` | Optional bearer auth; shared read model with capacity | Planned |
 
-**Success:** SPEC §8 normative; **no** SPA/npm app in this repo.
+**Success:** SPEC §8 normative (incl. §8.3); **no** SPA/npm app in this repo.
+**Non-goal:** server/CLI applying CPU/mem patches live (GitOps overwrites) — SPEC §15.9.
 Visual guidance for templates may borrow values from external design skills
 (e.g. [ai-design-skills](https://github.com/elayadesign/ai-design-skills));
 marketing sites (`kpm-webs`) are a separate repo.

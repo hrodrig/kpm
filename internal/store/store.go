@@ -13,7 +13,7 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // Record is one container sample at a point in time.
 type Record struct {
@@ -100,12 +100,25 @@ func (s *Store) migrate() error {
 			return fmt.Errorf("migrate: %w", err)
 		}
 	}
+	if err := migrateRecommendations(s.db); err != nil {
+		return err
+	}
 	var n int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_meta`).Scan(&n); err != nil {
 		return err
 	}
 	if n == 0 {
 		if _, err := s.db.Exec(`INSERT INTO schema_meta(version) VALUES (?)`, SchemaVersion); err != nil {
+			return err
+		}
+		return nil
+	}
+	var ver int
+	if err := s.db.QueryRow(`SELECT version FROM schema_meta LIMIT 1`).Scan(&ver); err != nil {
+		return err
+	}
+	if ver < SchemaVersion {
+		if _, err := s.db.Exec(`UPDATE schema_meta SET version = ?`, SchemaVersion); err != nil {
 			return err
 		}
 	}

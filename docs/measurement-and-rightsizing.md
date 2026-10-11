@@ -124,6 +124,27 @@ flowchart TD
 | ≳ ~0.85 | Undersize / throttling risk — raise request |
 | util near **limit** | OOM / throttle risk — do not cut limit blindly |
 
+### TUI delta vs last recommend
+
+After `kpm recommend --record`, `kpm tui` (delta on) shows
+`live request − last suggested request`.
+
+**Δ is only vs that snapshot** — not vs Helm/Kustomize/Git “desired”
+settings, not vs limits, and not the same thing as the bar `%`
+(util ÷ live request|limit).
+
+Anonymized example (`cpu/request` mode):
+
+```text
+> app/db-0   ████████████░░  113%   Δcpu -60m   Δmem +3Mi
+```
+
+- **113%** — util above **current** request (hot now). Infra live signal.
+- **Δcpu −60m** — current CPU request is 60m below **last recorded advice**.
+- **Δmem +3Mi** — mem request nearly matches that same advice snapshot.
+
+Full table: [SPECIFICATIONS.md §5.3.1](../SPECIFICATIONS.md).
+
 **Notifications** (daemon, optional): user `rules[]`, or if empty while
 `enabled: true`, built-in **CPU + memory util vs request @ 80%** plus a
 one-time startup log — see SPEC §6.0.

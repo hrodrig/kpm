@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
+### Added
+
+- [docs/plan-0.3.0.md](docs/plan-0.3.0.md) — Insights band plan (`#8`–`#11`, `#9b`).
+- ROADMAP `#9b` (recommendation outcomes) and `#18b` (server Kustomize patch/diff UI).
+- Shared live read model `internal/live` (Pod+Metrics → container/pod rows) `(0.3.x #8)`.
+- `kpm capacity` — one-shot live pod capacity table (no SQLite); `--sort`; exit `2`
+  on API fail `(0.3.x #10)`.
+- `kpm recommend` — offline rightsizing from SQLite (dual grain, table/tsv);
+  exit `3` when insufficient samples `(0.3.x #9)`.
+- `kpm recommend --record` / `--score` — persist `recommendations` snapshots
+  (schema v2) and offline calibration vs later samples; `DeltaFromLive` helper
+  for TUI `(0.3.x #9b)`.
+- `kpm tui` / `capacity --tui` — interactive heatmap (bubbletea + lipgloss);
+  Δ vs last recommend when store snapshots exist (`n/a` otherwise); no store
+  writes `(0.3.x #11)`.
+
+### Changed
+
+- SPEC §5.3.1 — anonymized TUI row example; Δ = vs last `recommend --record`
+  only (not vs Git/Helm infra desired).
+- SPEC: recommend stays read-only (no cluster apply); §8.3 + §15.8/`#9b` + §15.9
+  GitOps export / server Kustomize copy-download (no live patch).
+- SPEC §4 capacity: pod-sum grain, `n/a` util, shared `internal/live`.
+- P2 band exit: `#9b` + TUI delta vs last recommendation **required** (SPEC §5.3 /
+  §15.8; plan-0.3.0).
+
 ## [0.2.0] - 2026-10-11
 
 ### Added
@@ -68,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/hrodrig/kpm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hrodrig/kpm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hrodrig/kpm/releases/tag/v0.1.0
