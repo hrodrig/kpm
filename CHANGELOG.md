@@ -19,9 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `kpm recommend --record` / `--score` — persist `recommendations` snapshots
   (schema v2) and offline calibration vs later samples; `DeltaFromLive` helper
   for TUI `(0.3.x #9b)`.
+- `kpm tui` / `capacity --tui` — interactive heatmap (bubbletea + lipgloss);
+  Δ vs last recommend when store snapshots exist (`n/a` otherwise); no store
+  writes `(0.3.x #11)`.
 
 ### Changed
 
+- SPEC §5.3.1 — anonymized TUI row example; Δ = vs last `recommend --record`
+  only (not vs Git/Helm infra desired).
 - SPEC: recommend stays read-only (no cluster apply); §8.3 + §15.8/`#9b` + §15.9
   GitOps export / server Kustomize copy-download (no live patch).
 - SPEC §4 capacity: pod-sum grain, `n/a` util, shared `internal/live`.

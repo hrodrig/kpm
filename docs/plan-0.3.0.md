@@ -171,7 +171,7 @@ Core sample path stays unaware. `#9b` after `#9`, before or with `#11`.
 - [x] `kpm recommend --config …` offline table from store; exit `3` when insufficient
 - [x] `kpm capacity` live table; exit `2` on API/RBAC fail
 - [x] `#9b` persist last recommend + score path; feed TUI delta
-- [ ] `kpm tui` / `capacity --tui` heatmap **with** delta vs last recommend (`n/a` ok); no store writes
+- [x] `kpm tui` / `capacity --tui` heatmap **with** delta vs last recommend (`n/a` ok); no store writes
 - [x] Shared `internal/live` used by capacity (+ tui)
 - [ ] SPEC §3–5 → Normative (draft bump); man + sample YAML; VHS re-record if help changes
 - [ ] `make lint` + `make cover-check` ≥ 80%

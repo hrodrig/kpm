@@ -16,14 +16,19 @@ func newCapacityCmd() *cobra.Command {
 	var configPath string
 	var kubeconfig string
 	var sortFlag string
+	var asTUI bool
 
 	cmd := &cobra.Command{
 		Use:   "capacity",
 		Short: "Live pod CPU/memory capacity table (no SQLite)",
 		Long: `One-shot live table from the Metrics API (pod-aggregated: sum util / sum request).
-Does not read or write the SQLite store. Exit code 2 on cluster/Metrics/RBAC failure.`,
+Does not read or write the SQLite store. Exit code 2 on cluster/Metrics/RBAC failure.
+With --tui, enters the interactive heatmap (same as kpm tui).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if asTUI {
+				return runTUI(cmd, configPath, kubeconfig)
+			}
 			cfg, err := config.Load(configPath)
 			if err != nil {
 				return err
@@ -57,6 +62,7 @@ Does not read or write the SQLite store. Exit code 2 on cluster/Metrics/RBAC fai
 	cmd.Flags().StringVar(&configPath, "config", config.DefaultConfigPath, "path to kpm YAML config")
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "path to kubeconfig (default: discovery / in-cluster)")
 	cmd.Flags().StringVar(&sortFlag, "sort", "", "sort key: name, cpu.ratio, cpu.util, mem.ratio, mem.util (default: tui.default_sort or cpu.ratio)")
+	cmd.Flags().BoolVar(&asTUI, "tui", false, "open interactive heatmap (alias for kpm tui)")
 	return cmd
 }
 
