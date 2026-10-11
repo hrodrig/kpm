@@ -19,7 +19,8 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x Core** | `#1` config load → `#2` sample → SQLite | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **0.2.x Core** | P1 `#1`–`#7` **done in-tree** — PR then version cut | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **Next** | **0.3.x Insights** (`#8`–`#11`) after Core lands on `develop` | — |
 
 ---
 
@@ -39,7 +40,7 @@ flowchart LR
 | Band | SPEC | Status |
 |------|------|--------|
 | **0.1.x** Scaffold | mold + CLI version/sample-config | **Shipped** `v0.1.0` |
-| **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **Current** |
+| **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **In tree** (SPEC draft v0.4 normative Core) |
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | Planned |
 | **0.4.x** Notify (P3) | §6 webhook thresholds | Planned |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE | Planned |
@@ -67,11 +68,14 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 |----|------|--------|
 | `#1` | Config load (`kpm.yaml`, Viper) + validation for `cluster` / `kube` / `client` / `store` / `sample` / `scope`; `client.id` cascade | **Done** (in tree) |
 | `#2` | client-go Metrics + Pods; `kpm sample` one-shot → SQLite | **Done** (one-shot; daemon → `#4`) |
-| `#3` | Schema version + retention prune + indexes | Planned |
-| `#4` | Daemon loop (`interval_seconds > 0`) sample-only; SIGINT/TERM clean | Planned |
-| `#5` | `kpm backup` (SQLite backup API) | Planned |
-| `#6` | `kpm export` csv/tsv + filters | Planned |
-| `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | Planned |
+| `#3` | Schema version + retention prune + indexes | **Done** (in tree) |
+| `#4` | Daemon loop (`interval_seconds > 0`) sample-only; SIGINT/TERM clean | **Done** (in tree) |
+| `#5` | `kpm backup` (SQLite `VACUUM INTO`) | **Done** (in tree) |
+| `#6` | `kpm export` csv/tsv + filters | **Done** (in tree) |
+| `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | **Done** (exit `2` wired) |
+| `#24` | FreeBSD + OpenBSD port skeletons + `make port-*-sync` / `dist-*` | **Done** (in tree) |
+| `#25` | VHS `docs/demo.tape` + `docs/demo.gif` (offline Core CLI demo) | **Done** (in tree) |
+| `#26` | Document `kubectl kpm` plugin (`install-kubectl-plugin`, man, README) | **Done** (in tree) |
 
 **Success:** fixtures or kind+metrics-server path; SPEC §2 normative; cover ≥ 80%.
 
@@ -84,7 +88,7 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#10` | `kpm capacity` table | Planned |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |
 
-**Success:** SPEC §3–5 normative; VHS/demo when UX lands.
+**Success:** SPEC §3–5 normative; re-record VHS if CLI help strings change.
 
 ### 0.4.x — Notifications (P3)
 

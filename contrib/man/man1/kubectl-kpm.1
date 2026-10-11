@@ -19,6 +19,13 @@ discovers it as a plugin (
 ).
 Behavior and flags match
 .BR kpm (1).
+.PP
+Install locally with
+.B make install-kubectl-plugin
+(or copy the release binary named
+.BR kubectl-kpm
+onto
+.BR PATH ).
 .SH OPTIONS
 .TP
 .B \-\-print\-sample\-config
@@ -27,6 +34,22 @@ Print the embedded sample configuration to stdout and exit.
 .TP
 .B version
 Print version and build metadata.
+.TP
+.B sample
+Sample pod CPU/memory into SQLite (one-shot or daemon).
+.TP
+.B backup
+Safe SQLite copy via
+.BR VACUUM\ INTO .
+.TP
+.B export
+Export samples as csv or tsv.
+.SH EXAMPLES
+.nf
+make install-kubectl-plugin
+kubectl kpm version
+kubectl kpm sample --config ./kpm.yaml
+.fi
 .SH SEE ALSO
 .BR kpm (1)
 .SH AUTHOR

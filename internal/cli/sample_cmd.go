@@ -20,14 +20,13 @@ func newSampleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sample",
 		Short: "Sample pod CPU/memory into the local SQLite store",
-		Args:  cobra.NoArgs,
+		Long: `One-shot when sample.interval_seconds is 0.
+Daemon loop when interval_seconds > 0 (SIGINT/SIGTERM clean exit).`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.Load(configPath)
 			if err != nil {
 				return err
-			}
-			if cfg.Sample.IntervalSeconds > 0 {
-				return fmt.Errorf("daemon sample loop (interval_seconds > 0) lands in roadmap #4; use interval_seconds: 0 for one-shot")
 			}
 
 			path, err := cfg.ExpandedStorePath()
@@ -53,18 +52,32 @@ func newSampleCmd() *cobra.Command {
 				return exitcode.New(exitcode.Cluster, err)
 			}
 
-			res, err := sample.RunOnce(cmd.Context(), cfg, st, cs, mcs)
-			if err != nil {
-				return exitcode.New(exitcode.Cluster, err)
-			}
 			clientID := identity.Resolve(cfg.Client.ID)
 			clusterName := cfg.Cluster.Name
 			if clusterName == "" {
 				clusterName = "-"
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(),
-				"sampled %d containers (%d pods skipped, no metrics) client.id=%s cluster=%s → %s\n",
-				len(res.Records), res.SkippedPods, clientID, clusterName, st.Path())
+			logTick := func(res sample.Result) {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
+					"sampled %d containers (%d pods skipped, no metrics) client.id=%s cluster=%s → %s\n",
+					len(res.Records), res.SkippedPods, clientID, clusterName, st.Path())
+			}
+
+			if cfg.Sample.IntervalSeconds > 0 {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
+					"daemon sample interval=%ds client.id=%s cluster=%s store=%s\n",
+					cfg.Sample.IntervalSeconds, clientID, clusterName, st.Path())
+				if err := sample.RunLoop(cmd.Context(), cfg, st, cs, mcs, logTick); err != nil {
+					return exitcode.New(exitcode.Cluster, err)
+				}
+				return nil
+			}
+
+			res, err := sample.RunOnce(cmd.Context(), cfg, st, cs, mcs)
+			if err != nil {
+				return exitcode.New(exitcode.Cluster, err)
+			}
+			logTick(res)
 			return nil
 		},
 	}

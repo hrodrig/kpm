@@ -1,0 +1,10 @@
+kpm (Kubernetes Pods Metrics) is a configuration-first CLI that samples
+pod CPU/memory from the Metrics API into local SQLite and surfaces
+rightsizing workflows. It is read-only toward the cluster and uses
+client-go (no kubectl subprocess for metrics).
+
+The package installs the static binary, the kubectl-kpm plugin shim, man
+pages, the MIT license text, and a sample configuration under
+share/examples/kpm/.
+
+WWW: https://github.com/hrodrig/kpm

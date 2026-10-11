@@ -10,4 +10,8 @@ as `docs/` in [kwd](https://github.com/hrodrig/kwd).
 | [plan-0.2.0.md](./plan-0.2.0.md) | Core band merge order + success criteria |
 | [measurement-and-rightsizing.md](./measurement-and-rightsizing.md) | Measurement + recommend strategy (Mermaid); linked from README |
 | [kpm-hero-oss.jpg](./kpm-hero-oss.jpg) | README hero (1280×720), family style |
-| *(pending)* `demo.tape` / `demo.gif` | Terminal demo after sampler CLI lands |
+| [demo.tape](./demo.tape) → [demo.gif](./demo.gif) | VHS terminal demo; re-record on VERSION bump |
+
+```bash
+make build && export PATH="$(pwd)/bin:$$PATH" && bash -c "vhs docs/demo.tape"
+```
