@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kpm tui` **Enter**: read-only detail — Deploy/STS/DS pod template resources
+  vs live Pod requests/limits (ReplicaSet → Deployment); Esc closes; never blank
+  alt-screen on empty/error.
+
 ## [0.3.0] - 2026-10-11
 
 ### Added

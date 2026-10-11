@@ -18,6 +18,9 @@ type SnapshotFn func(ctx context.Context) (live.Snapshot, error)
 // RecsFn loads latest recommendation snapshots (nil/empty OK).
 type RecsFn func(ctx context.Context) ([]store.Recommendation, error)
 
+// OwnerFn loads Deploy/STS/DS template resources (read-only). Nil disables Enter detail.
+type OwnerFn func(ctx context.Context, namespace, ownerKind, ownerName string) (live.OwnerTemplate, error)
+
 // Config holds TUI runtime knobs.
 type Config struct {
 	Refresh   time.Duration
@@ -35,11 +38,17 @@ type snapMsg struct {
 	err  error
 }
 
+type detailMsg struct {
+	body string
+	err  error
+}
+
 // Model is the bubbletea TUI state.
 type Model struct {
 	cfg      Config
 	snapshot SnapshotFn
 	recs     RecsFn
+	owner    OwnerFn
 	ctx      context.Context
 
 	width  int
@@ -47,14 +56,19 @@ type Model struct {
 	offset int
 	cursor int
 
-	metric Metric
-	rows   []DisplayRow
-	errMsg string
-	ready  bool
+	metric   Metric
+	rows     []DisplayRow
+	lastSnap live.Snapshot
+	errMsg   string
+	ready    bool
+
+	detailOpen    bool
+	detailLoading bool
+	detailBody    string
 }
 
 // NewModel builds the interactive model.
-func NewModel(ctx context.Context, cfg Config, snap SnapshotFn, recs RecsFn) Model {
+func NewModel(ctx context.Context, cfg Config, snap SnapshotFn, recs RecsFn, owner OwnerFn) Model {
 	if cfg.Refresh < time.Second {
 		cfg.Refresh = 5 * time.Second
 	}
@@ -65,6 +79,7 @@ func NewModel(ctx context.Context, cfg Config, snap SnapshotFn, recs RecsFn) Mod
 		cfg:      cfg,
 		snapshot: snap,
 		recs:     recs,
+		owner:    owner,
 		ctx:      ctx,
 		metric:   MetricCPU,
 	}
@@ -97,6 +112,22 @@ func (m Model) refreshCmd() tea.Cmd {
 	}
 }
 
+func (m Model) detailCmd(row DisplayRow) tea.Cmd {
+	return func() tea.Msg {
+		if m.owner == nil {
+			return detailMsg{body: FormatOwnerDetail(row.Namespace, row.Pod, live.OwnerTemplate{
+				Unsupported: true, UnsupportedReason: "owner lookup not configured",
+			}, nil)}
+		}
+		tmpl, err := m.owner(m.ctx, row.Namespace, row.OwnerKind, row.OwnerName)
+		if err != nil {
+			return detailMsg{err: err}
+		}
+		liveRows := live.LiveContainerResources(m.lastSnap.Containers, row.Namespace, row.Pod)
+		return detailMsg{body: FormatOwnerDetail(row.Namespace, row.Pod, tmpl, liveRows)}
+	}
+}
+
 // Update handles keys, ticks, and snapshot results.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -106,9 +137,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		return m, nil
 	case tickMsg:
+		if m.detailOpen {
+			return m, tickCmd(m.cfg.Refresh)
+		}
 		return m, tea.Batch(m.refreshCmd(), tickCmd(m.cfg.Refresh))
 	case snapMsg:
 		return m.applySnap(msg), nil
+	case detailMsg:
+		m.detailLoading = false
+		m.detailOpen = true
+		if msg.err != nil {
+			m.detailBody = "error: " + msg.err.Error() + "\n\n[esc] close\n"
+		} else {
+			m.detailBody = msg.body
+		}
+		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -125,6 +168,7 @@ func (m Model) applySnap(msg snapMsg) Model {
 	} else {
 		m.errMsg = ""
 	}
+	m.lastSnap = msg.snap
 	m.rows = PrepareRows(msg.snap, msg.idx, m.cfg.Sort, m.metric, m.cfg.Baseline)
 	if m.cursor >= len(m.rows) {
 		m.cursor = len(m.rows) - 1
@@ -137,9 +181,31 @@ func (m Model) applySnap(msg snapMsg) Model {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.detailOpen {
+		return m.handleDetailKey(msg)
+	}
+	return m.handleListKey(msg)
+}
+
+func (m Model) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter", "q":
+		m.detailOpen = false
+		m.detailBody = ""
+		m.detailLoading = false
+		return m, nil
+	case "ctrl+c":
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "enter":
+		return m.openDetail()
 	case "j", "down":
 		if m.cursor < len(m.rows)-1 {
 			m.cursor++
@@ -154,23 +220,25 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cfg.Sort = CycleSort(m.cfg.Sort)
 		return m, m.refreshCmd()
 	case "m":
-		if m.metric == MetricCPU {
-			m.metric = MetricMem
-		} else {
-			m.metric = MetricCPU
-		}
+		m.metric = 1 - m.metric
 		return m, m.refreshCmd()
 	case "b":
-		if m.cfg.Baseline == BaselineRequest {
-			m.cfg.Baseline = BaselineLimit
-		} else {
-			m.cfg.Baseline = BaselineRequest
-		}
+		m.cfg.Baseline = 1 - m.cfg.Baseline
 		return m, m.refreshCmd()
 	case "d":
 		m.cfg.ShowDelta = !m.cfg.ShowDelta
 	}
 	return m, nil
+}
+
+func (m Model) openDetail() (tea.Model, tea.Cmd) {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return m, nil
+	}
+	m.detailLoading = true
+	m.detailOpen = true
+	m.detailBody = "loading owner template…"
+	return m, m.detailCmd(m.rows[m.cursor])
 }
 
 func (m *Model) clampOffset() {
@@ -187,7 +255,7 @@ func (m *Model) clampOffset() {
 }
 
 func (m Model) bodyHeight() int {
-	h := m.height - 3 // header + blank + footer
+	h := m.height - 3
 	if h < 1 {
 		h = 1
 	}
@@ -196,6 +264,9 @@ func (m Model) bodyHeight() int {
 
 // View renders the TUI.
 func (m Model) View() string {
+	if m.detailOpen {
+		return m.renderDetail()
+	}
 	if !m.ready && m.width == 0 {
 		return "loading…"
 	}
@@ -242,6 +313,31 @@ func (m Model) View() string {
 	}
 	if len(m.rows) == 0 {
 		b.WriteString("(no pods)\n")
+	}
+	return b.String()
+}
+
+// renderDetail never returns an empty frame (avoids blank alt-screen).
+func (m Model) renderDetail() string {
+	ver := strings.TrimSpace(m.cfg.Version)
+	if ver == "" {
+		ver = "dev"
+	}
+	body := strings.TrimSpace(m.detailBody)
+	if body == "" {
+		if m.detailLoading {
+			body = "loading owner template…"
+		} else {
+			body = "(no detail — press esc)"
+		}
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("kpm %s  owner template vs pod live (read-only)\n", ver))
+	b.WriteString(strings.Repeat("─", 72))
+	b.WriteByte('\n')
+	b.WriteString(body)
+	if !strings.Contains(body, "[esc]") {
+		b.WriteString("\n\n[esc] close\n")
 	}
 	return b.String()
 }
