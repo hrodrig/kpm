@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- [docs/ROADMAP.md](docs/ROADMAP.md) — path to v1.0.0 (full SPEC stack); bands
+  `0.2.x`–`1.0.0` and global work IDs `#1`–`#23`.
+- [docs/plan-0.2.0.md](docs/plan-0.2.0.md) — Core band merge order and success
+  criteria (`#1`–`#7`).
+- Config load + validation (`internal/config`, `--config`, Viper) `(0.2.x #1)`.
+- `client.id` identity cascade (`KPM_CLIENT_ID` → YAML → hostname → IPv4 → MAC →
+  `unknown`); persisted on sample rows with `cluster.name` (kwd/pgwd pattern).
+- `kpm sample` one-shot: client-go + Metrics API → SQLite
+  (`internal/cluster`, `internal/store`, `internal/sample`) `(0.2.x #2)`.
+- Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7` partial).
+
 ## [0.1.0] - 2026-10-11
 
 ### Added

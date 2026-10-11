@@ -35,3 +35,17 @@ func TestNewCarriesExitCode(t *testing.T) {
 		t.Fatalf("ExitCode = %d", c.ExitCode())
 	}
 }
+
+func TestOfClusterCode(t *testing.T) {
+	if Of(New(Cluster, errors.New("rbac"))) != Cluster {
+		t.Fatal("cluster code should surface")
+	}
+}
+
+func TestCodedErrorUnwrap(t *testing.T) {
+	inner := errors.New("inner")
+	err := New(Cluster, inner)
+	if !errors.Is(err, inner) {
+		t.Fatal("Unwrap/Is should find inner")
+	}
+}

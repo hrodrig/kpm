@@ -17,11 +17,10 @@ directly (no
 .BR kubectl
 binary) once the sampler is implemented.
 .PP
-This man page tracks the
-.B scaffold
-release. Full command set and config contract will be defined in
+Behavior contract:
 .B SPECIFICATIONS.md
-after the product SDD.
+and roadmap
+.BR docs/ROADMAP.md .
 .SH OPTIONS
 .TP
 .B \-\-print\-sample\-config
@@ -30,6 +29,14 @@ Print the embedded sample configuration to stdout and exit.
 .TP
 .B version
 Print version and build metadata.
+.TP
+.B sample
+One-shot sample of pod CPU/memory into the SQLite store
+.RB ( \-\-config ,
+.BR \-\-kubeconfig ).
+Requires
+.B sample.interval_seconds: 0
+in the profile (daemon loop is roadmap #4).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

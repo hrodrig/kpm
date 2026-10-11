@@ -1,0 +1,94 @@
+package store
+
+import (
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestCloseNilAndPath(t *testing.T) {
+	var s *Store
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "m.db")
+	st, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Path() != path {
+		t.Fatalf("path: %q", st.Path())
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInsertEmptyAndBadPrune(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.InsertRecords(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.PruneRetention(t.Context(), 0); err == nil {
+		t.Fatal("expected bad retention")
+	}
+}
+
+func TestOpenInsertCountPrune(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "metrics.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	recs := []Record{{
+		SampledAt:        now,
+		Namespace:        "app",
+		Pod:              "web-0",
+		Container:        "web",
+		CPUUtilMcores:    100,
+		MemUtilBytes:     64 << 20,
+		CPURequestMcores: 200,
+		MemRequestBytes:  128 << 20,
+	}}
+	if err := s.InsertRecords(t.Context(), recs); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.Count(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("count: got %d", n)
+	}
+
+	old := []Record{{
+		SampledAt: now.AddDate(0, 0, -30),
+		Namespace: "app",
+		Pod:       "old-0",
+		Container: "c",
+	}}
+	if err := s.InsertRecords(t.Context(), old); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := s.PruneRetention(t.Context(), 14)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted < 1 {
+		t.Fatalf("expected prune of old row, deleted=%d", deleted)
+	}
+	n, err = s.Count(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("after prune count: got %d", n)
+	}
+}

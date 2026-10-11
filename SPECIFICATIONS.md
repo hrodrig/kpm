@@ -304,8 +304,28 @@ core sampling.
 
 ### 9.2 Top-level keys
 
-`cluster`, `kube`, `store`, `sample`, `scope`, `recommend`, `tui`,
+`cluster`, `kube`, `client`, `store`, `sample`, `scope`, `recommend`, `tui`,
 `notifications`, `mcp`, `server`.
+
+### 9.2.1 Client identity (decided — kwd/pgwd pattern)
+
+| Field | Role |
+|-------|------|
+| `cluster.name` | *What* is being sampled (cluster label in payloads) |
+| `client.id` | *Who* is sampling (bastion / host running `kpm`) |
+
+Resolved `client.id` cascade (never anonymous):
+
+1. `KPM_CLIENT_ID` environment variable
+2. `client.id` in YAML
+3. hostname
+4. primary non-loopback IPv4
+5. primary MAC
+6. literal `unknown`
+
+Every notification payload (and sample summary lines) MUST include resolved
+`client.id` and `cluster.name` so multi-bastion / multi-cluster sinks stay
+distinguishable.
 
 ### 9.3 `tui` sketch
 
@@ -421,9 +441,19 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Non-empty `rules` | User rules only — no merge with built-ins |
 | Silent no-op on empty rules | **Rejected** |
 
+### 15.6 Client identity (decided)
+
+| Topic | Decision |
+|-------|----------|
+| `client.id` | Same cascade as kwd/pgwd (`KPM_CLIENT_ID` → YAML → hostname → IPv4 → MAC → `unknown`) |
+| Payloads | Always include resolved `client.id` + `cluster.name` |
+| SQLite rows | Persist `client_id` + `cluster_name` on each sample for multi-writer history |
+
 ---
 
 ## Related docs
 
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
+- [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)

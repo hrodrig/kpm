@@ -3,10 +3,12 @@ package exitcode
 
 import "errors"
 
-// Exit codes for the kpm CLI.
+// Exit codes for the kpm CLI (SPEC §12).
 const (
 	Success = 0 // command succeeded
 	Failure = 1 // general failure
+	Cluster = 2 // cluster / Metrics API / RBAC failure
+	Store   = 3 // empty / insufficient store data (recommend later)
 )
 
 // codedError wraps an error with an explicit exit code.
