@@ -70,8 +70,8 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [x] SPEC §7 → Normative in status banner + CLI map `mcp`
 - [x] SPEC anonymized tool examples (mold §6.4 style) — §7.6
 - [x] PR feat → `develop` merged (`#31`)
-- [ ] Version-cut artifacts (`chore/release-0.5.0`) when shipping
-- [ ] VHS re-record if help/version strings change
+- [x] Version-cut artifacts (`chore/release-0.5.0`) when shipping
+- [x] VHS re-record if help/version strings change
 - [ ] PR develop → main + tag `v0.5.0` (operator OK)
 - [ ] Sync main → develop via PR
 
@@ -144,7 +144,7 @@ HTTP URL: `http://127.0.0.1:9740/sse` (and streamable `/mcp`).
 | 3 | `#16` | tools + `kpm mcp` stdio | [x] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [x] |
 | 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [x] |
-| 6 | cut | `chore/release-0.5.0` → main + tag (later) | [ ] |
+| 6 | cut | `chore/release-0.5.0` → main + tag (later) | [x] cut PR; ship pending |
 
 **Suggested PRs:** docs-first (this), then `feat/0.5-mcp` (code slices) → develop.
 
@@ -159,7 +159,7 @@ HTTP URL: `http://127.0.0.1:9740/sse` (and streamable `/mcp`).
 - [x] Bearer rules per SPEC §7.2; fail-closed off-loopback
 - [x] Core sample works with mcp disabled / absent
 - [x] Cover ≥ 80%; gocyclo ≤ 14 (on merge)
-- [ ] SPEC §7 normative (docs); release cut `v0.5.0` (operator OK)
+- [x] SPEC §7 normative (docs); release cut artifacts `0.5.0` (ship tag pending)
 
 ## Out of scope
 

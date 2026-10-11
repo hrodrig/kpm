@@ -853,7 +853,7 @@ tui:
 | **P1 — Core** | sample → SQLite; backup; export csv/tsv; daemon sample-only | **Shipped** `v0.2.0` |
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
-| **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **In tree** (cut `v0.5.0`) |
+| **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
 | **P5 — Server** | embedded charts UI + optional auth | Planned |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.

@@ -22,7 +22,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 | **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
 | **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
 | **0.4.x Notify** | P3 shipped `v0.4.0` (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
-| **Current** | **0.5.x MCP** — code on `develop`; band-exit SPEC + cut `v0.5.0` | [plan-0.5.0.md](./plan-0.5.0.md) |
+| **Current** | **0.5.x MCP** shipped → next **0.6.x Server** | [plan-0.5.0.md](./plan-0.5.0.md) |
 
 ---
 
@@ -45,7 +45,7 @@ flowchart LR
 | **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **In tree** (SPEC draft v0.4 normative Core) |
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | **Shipped** `v0.3.0` |
 | **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
-| **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **In tree** (SPEC §7 normative; cut pending) |
+| **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
 | **0.6.x** Server (P5) | §8 embedded charts + JSON API (no SPA) | Planned |
 | **0.7.x** Harden | E2E, docs freeze, security, Homebrew | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
@@ -117,11 +117,11 @@ Checklist detail: [plan-0.5.0.md](./plan-0.5.0.md) (`[x]`/`[ ]` — keep history
 
 | ID | Item | Status |
 |----|------|--------|
-| `#16a` | Shared daemon HTTP mux (`internal/httpserver`): `/healthz`, `/readyz`, process `/metrics`; listen via `mcp.listen` | **Done** (on `develop`) |
-| `#16` | `kpm mcp` stdio read-only store tools (`list_samples`, `summarize_window`, `list_recommendations`, `get_status`) | **Done** (on `develop`) |
-| `#17` | HTTP/SSE on same mux when `mcp.enabled`; bearer + gghstats-style access control (SPEC §7.2) | **Done** (on `develop`) |
+| `#16a` | Shared daemon HTTP mux (`internal/httpserver`): `/healthz`, `/readyz`, process `/metrics`; listen via `mcp.listen` | **Done** (`v0.5.0`) |
+| `#16` | `kpm mcp` stdio read-only store tools (`list_samples`, `summarize_window`, `list_recommendations`, `get_status`) | **Done** (`v0.5.0`) |
+| `#17` | HTTP/SSE on same mux when `mcp.enabled`; bearer + gghstats-style access control (SPEC §7.2) | **Done** (`v0.5.0`) |
 
-**Success:** SPEC §7 normative; ops probes on MCP listen; core unaware of MCP. Cut `v0.5.0` next.
+**Success:** SPEC §7 normative; ops probes on MCP listen; core unaware of MCP.
 **Non-goal this band:** REST `/api/*` / charts (→ P5); Prometheus re-export of pod metrics; live-cluster MCP tools.
 
 ### 0.6.x — Server (P5)

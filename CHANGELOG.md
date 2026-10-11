@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-11
+
 ### Added
 
+- [docs/plan-0.5.0.md](docs/plan-0.5.0.md) — MCP band plan (`#16a` / `#16` / `#17`);
+  checklist `[x]`/`[ ]` kept for history.
 - Daemon HTTP ops mux when `mcp.enabled` (`internal/httpserver`):
   `GET /healthz`, `/readyz`, process `/metrics` on `mcp.listen`
   `(0.5.x #16a)`.
@@ -26,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - SPECIFICATIONS.md: promote §7 MCP to **normative**; CLI map `mcp`;
-  anonymized tool examples §7.6 (band-exit before `v0.5.0` cut).
+  anonymized tool examples §7.6 (P4 band exit).
+- VHS `docs/demo.gif` re-recorded for `v0.5.0` (includes `kpm mcp --help`).
 
 ## [0.4.0] - 2026-10-11
 
@@ -141,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/hrodrig/kpm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hrodrig/kpm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hrodrig/kpm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hrodrig/kpm/compare/v0.1.0...v0.2.0
