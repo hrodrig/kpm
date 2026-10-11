@@ -737,7 +737,8 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - Optional **bearer** auth (`token_env`); fail closed if `auth: true` and unset.
 - Default listen loopback; may share `mcp.listen` when `server.listen` empty.
 - HTTP facade must **not** require a running sample loop (decouple from
-  `interval_seconds > 0` — see plan `#19a`).
+  `interval_seconds > 0`). Entry: **`kpm serve`** (requires `mcp.enabled`
+  until `server.enabled` lands); `/readyz` is store-only (kube optional).
 
 ### 8.2 Relationship to capacity / TUI (decided)
 
@@ -845,11 +846,13 @@ tui:
 | `capacity` | Adjacent | **Normative** | Yes | No |
 | `tui` / `capacity --tui` | Adjacent | **Normative** | Yes | Read* |
 | `mcp` | Optional | **Normative** | No** | Read |
+| `serve` | Optional | **Draft** (0.6.x `#19a`) | No*** | Read |
 | `notify-test` | Optional | **Normative** | No | No |
 | daemon `sample` loop | Core | **Normative** (notify / MCP HTTP when enabled) | Yes | Write |
 
 \*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
-\*\*MCP store-only tools; live-cluster MCP tools deferred.
+\*\*MCP store-only tools; live-cluster MCP tools deferred.  
+\*\*\*`kpm serve`: ops + MCP HTTP on `mcp.listen` without sample loop; kube optional; `/readyz` = store only.
 
 ---
 

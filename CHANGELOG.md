@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [docs/plan-0.6.0.md](docs/plan-0.6.0.md) — Server band plan (analyze-local,
   charts, JSON API; `#19a` / `#19` / `#18` / `#18b`; Elaya tokens + Hallmark
   anti-slop for `#18` UI).
+- `kpm serve` — ops + MCP HTTP against an existing store without a sample loop
+  (`mcp.enabled`; `/readyz` store-only; kube optional) `(0.6.x #19a)`.
+
+### Changed
+
+- Daemon ops `/readyz`: store open required; kube Discovery no longer gates ready
+  `(0.6.x #19a)`.
 
 ## [0.5.0] - 2026-10-11
 
