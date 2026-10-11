@@ -67,7 +67,11 @@ Daemon loop when interval_seconds > 0 (SIGINT/SIGTERM clean exit).`,
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
 					"daemon sample interval=%ds client.id=%s cluster=%s store=%s\n",
 					cfg.Sample.IntervalSeconds, clientID, clusterName, st.Path())
-				if err := sample.RunLoop(cmd.Context(), cfg, st, cs, mcs, logTick); err != nil {
+				onTick, err := wrapDaemonTick(cmd.Context(), cfg, clientID, clusterName, logTick, cmd.ErrOrStderr())
+				if err != nil {
+					return err
+				}
+				if err := sample.RunLoop(cmd.Context(), cfg, st, cs, mcs, onTick); err != nil {
 					return exitcode.New(exitcode.Cluster, err)
 				}
 				return nil

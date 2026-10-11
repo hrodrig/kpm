@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [docs/plan-0.4.0.md](docs/plan-0.4.0.md) — Notifications band plan (`#12`–`#15`);
+  checklist `[x]`/`[ ]` kept for history.
+- Daemon notifications (SPEC §6): hold/repeat/resolve/dedupe rule engine;
+  built-in 80% util-vs-request defaults + startup log; multi-sink fan-out
+  `slack` / `webhook` (`generic`|`discord`|`teams`) / `smtp` (fail-closed
+  `*_env`); `kpm notify-test` `(0.4.x #12`–`#15)`.
 - `kpm tui` **Enter**: read-only detail — Deploy/STS/DS pod template resources
   vs live Pod requests/limits (ReplicaSet → Deployment); Esc closes; never blank
   alt-screen on empty/error.
+
+### Changed
+
+- SPEC §6.3 — multi-sink gghstats-school (replaces solo webhook sketch);
+  PagerDuty via generic webhook; Loki deferred.
 
 ## [0.3.0] - 2026-10-11
 
