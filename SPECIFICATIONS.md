@@ -454,6 +454,128 @@ When the sample daemon runs with `mcp.enabled: true`, the process listens on
 MCP HTTP/SSE mounts on the **same** mux. JSON REST `/api/*` and charts belong
 to **server** mode (§8 / P5), not MCP.
 
+### 7.5 Client integration examples (draft — target after `#16`/`#17`)
+
+Prefer **stdio** (`kpm mcp`) on a laptop. Use **HTTP/SSE** when the sample
+daemon already runs with `mcp.enabled: true`. Paths below are anonymized;
+replace with a real absolute config path and `which kpm`. The HTTP MCP path
+`/sse` is a draft until `#17` locks the mount.
+
+**Preflight:** `kpm sample --config /home/ops/kpm.yaml` so the store has rows;
+then attach a client. Smoke tools: `get_status`, `list_samples`,
+`summarize_window`, `list_recommendations`.
+
+#### Cursor — `~/.cursor/mcp.json` or project `.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "kpm": {
+      "type": "stdio",
+      "command": "kpm",
+      "args": ["mcp", "--config", "/home/ops/kpm.yaml"]
+    }
+  }
+}
+```
+
+HTTP (daemon listening on loopback):
+
+```json
+{
+  "mcpServers": {
+    "kpm": {
+      "url": "http://127.0.0.1:9740/sse",
+      "headers": {
+        "Authorization": "Bearer ${env:KPM_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Fully restart Cursor after edits.
+
+#### Claude Desktop — `claude_desktop_config.json`
+
+macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "kpm": {
+      "command": "/usr/local/bin/kpm",
+      "args": ["mcp", "--config", "/home/ops/kpm.yaml"]
+    }
+  }
+}
+```
+
+GUI apps often lack shell `PATH` — use an absolute `command`. Quit the app
+completely and reopen.
+
+#### Claude Code
+
+```bash
+claude mcp add --transport stdio kpm -- kpm mcp --config /home/ops/kpm.yaml
+```
+
+HTTP/SSE:
+
+```bash
+claude mcp add --transport sse kpm http://127.0.0.1:9740/sse \
+  --header "Authorization: Bearer ${KPM_MCP_TOKEN}"
+```
+
+#### Codex — `~/.codex/config.toml` (or project `.codex/config.toml`)
+
+```toml
+[mcp_servers.kpm]
+command = "kpm"
+args = ["mcp", "--config", "/home/ops/kpm.yaml"]
+enabled = true
+```
+
+HTTP:
+
+```toml
+[mcp_servers.kpm]
+url = "http://127.0.0.1:9740/sse"
+bearer_token_env_var = "KPM_MCP_TOKEN"
+enabled = true
+```
+
+CLI: `codex mcp add kpm -- kpm mcp --config /home/ops/kpm.yaml`
+
+#### Hermes Agent — `~/.hermes/config.yaml`
+
+```yaml
+mcp_servers:
+  kpm:
+    command: "kpm"
+    args: ["mcp", "--config", "/home/ops/kpm.yaml"]
+```
+
+HTTP:
+
+```yaml
+mcp_servers:
+  kpm:
+    url: "http://127.0.0.1:9740/sse"
+    headers:
+      Authorization: "Bearer ${KPM_MCP_TOKEN}"
+```
+
+Then `hermes mcp test kpm` and `/reload-mcp` after edits.
+
+#### Generic MCP client
+
+| Transport | Contract |
+|-----------|----------|
+| **stdio** | Spawn `kpm mcp --config /home/ops/kpm.yaml`; JSON-RPC on stdin/stdout; diagnostics on **stderr** only |
+| **HTTP/SSE** | Connect to `mcp.listen` (default `127.0.0.1:9740`); send `Authorization: Bearer <token>` when required (SPEC §7.2) |
+
 ---
 
 ## 8. OPTIONAL — server mode (charts)

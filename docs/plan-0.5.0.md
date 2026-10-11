@@ -29,6 +29,7 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [ ] `configs/kpm.sample.yml` mcp knobs + ops path comments (implement train)
 - [ ] man `kpm.1` / `kubectl-kpm.1` — `mcp` command + daemon HTTP notes
 - [ ] CHANGELOG `[Unreleased]` MCP section
+- [x] Client integration examples in SPEC §7.5 (Cursor / Claude / Codex / Hermes / generic)
 - [ ] Anonymized MCP tool call / response examples in SPEC (band exit)
 
 ### `#16a` Shared HTTP mux + ops
@@ -112,11 +113,31 @@ internal/store/       — read APIs only from tools
 
 ---
 
+## Client integration (draft — see SPEC §7.5)
+
+Prefer **stdio** for IDE/agent attach. HTTP only when daemon + `mcp.enabled`.
+Full anonymized snippets live in SPEC §7.5; summary:
+
+| Client | Config | Stdio sketch |
+|--------|--------|--------------|
+| Cursor | `~/.cursor/mcp.json` | `command: kpm`, `args: [mcp, --config, …]` |
+| Claude Desktop | `claude_desktop_config.json` | absolute path to `kpm` + same args |
+| Claude Code | `claude mcp add` | `claude mcp add --transport stdio kpm -- kpm mcp --config …` |
+| Codex | `~/.codex/config.toml` | `[mcp_servers.kpm]` command/args |
+| Hermes | `~/.hermes/config.yaml` | `mcp_servers.kpm.command/args` |
+| Generic | spawn / URL | stdio JSON-RPC or HTTP/SSE + bearer |
+
+HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
+
+[↑ Back to top](#top)
+
+---
+
 ## Merge order
 
 | Order | ID | Deliverable | Status |
 |------:|----|-------------|--------|
-| 1 | docs | This plan + ROADMAP focus + SPEC §7.3 draft | [x] |
+| 1 | docs | This plan + ROADMAP + SPEC §7.3–7.5 draft | [x] |
 | 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [ ] |
 | 3 | `#16` | tools + `kpm mcp` stdio | [ ] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [ ] |
