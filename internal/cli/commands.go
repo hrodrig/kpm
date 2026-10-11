@@ -61,6 +61,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newSampleCmd())
 	root.AddCommand(newCapacityCmd())
+	root.AddCommand(newRecommendCmd())
 	root.AddCommand(newBackupCmd())
 	root.AddCommand(newExportCmd())
 	return root

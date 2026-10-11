@@ -96,6 +96,19 @@ func (c *Config) applyDefaults() {
 	if c.Recommend.TargetUtilization == 0 {
 		c.Recommend.TargetUtilization = 0.70
 	}
+	setRatio := func(p *float64, def float64) {
+		if *p == 0 {
+			*p = def
+		}
+	}
+	setRatio(&c.Recommend.CPUOversizeRatio, 0.35)
+	setRatio(&c.Recommend.CPUUndersizeRatio, 0.85)
+	setRatio(&c.Recommend.CPULimitOversizeRatio, 0.35)
+	setRatio(&c.Recommend.CPULimitUndersizeRatio, 0.85)
+	setRatio(&c.Recommend.MemoryOversizeRatio, 0.35)
+	setRatio(&c.Recommend.MemoryUndersizeRatio, 0.85)
+	setRatio(&c.Recommend.MemoryLimitOversizeRatio, 0.35)
+	setRatio(&c.Recommend.MemoryLimitUndersizeRatio, 0.85)
 	if c.TUI.RefreshSeconds == 0 {
 		c.TUI.RefreshSeconds = 5
 	}
