@@ -21,8 +21,8 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 |------|-------|------|
 | **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
 | **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
-| **0.4.x Notify** | **P3 in progress** (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
-| **Next** | 0.5.x MCP | — |
+| **0.4.x Notify** | P3 shipped `v0.4.0` (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
+| **Next** | **0.5.x MCP** | — |
 
 ---
 
@@ -44,7 +44,7 @@ flowchart LR
 | **0.1.x** Scaffold | mold + CLI version/sample-config | **Shipped** `v0.1.0` |
 | **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **In tree** (SPEC draft v0.4 normative Core) |
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | **Shipped** `v0.3.0` |
-| **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **In progress** |
+| **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE | Planned |
 | **0.6.x** Server (P5) | §8 embedded charts (no SPA) | Planned |
 | **0.7.x** Harden | E2E, docs freeze, security, Homebrew | Planned |
@@ -103,10 +103,10 @@ Checklist detail: [plan-0.4.0.md](./plan-0.4.0.md) (`[x]`/`[ ]` — keep history
 
 | ID | Item | Status |
 |----|------|--------|
-| `#12` | Rule engine (hold / repeat / resolve / dedupe) | **In tree** (`internal/notify`) |
-| `#13` | Built-in 80% defaults + startup log when rules empty | **In tree** |
-| `#14` | Multi-sink fan-out: `slack`, `webhook` (`generic`/`discord`/`teams`), `smtp`; fail-closed `*_env` | **In tree** |
-| `#15` | `kpm notify-test` | **In tree** |
+| `#12` | Rule engine (hold / repeat / resolve / dedupe) | **Done** (`v0.4.0`) |
+| `#13` | Built-in 80% defaults + startup log when rules empty | **Done** (`v0.4.0`) |
+| `#14` | Multi-sink fan-out: `slack`, `webhook` (`generic`/`discord`/`teams`), `smtp`; fail-closed `*_env` | **Done** (`v0.4.0`) |
+| `#15` | `kpm notify-test` | **Done** (`v0.4.0`) |
 
 **Success:** SPEC §6 normative; daemon + notify without MCP/server.
 **Note:** PagerDuty via generic `webhook` (no native type). Loki deferred.
