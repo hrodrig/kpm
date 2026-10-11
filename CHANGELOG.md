@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   facades when enabled (§2.3, §15.4).
 - Notifications: if `enabled` and `rules` empty/omitted → built-in CPU+mem
   util-vs-request @ **80%** plus one-time English startup log (§6.0, §15.5).
+- Docs: [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
+  (measurement + recommend strategy, Mermaid); short pointer + overview diagram
+  in README; note that higher `retention_days` improves statistical quality
+  (production: **> 45** days recommended).
 - `SPECIFICATIONS.md`: **draft v0.3** — closed open points (notify
   predicate/lifecycle, MCP stdio+HTTP bearer, embedded server UI, csv/tsv
   export); added adjacent **TUI** (`kpm tui` / `capacity --tui`): preselected

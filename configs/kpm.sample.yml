@@ -16,6 +16,8 @@ kube:
 
 store:
   path: "~/.local/share/kpm/metrics.db"
+  # Keep enough history for stable percentiles / recommend (prefer ≥ window_days).
+  # Production: >45 days recommended (often 60–90); lab default 14. Cost is disk.
   retention_days: 14
 
 # sample.interval_seconds:

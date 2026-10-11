@@ -55,10 +55,34 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [How it works](#how-it-works)
 - [Status](#status)
 - [Quick start](#quick-start)
 - [Development](#development)
 - [License](#license)
+
+---
+
+## How it works
+
+kpm is **history-first**: sample control-plane metrics into **local SQLite**,
+then recommend rightsizing offline (no auto-apply). Daemon ticks **always**
+persist metrics; notifications / MCP / HTTP charts are optional facades.
+
+```mermaid
+flowchart LR
+  K8s["Kubernetes API\n+ Metrics API"] --> Sample["kpm sample"]
+  Sample --> DB[(SQLite)]
+  DB --> Rec["recommend"]
+  K8s --> Live["capacity / tui"]
+  Sample -.->|"daemon optional"| Opt["notify · MCP · server"]
+```
+
+Details (bands, defaults, more diagrams):  
+**[docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)** ·  
+**[SPECIFICATIONS.md](SPECIFICATIONS.md)**
+
+[↑ Back to top](#top)
 
 ---
 

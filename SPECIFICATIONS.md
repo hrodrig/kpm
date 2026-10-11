@@ -79,6 +79,11 @@ copy.
 ### 2.2 Store (SQLite)
 
 - `store.path` (`~` expanded), `retention_days`, schema version, time indexes.
+- **Guidance:** larger `retention_days` keeps more history for percentiles /
+  recommend (closer to real usage patterns). Prefer
+  `retention_days` ≥ `recommend.window_days`. Default sample **14**;
+  **production: recommend > 45 days** (often 60–90 if disk allows). Short
+  retention → noisier p95.
 
 ### 2.3 Sample loop / daemon
 
