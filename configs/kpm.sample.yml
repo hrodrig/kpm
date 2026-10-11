@@ -107,12 +107,22 @@ tui:
 #       # use_tls: true   # 465 implicit TLS; omit/false → STARTTLS (587)
 
 # OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP when enabled in daemon).
-# When enabled in the sample daemon, also serves ops: /healthz /readyz /metrics
-# (process counters — not cluster pod re-export). MCP tools land in a later slice.
+# Daemon listen also serves:
+#   ops:  /healthz /readyz /metrics  (no auth; exempt from allowlist/rate limit)
+#   MCP:  /sse (SSE) and /mcp (streamable HTTP); bearer if token_env set
+# Default bind is loopback (same idea as gghstats). Use 0.0.0.0 only behind a
+# reverse proxy / in-cluster Service — then token_env is required.
 # mcp:
 #   enabled: true
 #   listen: "127.0.0.1:9740"
 #   token_env: KPM_MCP_TOKEN   # recommended; required if bind is non-loopback
+#   trusted_proxies: ["10.0.0.0/8"]   # peers allowed to set XFF / X-Real-IP
+#   allowlist_cidrs: ["10.0.0.0/8"]   # empty = off; bearer still bypasses IP check
+#   rate_limit:
+#     enabled: true                  # default true; ops paths exempt
+#     requests: 120
+#     period: 1m
+#     burst: 20
 
 # OPTIONAL — embedded HTTP charts (no SPA).
 # server:

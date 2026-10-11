@@ -33,6 +33,8 @@ type Server struct {
 	ready   ReadyFunc
 	metrics *Counters
 	mux     *http.ServeMux
+	handler http.Handler
+	access  AccessControl
 }
 
 // New builds a Server. ready may be nil (always ready). metrics may be nil
@@ -48,6 +50,7 @@ func New(addr string, ready ReadyFunc, metrics *Counters) *Server {
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /readyz", s.handleReadyz)
 	s.mux.HandleFunc("GET /metrics", s.handleMetrics)
+	s.handler = s.mux
 	return s
 }
 
@@ -60,8 +63,18 @@ func (s *Server) Mux() *http.ServeMux { return s.mux }
 // Metrics returns the process counters (never nil after New).
 func (s *Server) Metrics() *Counters { return s.metrics }
 
-// Handler returns the HTTP handler (for httptest).
-func (s *Server) Handler() http.Handler { return s.mux }
+// SetAccessControl installs allowlist / rate-limit middleware (gghstats mold).
+// Call before ListenAndServe. Ops paths remain exempt.
+func (s *Server) SetAccessControl(ac AccessControl) {
+	s.access = ac
+	s.handler = ac.Wrap(s.mux)
+}
+
+// Access returns the installed access control (may be zero).
+func (s *Server) Access() AccessControl { return s.access }
+
+// Handler returns the HTTP handler (for httptest), including access middleware.
+func (s *Server) Handler() http.Handler { return s.handler }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -115,7 +128,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		return fmt.Errorf("httpserver listen %s: %w", s.addr, err)
 	}
 	srv := &http.Server{
-		Handler:           s.mux,
+		Handler:           s.handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	errCh := make(chan error, 1)
@@ -132,8 +145,14 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
+		if s.access.RateLimit != nil {
+			s.access.RateLimit.Shutdown()
+		}
 		return <-errCh
 	case err := <-errCh:
+		if s.access.RateLimit != nil {
+			s.access.RateLimit.Shutdown()
+		}
 		return err
 	}
 }

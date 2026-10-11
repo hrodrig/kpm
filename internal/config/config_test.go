@@ -246,6 +246,51 @@ mcp:
 	}
 }
 
+func TestLoadMCPAccessControl(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	base := `
+store:
+  path: ` + filepath.Join(dir, "m.db") + `
+  retention_days: 14
+sample:
+  interval_seconds: 0
+`
+	sec, err := Load(write("mcp-access.yaml", base+`
+mcp:
+  enabled: true
+  listen: "127.0.0.1:9740"
+  trusted_proxies: ["10.0.0.0/8"]
+  allowlist_cidrs: ["192.168.0.0/16"]
+  rate_limit:
+    enabled: false
+    requests: 60
+    period: 30s
+    burst: 10
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sec.MCP.TrustedProxies) != 1 || sec.MCP.MCPRateLimitEnabled() {
+		t.Fatalf("access cfg: %+v", sec.MCP)
+	}
+	if _, err := Load(write("mcp-bad-period.yaml", base+`
+mcp:
+  enabled: true
+  rate_limit:
+    period: "not-a-duration"
+`)); err == nil {
+		t.Fatal("expected bad rate_limit.period")
+	}
+}
+
 func findModuleRoot(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()

@@ -135,13 +135,23 @@ Uses
 from the config; does not require the sample daemon.
 When the daemon runs with
 .B mcp.enabled ,
-ops HTTP
+.B mcp.listen
+serves ops
 .RB ( /healthz ,
 .BR /readyz ,
 .BR /metrics )
-listens on
-.BR mcp.listen ;
-MCP HTTP/SSE is planned separately.
+without auth (also exempt from allowlist/rate limit), plus MCP
+.B /sse
+(SSE) and
+.B /mcp
+(streamable HTTP). Bearer via
+.B mcp.token_env
+(required off-loopback). Optional
+.BR mcp.trusted_proxies ,
+.BR mcp.allowlist_cidrs ,
+and
+.B mcp.rate_limit
+follow the gghstats HTTP access mold.
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

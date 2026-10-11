@@ -42,8 +42,10 @@ func TestStartOpsHTTPListen(t *testing.T) {
 		t.Fatal("expected counters")
 	}
 	time.Sleep(80 * time.Millisecond)
-	if !bytes.Contains(errBuf.Bytes(), []byte("httpserver: listening")) {
-		t.Fatalf("log: %q", errBuf.String())
+	log := errBuf.String()
+	if !bytes.Contains(errBuf.Bytes(), []byte("httpserver: listening")) ||
+		!bytes.Contains(errBuf.Bytes(), []byte("/sse")) {
+		t.Fatalf("log: %q", log)
 	}
 	cancel()
 	time.Sleep(50 * time.Millisecond)

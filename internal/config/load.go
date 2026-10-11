@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -178,7 +179,57 @@ func (c *Config) validateMCP() error {
 			return fmt.Errorf("mcp.token_env required when mcp.listen is non-loopback")
 		}
 	}
+	if err := validateMCPRateLimit(m.RateLimit); err != nil {
+		return err
+	}
 	return nil
+}
+
+func validateMCPRateLimit(rl MCPRateLimit) error {
+	period := strings.TrimSpace(rl.Period)
+	if period != "" {
+		d, err := time.ParseDuration(period)
+		if err != nil {
+			return fmt.Errorf("mcp.rate_limit.period: %w", err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("mcp.rate_limit.period must be > 0")
+		}
+	}
+	if rl.Requests < 0 {
+		return fmt.Errorf("mcp.rate_limit.requests must be >= 0")
+	}
+	if rl.Burst < 0 {
+		return fmt.Errorf("mcp.rate_limit.burst must be >= 0")
+	}
+	return nil
+}
+
+// MCPRateLimitEnabled reports whether per-IP rate limiting is on (default true).
+func (m MCP) MCPRateLimitEnabled() bool {
+	if m.RateLimit.Enabled != nil {
+		return *m.RateLimit.Enabled
+	}
+	return true
+}
+
+// MCPRateLimitResolved returns concrete rate-limit knobs with gghstats defaults.
+func (m MCP) MCPRateLimitResolved() (requests int, period time.Duration, burst int) {
+	requests = m.RateLimit.Requests
+	if requests == 0 {
+		requests = 120
+	}
+	burst = m.RateLimit.Burst
+	if burst == 0 {
+		burst = 20
+	}
+	period = time.Minute
+	if p := strings.TrimSpace(m.RateLimit.Period); p != "" {
+		if d, err := time.ParseDuration(p); err == nil && d > 0 {
+			period = d
+		}
+	}
+	return requests, period, burst
 }
 
 func listenIsLoopback(addr string) bool {

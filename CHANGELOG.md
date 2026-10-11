@@ -14,7 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(0.5.x #16a)`.
 - `kpm mcp` stdio read-only tools (`get_status`, `list_samples`,
   `summarize_window`, `list_recommendations`) via official Go MCP SDK
-  `(0.5.x #16)`. HTTP/SSE mount still planned (`#17`).
+  `(0.5.x #16)`.
+- Daemon MCP HTTP: SSE `/sse` + streamable `/mcp` on `mcp.listen`, bearer
+  via `token_env` (ops `/healthz` `/readyz` `/metrics` stay open)
+  `(0.5.x #17)`.
+- Daemon HTTP access control (gghstats mold): `mcp.trusted_proxies`,
+  `mcp.allowlist_cidrs`, per-IP `mcp.rate_limit` (ops paths exempt)
+  `(0.5.x #17)`.
 
 ## [0.4.0] - 2026-10-11
 

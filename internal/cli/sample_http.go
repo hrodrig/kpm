@@ -9,12 +9,13 @@ import (
 
 	"github.com/hrodrig/kpm/internal/config"
 	"github.com/hrodrig/kpm/internal/httpserver"
+	"github.com/hrodrig/kpm/internal/mcp"
 	"github.com/hrodrig/kpm/internal/sample"
 	"github.com/hrodrig/kpm/internal/store"
 )
 
-// startOpsHTTP starts the daemon ops mux when mcp.enabled. Returns counters
-// for tick instrumentation (nil when HTTP is off).
+// startOpsHTTP starts the daemon ops mux + MCP HTTP when mcp.enabled.
+// Returns counters for tick instrumentation (nil when HTTP is off).
 func startOpsHTTP(
 	ctx context.Context,
 	cfg *config.Config,
@@ -37,7 +38,13 @@ func startOpsHTTP(
 		return nil
 	}
 	srv := httpserver.New(cfg.MCP.Listen, ready, &httpserver.Counters{})
-	_, _ = fmt.Fprintf(errW, "httpserver: listening on %s (/healthz /readyz /metrics)\n", srv.Addr())
+	deps := &mcp.Deps{Store: st, Config: cfg, Version: Version}
+	if err := mcp.AttachDaemonHTTP(srv, deps, cfg.MCP); err != nil {
+		return nil, err
+	}
+	_, _ = fmt.Fprintf(errW,
+		"httpserver: listening on %s (/healthz /readyz /metrics; MCP %s + %s)\n",
+		srv.Addr(), mcp.PathSSE, mcp.PathMCP)
 	go func() {
 		if err := srv.ListenAndServe(ctx); err != nil {
 			_, _ = fmt.Fprintf(errW, "httpserver: %v\n", err)

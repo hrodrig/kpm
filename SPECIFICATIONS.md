@@ -418,13 +418,26 @@ require the sample daemon, but may share the same store).
 
 Both supported; same tool surface.
 
-### 7.2 Auth (decided)
+### 7.2 Auth and HTTP access control (decided)
 
 | Transport | Auth |
 |-----------|------|
 | stdio | Trust process boundary; **no** extra token |
 | HTTP/SSE | **Bearer token** via `token_env` **required** if listen is non-loopback; on loopback, token **optional but recommended** |
 | mTLS | **Deferred** (not in first MCP cut) |
+
+Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** ops):
+
+| Knob | Default | Role |
+|------|---------|------|
+| `mcp.listen` | `127.0.0.1:9740` | Bind; use `0.0.0.0` only when the operator intentionally exposes the port |
+| `mcp.trusted_proxies` | empty | TCP peers allowed to supply `X-Forwarded-For` / `X-Real-IP` for rate-limit / allowlist identity |
+| `mcp.allowlist_cidrs` | empty (off) | Optional client IP/CIDR allowlist; matching `Authorization: Bearer` bypasses IP check |
+| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables |
+
+Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
+When rate limit or allowlist is active and `trusted_proxies` is empty, the process
+logs a one-shot warning that forwarded client-IP headers are ignored.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
@@ -451,8 +464,16 @@ When the sample daemon runs with `mcp.enabled: true`, the process listens on
 | `GET /readyz` | Readiness (store open; kube/Metrics reachable when sampling) |
 | `GET /metrics` | **Process** Prometheus text (daemon/ops counters) — **not** a re-export of cluster pod metrics |
 
-MCP HTTP/SSE mounts on the **same** mux. JSON REST `/api/*` and charts belong
-to **server** mode (§8 / P5), not MCP.
+MCP HTTP mounts on the **same** mux:
+
+| Path | Transport |
+|------|-----------|
+| `/sse` | MCP SSE (client examples in §7.5) |
+| `/mcp` | MCP streamable HTTP |
+
+Bearer auth (`token_env`) applies to MCP paths only — **not** to ops probes.
+Allowlist and rate limit also skip ops probes (§7.2).
+JSON REST `/api/*` and charts belong to **server** mode (§8 / P5), not MCP.
 
 ### 7.5 Client integration examples (draft — target after `#16`/`#17`)
 

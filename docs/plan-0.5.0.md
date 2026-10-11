@@ -51,16 +51,18 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [x] Tool `list_recommendations` — `store.LatestRecommendations`; optional grain
 - [x] Tool `get_status` — version, store path, sample interval, notify/mcp enabled flags; **no** secrets
 - [x] CLI `kpm mcp` — stdio transport; opens store; no daemon required
-- [ ] Same tool surface as HTTP/SSE (`#17`)
+- [x] Same tool surface as HTTP/SSE (`#17`)
 - [x] Unit tests with temp store fixtures
 
-### `#17` HTTP/SSE + bearer
+### `#17` HTTP/SSE + bearer + access control
 
-- [ ] Mount MCP HTTP/SSE on `#16a` mux when `mcp.enabled`
-- [ ] Bearer via `token_env`: **required** if bind non-loopback; optional but recommended on loopback (SPEC §7.2)
-- [ ] Fail closed: enabled + non-loopback + missing/empty token env → config/start error
-- [ ] Ops routes (`/healthz`, `/readyz`, `/metrics`) stay unauthenticated (kube probes)
-- [ ] Integration tests: unauthorized MCP rejected; authorized tool call OK
+- [x] Mount MCP HTTP/SSE on `#16a` mux when `mcp.enabled` (`/sse` + streamable `/mcp`)
+- [x] gghstats-style access: default loopback listen; `trusted_proxies`;
+  `allowlist_cidrs`; per-IP `rate_limit` (ops exempt)
+- [x] Bearer via `token_env`: **required** if bind non-loopback; optional but recommended on loopback (SPEC §7.2)
+- [x] Fail closed: enabled + non-loopback + missing/empty token env → config/start error
+- [x] Ops routes (`/healthz`, `/readyz`, `/metrics`) stay unauthenticated (kube probes)
+- [x] Integration tests: unauthorized MCP rejected; authorized request not 401
 
 ### Gates / band exit
 
@@ -140,7 +142,7 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 | 1 | docs | This plan + ROADMAP + SPEC §7.3–7.5 draft | [x] |
 | 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [x] |
 | 3 | `#16` | tools + `kpm mcp` stdio | [x] |
-| 4 | `#17` | HTTP/SSE + bearer + tests | [ ] |
+| 4 | `#17` | HTTP/SSE + bearer + tests | [x] |
 | 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [ ] |
 | 6 | cut | `chore/release-0.5.0` → main + tag (later) | [ ] |
 
@@ -152,11 +154,11 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 
 ## Success criteria (band done)
 
-- [ ] `kpm mcp` stdio exposes the four store-only tools
-- [ ] Daemon + `mcp.enabled` serves MCP HTTP/SSE + `/healthz` `/readyz` `/metrics`
-- [ ] Bearer rules per SPEC §7.2; fail-closed off-loopback
-- [ ] Core sample works with mcp disabled / absent
-- [ ] Cover ≥ 80%; gocyclo ≤ 14
+- [x] `kpm mcp` stdio exposes the four store-only tools
+- [x] Daemon + `mcp.enabled` serves MCP HTTP/SSE + `/healthz` `/readyz` `/metrics`
+- [x] Bearer rules per SPEC §7.2; fail-closed off-loopback
+- [x] Core sample works with mcp disabled / absent
+- [ ] Cover ≥ 80%; gocyclo ≤ 14 (on merge)
 - [ ] SPEC §7 normative; merged + release cut `v0.5.0`
 
 ## Out of scope
