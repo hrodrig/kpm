@@ -129,9 +129,13 @@ tui:
 #     period: 1m
 #     burst: 20
 
-# OPTIONAL — embedded HTTP charts (no SPA).
+# OPTIONAL — JSON API (+ later charts). Shares listen with mcp when listen empty.
+# GET /api/v1/status|workloads|series|recommendations|live (read-only).
+# Bearer: server.token_env, or mcp.token_env when shared; required off-loopback
+# (or when auth: true). /api/v1/live → 503 JSON if kube unavailable.
 # server:
-#   enabled: false
-#   listen: "127.0.0.1:9741"
-#   auth: false
-#   # token_env: KPM_SERVER_TOKEN
+#   enabled: true
+#   listen: "127.0.0.1:9740"   # omit → mcp.listen / default loopback
+#   # auth: true              # force bearer even on loopback
+#   token_env: KPM_SERVER_TOKEN
+#   # generate: export KPM_SERVER_TOKEN="$(openssl rand -hex 32)"

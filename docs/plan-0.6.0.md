@@ -101,23 +101,23 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 ### `#19` JSON read API + auth
 
-- [ ] Mount under same mux (default loopback; share `mcp.listen` **or**
+- [x] Mount under same mux (default loopback; share `mcp.listen` **or**
       `server.listen` — decide: **one listen** when both enabled, prefer
       `server.listen` if set else `mcp.listen`)
-- [ ] Prefix `/api/v1/` (read-only)
-- [ ] Endpoints (MVP):
+- [x] Prefix `/api/v1/` (read-only)
+- [x] Endpoints (MVP):
   - `GET /api/v1/status` — version, store path, sample interval, flags; no secrets
   - `GET /api/v1/workloads` — list grains with sample activity in window
   - `GET /api/v1/series` — query: namespace, workload, metric, since, until
     (downsample server-side for large windows)
   - `GET /api/v1/recommendations` — latest rows; optional grain filter
   - `GET /api/v1/live` — optional; 503/empty JSON when kube unavailable
-- [ ] Bearer auth via `server.token_env` (or shared with MCP when both on) —
+- [x] Bearer auth via `server.token_env` (or shared with MCP when both on) —
       required off-loopback; optional on loopback
-- [ ] Reuse gghstats-style access already on mux (trusted_proxies / allowlist /
+- [x] Reuse gghstats-style access already on mux (trusted_proxies / allowlist /
       rate_limit); ops paths stay exempt
-- [ ] Fail closed: auth required + empty env → start error
-- [ ] Tests: httptest unauthorized; series from fixture store; live without kube
+- [x] Fail closed: auth required + empty env → start error
+- [x] Tests: httptest unauthorized; series from fixture store; live without kube
 
 ### `#18` Embedded charts UI
 
@@ -295,7 +295,7 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 |------:|----|-------------|--------|
 | 1 | docs | This plan + ROADMAP + SPEC §8 draft expand | [x] |
 | 2 | `#19a` | Listen / `kpm serve` without sample loop | [x] (this PR) |
-| 3 | `#19` | JSON `/api/v1/*` + auth | [ ] |
+| 3 | `#19` | JSON `/api/v1/*` + auth | [x] (this branch) |
 | 4 | `#18` | Charts UI + drawers + windows | [ ] |
 | 5 | `#18b` | Kustomize/patch export in drawer | [ ] |
 | 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
