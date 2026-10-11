@@ -49,7 +49,16 @@ Export samples as csv or tsv.
 Live pod CPU/memory table (no SQLite).
 .TP
 .B recommend
-Offline rightsizing from SQLite.
+Offline rightsizing from SQLite
+.RB ( \-\-record ,
+.BR \-\-score ).
+.TP
+.B tui
+Interactive live heatmap
+.RB ( \-\-config ,
+.BR \-\-kubeconfig );
+alias
+.BR "capacity \-\-tui" .
 .SH EXAMPLES
 .nf
 make install-kubectl-plugin

@@ -32,7 +32,7 @@ Prometheus + VPA/Goldilocks stacks are heavy for a laptop/bastion workflow.
 **How kpm will solve it:** a single-binary CLI (**client-go**, no `kubectl`
 subprocess) that samples pod CPU/memory into **local SQLite** and surfaces
 **rightsizing recommendations** (rules over historical p95 vs requests/limits),
-plus planned capacity/TUI and optional notify/MCP/server layers — see the SPEC.
+plus capacity/TUI and optional notify/MCP/server layers — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
@@ -98,8 +98,8 @@ Details (bands, defaults, more diagrams):
 | FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
 | VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
 | `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
-| `kpm recommend` (offline) | **In tree** (`0.3.x #9`) |
-| TUI | Planned (`0.3.x #11`) |
+| `kpm tui` / `capacity --tui` | **In tree** (`0.3.x #11`; Δ vs recommend — SPEC §5.3.1) |
+| `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
 | Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 

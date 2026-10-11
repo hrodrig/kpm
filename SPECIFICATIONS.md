@@ -177,8 +177,32 @@ If empty → all pods matching `scope` (same as capacity default).
 - Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
   vs **vs limit**.
 - **vs last recommendation (P2):** when a `#9b` snapshot exists for the grain
-  key, show deviation (e.g. live request − suggested, and/or util vs suggested);
-  otherwise `n/a`. Read-only join — TUI does not write the store.
+  key, show deviation (**live request − last recorded suggested request**);
+  otherwise `n/a`. Read-only join — TUI does not write the store. Populate
+  snapshots with `kpm recommend --record` first.
+- **Δ is not “drift vs cluster policy / Git / Helm defaults”.** It compares
+  today’s live allocation to the **last `recommend --record` snapshot only**.
+  The bar percent is a separate signal (live util ÷ live request|limit).
+
+#### 5.3.1 Worked example (anonymized)
+
+Header mode: `cpu/request`, `delta=on`. One row:
+
+```text
+> app/db-0   ████████████░░  113%   Δcpu -60m   Δmem +3Mi
+```
+
+| Field | Meaning |
+|-------|---------|
+| `113%` | Live CPU **util ÷ live request** ≈ 1.13 — bar red (≥ 90% band). How hot the pod is **right now** vs what the cluster currently grants. **Not** Δ. |
+| `Δcpu -60m` | `live_cpu_request − last_suggested_cpu` = −60 millicores. Distance from the **last recorded recommendation**, not from some other infra baseline. Advice asked for **more** CPU request than live request. |
+| `Δmem +3Mi` | Live mem request ~3 MiB **above** last suggested mem — nearly aligned with that snapshot. |
+
+**Do not confuse:** a high `%` can coexist with a negative Δ (hot vs current request, yet still below last advice) or the reverse. Infra “desired” manifests / GitOps source of truth are out of scope for Δ.
+
+**Operator takeaway:** pressure is on CPU util vs request; vs last recommend the CPU request is still **short** (−60m). Typical follow-up is a GitOps PR to raise CPU request toward the suggestion (kpm never applies). Memory can stay as-is.
+
+Without a prior `--record` (or no matching grain key) both Δ columns show `n/a`.
 
 ### 5.4 Sorting
 
@@ -389,12 +413,12 @@ tui:
 | `export` | Core | **Normative** | No | Yes |
 | `recommend` | Adjacent | Draft | No | Yes |
 | `capacity` | Adjacent | Draft | Yes | No |
-| `tui` / `capacity --tui` | Adjacent | Draft | Yes | No* |
+| `tui` / `capacity --tui` | Adjacent | Draft | Yes | Read* |
 | `mcp` | Optional | Draft | No** | Read |
 | `notify-test` | Optional | Draft | No | No |
 | daemon `sample` loop | Core | **Normative** (sample-only; facades draft) | Yes | Write |
 
-\*TUI may optionally show history snippets from store later; v1 is live.  
+\*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
 \*\*MCP read tools use store; cluster tools optional and read-only.
 
 ---
@@ -491,14 +515,15 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
 | SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
-### 15.8 Recommendation outcomes (planned — `#9b`, **P2 required**)
+### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 
 | Topic | Decision |
 |-------|----------|
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
-| Persist | `recommendations` rows on recommend / `--record` |
-| TUI | `#11` shows delta vs latest snapshot (`n/a` if none) — **must ship in P2** |
-| Score | Later samples vs suggested; calibration vs applied modes |
+| Schema | SQLite schema v2: `recommendations` table + indexes |
+| Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
+| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A) |
+| TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
 | Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
 
 ### 15.9 Recommend apply vs GitOps export (decided 2026-10-11)

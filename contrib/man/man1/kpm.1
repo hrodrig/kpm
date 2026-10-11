@@ -70,11 +70,40 @@ Offline rightsizing from SQLite history (no cluster).
 .RB ( \-\-config ,
 .BR \-\-format ,
 .BR \-\-namespace ,
-.BR \-\-workload ).
+.BR \-\-workload ,
+.BR \-\-record ,
+.BR \-\-score ).
 Dual grain (workload and pod); exit
 .B 3
 when no key meets
 .BR min_samples .
+.B \-\-record
+persists advice into the
+.B recommendations
+table (schema v2).
+.B \-\-score
+calibrates latest snapshots against later samples (mutually exclusive with
+.BR \-\-record ).
+.TP
+.B tui
+Interactive live heatmap of pod util ratios (Metrics API).
+.RB ( \-\-config ,
+.BR \-\-kubeconfig ).
+Keys: j/k move, s sort, m cpu/mem, b request/limit, d delta column, q quit.
+Delta joins read-only
+.B recommendations
+snapshots when the store file exists; otherwise
+.BR n/a .
+Delta columns compare live requests to the
+.B last recommend \-\-record
+snapshot only (not to Git/Helm desired settings).
+Example:
+.B "113% Δcpu -60m Δmem +3Mi"
+— hot util vs
+.B current
+request; CPU request 60m below last advice (see SPECIFICATIONS.md §5.3.1).
+Alias:
+.BR "capacity \-\-tui" .
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

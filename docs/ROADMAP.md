@@ -85,9 +85,9 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 |----|------|--------|
 | `#8` | Shared read model (live snapshot helpers) | **In tree** (`internal/live`) |
 | `#9` | `kpm recommend` (dual grain, p/0.70, offline) | **In tree** (`kpm recommend`) |
-| `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | Planned |
+| `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | **In tree** (`--record` / `--score`) |
 | `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
-| `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | Planned |
+| `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | **In tree** (`kpm tui`) |
 
 **Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md).
 
