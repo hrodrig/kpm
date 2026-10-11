@@ -124,7 +124,11 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 - Grains: workload+container **and** pod+container (default both).
 - Verdicts vs request **and** limit; CPU/memory ratios **separate**.
 - `suggested_request = round_up(p / target_utilization)` (default **0.70**).
-- Offline; no auto-apply.
+- Offline; **no auto-apply** to the cluster (read-only). Pipelines / GitOps
+  (ADO, Jenkins, GitHub Actions, Helm, Argo, etc.) would overwrite live patches.
+- Preferred path: emit **export artifacts** (table/tsv first; later strategic-merge /
+  JSON patch / **Kustomize** overlay) for a PR into the release repo — operator or
+  CI applies, not `kpm`.
 
 ---
 
@@ -301,6 +305,15 @@ core sampling.
 - Server JSON endpoints may power charts; TUI talks to cluster (and optionally
   store) directly — no hard dependency on server process.
 
+### 8.3 Recommend export in UI (planned)
+
+- Server **must not** apply resource patches to Deployments/StatefulSets/etc.
+- When recommend data is shown, UI exposes **copy/download** of suggested changes
+  as **Kustomize patch/diff** (and/or strategic-merge / JSON patch) per workload
+  (and optionally bulk). Operator pastes into Git / opens a PR — GitOps remains
+  source of truth.
+- Reuses the same formatters as CLI recommend export when those land.
+
 ---
 
 ## 9. Configuration (draft)
@@ -470,11 +483,30 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
 | SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
+### 15.8 Recommendation outcomes (planned — `#9b`)
+
+| Topic | Decision |
+|-------|----------|
+| Scope | Follow-on after `#9` MVP; not Core / not 0.2.0 |
+| Persist | Optional `recommendations` rows when recommend runs / `--record` |
+| Score | Later samples vs suggested request; calibration vs applied modes |
+| Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) Follow-on; ROADMAP `#9b` |
+
+### 15.9 Recommend apply vs GitOps export (decided 2026-10-11)
+
+| Topic | Decision |
+|-------|----------|
+| Cluster apply | **Rejected** for kpm (read-only; CI/GitOps would overwrite) |
+| CLI path | Export artifacts for PR (tsv → later patch / Kustomize overlay) |
+| Server (`0.6.x`) | Show **Kustomize patch/diff** (copy/download) per workload / bulk; no apply |
+| Apply-all / apply-one | Out of product binary for v1; possible future separate tool only |
+
 ---
 
 ## Related docs
 
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
+  · [docs/plan-0.3.0.md](docs/plan-0.3.0.md)
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)
