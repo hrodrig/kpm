@@ -39,10 +39,13 @@ internal/cli/      — recommend, capacity, tui commands
 |------:|----|-------------|---------|
 | 1 | `#8` | `internal/live`: list pods+metrics under `scope` (+ optional `tui.pods` / labels); row type with util/request/limit ratios; unit tests with fake clientsets | Core `#2` helpers |
 | 2 | `#10` | `kpm capacity` — one-shot text/table to stdout (kube-capacity-like columns); `--config`; exit `2` on API fail | `#8` |
-| 3 | `#9` | `internal/recommend` + `kpm recommend` — window/percentile/`min_samples`; dual grain (workload+container **and** pod+container); CPU/mem separate; vs request **and** limit; `suggested_request = round_up(p / target_utilization)`; table/tsv out; exit `3` if empty | store schema |
-| 4 | `#11` | `kpm tui` (+ `capacity --tui`) — keyboard-first list, heatmap bars, sort keys, refresh; [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) + [lipgloss](https://github.com/charmbracelet/lipgloss) | `#8` |
+| 3 | `#9` | `internal/recommend` + `kpm recommend` — window/percentile/`min_samples`; dual grain; table/tsv; exit `3` if empty | store schema |
+| 4 | `#9b` | Persist last recommend snapshots (`recommendations` table / `--record`); offline score helper; **required for P2** | `#9` |
+| 5 | `#11` | `kpm tui` (+ `capacity --tui`) — heatmap + **delta vs last recommendation** (from `#9b`); bubbletea + lipgloss | `#8`, `#9b` |
 
-**Suggested PR splits:** `#8`+`#10` together (live surface); `#9` solo (math-heavy); `#11` solo (UI deps + cover care).
+**Suggested PR splits:** `#8`+`#10` together; `#9` solo; `#9b` solo (or with `#11` if small); `#11` solo (UI deps).
+
+**P2 band exit (locked):** `#8`–`#11` **and** `#9b` — TUI ships with deviation column (or `n/a` when no prior recommend).
 
 [↑ Back to top](#top)
 
@@ -122,13 +125,14 @@ Flags: `--config`, `--kubeconfig`, maybe `--sort` mirroring tui keys.
 | Entry | `kpm tui`; alias `kpm capacity --tui` |
 | Row | One per pod; bars for selected metric ratio |
 | Colors | green &lt;70%, yellow 70–90%, red ≥90% of baseline |
-| Keys | sort cycle / cpu↔mem / request↔limit / quit |
+| Keys | sort cycle / cpu↔mem / request↔limit / quit; toggle **delta vs last recommend** |
 | Refresh | `tui.refresh_seconds` (default 5); no store write |
 | Missing metrics | show allocation; util `n/a` |
+| **vs last recommend (P2)** | Join live grain key → latest `#9b` snapshot; show Δ request (live − suggested) and/or util vs suggested; **`n/a`** if no snapshot |
 
 Non-goals: cluster edit, mouse-only, full node dashboard (SPEC §5.6).
 
-**Coverage:** extract pure sort/filter/bar math for unit tests; UI smoke optional.
+**Coverage:** extract pure sort/filter/bar + delta math for unit tests; UI smoke optional.
 
 [↑ Back to top](#top)
 
@@ -142,21 +146,21 @@ Non-goals: cluster edit, mouse-only, full node dashboard (SPEC §5.6).
 4. **No cluster apply** of recommendations (read-only). Emit exports for GitOps PR.
    Server later (`0.6.x` `#18b`, SPEC §8.3 / §15.9): show **Kustomize patch/diff**
    (copy/download) per workload / bulk — not `kubectl patch` from kpm.
+5. **`#9b` + TUI delta are in P2** (band exit) — not deferred past 0.3.x Insights.
 
-## Follow-on idea — recommendation outcomes (not blocking P2 MVP)
+## `#9b` Recommendation outcomes + TUI delta (**P2 required**)
 
-**Problem:** after `kpm recommend` emits suggested CPU/mem, operators want to know later whether those suggestions were *good* given future samples.
-
-**Proposal (sketch for SPEC / `#9b` after `#9` ships):**
+**Problem:** after `kpm recommend` emits suggested CPU/mem, operators want live
+deviation vs that advice (TUI) and later offline scoring.
 
 | Piece | Behavior |
 |-------|----------|
-| Persist | On each `recommend` run (or `--record`), write rows to e.g. `recommendations` table: `recorded_at`, grain key, suggested request/limit CPU+mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`, optional run id |
-| Evaluate | Later command or `recommend --score`: for each recorded suggestion, take samples **after** `recorded_at` in a holdout window; compare subsequent util percentile (or util vs *suggested* request) to `target_utilization` |
-| Score | e.g. “hit” if later util/suggested ∈ [target±band]; “miss-high” / “miss-low”; % hits over N recommendations |
-| Caveat | We do **not** know if the operator *applied* the patch. Two modes: (A) **calibration** — was the suggestion consistent with future util assuming they apply it; (B) **applied** — detect request fields in later samples ≈ suggested (±tol) then score util vs target |
+| Persist | On each `recommend` run (or `--record`), write `recommendations` rows: `recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name` |
+| TUI delta | `#11` joins live row → latest snapshot; show Δ vs suggested (`n/a` if none) — **must ship in P2** |
+| Score | `recommend --score` (or similar): holdout samples after `recorded_at`; hit/miss vs `target_utilization` |
+| Caveat | Modes: (A) calibration assuming apply; (B) applied if live request ≈ suggested (±tol) |
 
-Keep Core sample path unaware. Optional table + offline scorer only. Slot after `#9` MVP, before or with `#11` — not in 0.2.0 ship.
+Core sample path stays unaware. `#9b` after `#9`, before or with `#11`.
 
 [↑ Back to top](#top)
 
@@ -166,8 +170,9 @@ Keep Core sample path unaware. Optional table + offline scorer only. Slot after 
 
 - [x] `kpm recommend --config …` offline table from store; exit `3` when insufficient
 - [x] `kpm capacity` live table; exit `2` on API/RBAC fail
-- [ ] `kpm tui` / `capacity --tui` keyboard heatmap; no store writes
-- [x] Shared `internal/live` used by capacity (+ tui later)
+- [ ] `#9b` persist last recommend + score path; feed TUI delta
+- [ ] `kpm tui` / `capacity --tui` heatmap **with** delta vs last recommend (`n/a` ok); no store writes
+- [x] Shared `internal/live` used by capacity (+ tui)
 - [ ] SPEC §3–5 → Normative (draft bump); man + sample YAML; VHS re-record if help changes
 - [ ] `make lint` + `make cover-check` ≥ 80%
 
@@ -177,5 +182,6 @@ Keep Core sample path unaware. Optional table + offline scorer only. Slot after 
   GitOps export + server Kustomize view instead — SPEC §15.9)
 - Notify / MCP / server (`0.4`–`0.6`) — server recommend export is `#18b` in that band
 - Node-capacity dashboard
+- Shipping P2 **without** `#9b` / TUI delta (**rejected** — both required for band exit)
 
 [↑ Back to top](#top)

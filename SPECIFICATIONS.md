@@ -176,6 +176,9 @@ If empty → all pods matching `scope` (same as capacity default).
   (aligned with `target_utilization` / notify thresholds where sensible).
 - Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
   vs **vs limit**.
+- **vs last recommendation (P2):** when a `#9b` snapshot exists for the grain
+  key, show deviation (e.g. live request − suggested, and/or util vs suggested);
+  otherwise `n/a`. Read-only join — TUI does not write the store.
 
 ### 5.4 Sorting
 
@@ -488,14 +491,15 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
 | SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
-### 15.8 Recommendation outcomes (planned — `#9b`)
+### 15.8 Recommendation outcomes (planned — `#9b`, **P2 required**)
 
 | Topic | Decision |
 |-------|----------|
-| Scope | Follow-on after `#9` MVP; not Core / not 0.2.0 |
-| Persist | Optional `recommendations` rows when recommend runs / `--record` |
-| Score | Later samples vs suggested request; calibration vs applied modes |
-| Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) Follow-on; ROADMAP `#9b` |
+| Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
+| Persist | `recommendations` rows on recommend / `--record` |
+| TUI | `#11` shows delta vs latest snapshot (`n/a` if none) — **must ship in P2** |
+| Score | Later samples vs suggested; calibration vs applied modes |
+| Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
 
 ### 15.9 Recommend apply vs GitOps export (decided 2026-10-11)
 
