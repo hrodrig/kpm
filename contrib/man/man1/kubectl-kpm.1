@@ -44,11 +44,15 @@ Safe SQLite copy via
 .TP
 .B export
 Export samples as csv or tsv.
+.TP
+.B capacity
+Live pod CPU/memory table (no SQLite).
 .SH EXAMPLES
 .nf
 make install-kubectl-plugin
 kubectl kpm version
 kubectl kpm sample --config ./kpm.yaml
+kubectl kpm capacity --config ./kpm.yaml
 .fi
 .SH SEE ALSO
 .BR kpm (1)

@@ -57,6 +57,13 @@ or
 .BR \-\-namespace ,
 .BR \-\-pod ,
 .BR \-\-workload ).
+.TP
+.B capacity
+Live pod CPU/memory table from the Metrics API (no SQLite).
+.RB ( \-\-config ,
+.BR \-\-kubeconfig ,
+.BR \-\-sort ).
+Default grain: one row per pod (sum util / sum request).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

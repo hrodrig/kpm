@@ -97,7 +97,8 @@ Details (bands, defaults, more diagrams):
 | `kubectl kpm` plugin shim | **Done** (`make install-kubectl-plugin` / release binary) |
 | FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
 | VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
-| Recommend / capacity / TUI | Planned (`0.3.x`) |
+| `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
+| Recommend / TUI | Planned (`0.3.x`) |
 | Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 

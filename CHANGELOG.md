@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [docs/plan-0.3.0.md](docs/plan-0.3.0.md) — Insights band plan (`#8`–`#11`, `#9b`).
 - ROADMAP `#9b` (recommendation outcomes) and `#18b` (server Kustomize patch/diff UI).
+- Shared live read model `internal/live` (Pod+Metrics → container/pod rows) `(0.3.x #8)`.
+- `kpm capacity` — one-shot live pod capacity table (no SQLite); `--sort`; exit `2`
+  on API fail `(0.3.x #10)`.
 
 ### Changed
 
 - SPEC: recommend stays read-only (no cluster apply); §8.3 + §15.8/`#9b` + §15.9
   GitOps export / server Kustomize copy-download (no live patch).
+- SPEC §4 capacity: pod-sum grain, `n/a` util, shared `internal/live`.
 
 ## [0.2.0] - 2026-10-11
 
