@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pods, horizontal heatmap bars, sort by name/util/allocation/ratio. Phasing:
   TUI in P2 with capacity.
 - `configs/kpm.sample.yml`: `tui` block + notify field comments for v0.3.
+- README aligned with the hrodrig CLI family header (badges, nav line, early-dev
+  disclaimer, Related tools with gghstats/selfhosted links, OSS hero image).
+- `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
 
 ## [0.1.0] - 2026-10-10
