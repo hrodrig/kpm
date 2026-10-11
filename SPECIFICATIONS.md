@@ -134,8 +134,13 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ## 4. ADJACENT — capacity (non-interactive)
 
-- `kpm capacity` — one-shot table (kube-capacity-like).
-- Shares query helpers with TUI/server; does not require SQLite.
+- `kpm capacity` — one-shot **live** table (kube-capacity-like); **no SQLite**.
+- Shared read model: `internal/live` (also for TUI/server).
+- Default grain: **one row per pod** — sum util / sum request / sum limit.
+- Pods without Metrics: still listed; util and ratios shown as `n/a`.
+- Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
+- Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
+- Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
 
 ---
 

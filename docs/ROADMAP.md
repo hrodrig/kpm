@@ -19,8 +19,8 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x Core** | P1 `#1`–`#7` **done in-tree** — version cut next | [plan-0.2.0.md](./plan-0.2.0.md) |
-| **Next** | **0.3.x Insights** (`#8`–`#11`, `#9b` after `#9`) | [plan-0.3.0.md](./plan-0.3.0.md) |
+| **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
+| **Next** | **0.3.x Insights** — live+capacity in flight; then recommend/tui | [plan-0.3.0.md](./plan-0.3.0.md) |
 
 ---
 
@@ -83,10 +83,10 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 
 | ID | Item | Status |
 |----|------|--------|
-| `#8` | Shared read model (live snapshot helpers) | Planned |
+| `#8` | Shared read model (live snapshot helpers) | **In tree** (`internal/live`) |
 | `#9` | `kpm recommend` (dual grain, p/0.70, offline) | Planned |
 | `#9b` | Recommendation outcomes / calibration scoring (after `#9`) | Planned |
-| `#10` | `kpm capacity` table | Planned |
+| `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |
 
 **Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md) (`#9b` sketch under Follow-on).

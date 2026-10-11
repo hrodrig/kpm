@@ -165,9 +165,9 @@ Keep Core sample path unaware. Optional table + offline scorer only. Slot after 
 ## Success criteria (band done)
 
 - [ ] `kpm recommend --config …` offline table from store; exit `3` when insufficient
-- [ ] `kpm capacity` live table; exit `2` on API/RBAC fail
+- [x] `kpm capacity` live table; exit `2` on API/RBAC fail
 - [ ] `kpm tui` / `capacity --tui` keyboard heatmap; no store writes
-- [ ] Shared `internal/live` used by capacity + tui
+- [x] Shared `internal/live` used by capacity (+ tui later)
 - [ ] SPEC §3–5 → Normative (draft bump); man + sample YAML; VHS re-record if help changes
 - [ ] `make lint` + `make cover-check` ≥ 80%
 
