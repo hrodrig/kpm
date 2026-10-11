@@ -73,6 +73,9 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#5` | `kpm backup` (SQLite `VACUUM INTO`) | **Done** (in tree) |
 | `#6` | `kpm export` csv/tsv + filters | **Done** (in tree) |
 | `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | **Done** (exit `2` wired) |
+| `#24` | FreeBSD + OpenBSD port skeletons + `make port-*-sync` / `dist-*` | **Done** (in tree) |
+| `#25` | VHS `docs/demo.tape` + `docs/demo.gif` (offline Core CLI demo) | **Done** (in tree) |
+| `#26` | Document `kubectl kpm` plugin (`install-kubectl-plugin`, man, README) | **Done** (in tree) |
 
 **Success:** fixtures or kind+metrics-server path; SPEC §2 normative; cover ≥ 80%.
 
@@ -85,7 +88,7 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#10` | `kpm capacity` table | Planned |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |
 
-**Success:** SPEC §3–5 normative; VHS/demo when UX lands.
+**Success:** SPEC §3–5 normative; re-record VHS if CLI help strings change.
 
 ### 0.4.x — Notifications (P3)
 

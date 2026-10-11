@@ -26,11 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(0.2.x #6)`.
 - Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7)`.
 
+### Added
+
+- FreeBSD / OpenBSD port skeletons under `contrib/freebsd/` and
+  `contrib/openbsd/`; `make port-freebsd-sync`, `port-openbsd-sync`,
+  `dist-freebsd`, `dist-openbsd` `(0.2.x #24)`.
+- VHS terminal demo [`docs/demo.tape`](docs/demo.tape) →
+  [`docs/demo.gif`](docs/demo.gif) `(0.2.x #25)`.
+- README + man docs for `kubectl kpm` (`make install-kubectl-plugin`)
+  `(0.2.x #26)`.
+
 ### Changed
 
 - [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.4**: §1, §2 (Core), §9.2.1
   (`client.id`), and exit codes `0`/`1`/`2` marked **normative**; adjacent and
   optional layers remain draft. Backup documented as `VACUUM INTO`.
+- `contrib/man/man1/kubectl-kpm.1`: document `sample` / `backup` / `export`.
 
 ## [0.1.0] - 2026-10-11
 

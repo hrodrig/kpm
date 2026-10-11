@@ -68,11 +68,19 @@ internal/cli/      — sample, backup, export commands
 
 ---
 
+## Packaging / docs (same band)
+
+| ID | Item | Status |
+|----|------|--------|
+| `#24` | FreeBSD + OpenBSD port skeletons | **Done** |
+| `#25` | VHS demo tape + gif | **Done** |
+| `#26` | `kubectl kpm` plugin docs | **Done** |
+
 ## Out of scope (later bands)
 
 - recommend / capacity / tui (`0.3.x`)
 - notifications / MCP / server (`0.4`–`0.6`)
 - kind e2e workflow (nice-to-have; fixtures acceptable for 0.2)
-- Homebrew (`#23` in 0.7)
+- Homebrew / Krew (`#23` in 0.7)
 
 [↑ Back to top](#top)

@@ -94,9 +94,12 @@ Details (bands, defaults, more diagrams):
 | Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
 | Core: sample → SQLite, backup, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
+| `kubectl kpm` plugin shim | **Done** (`make install-kubectl-plugin` / release binary) |
+| FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
+| VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
 | Recommend / capacity / TUI | Planned (`0.3.x`) |
 | Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
-| `kpm-selfhosted` | Deferred (post-1.0 packaging) |
+| Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)
 
@@ -120,6 +123,18 @@ make build
 ./bin/kpm --help
 ```
 
+### kubectl plugin
+
+Same binary under the `kubectl-` prefix → `kubectl kpm …`:
+
+```bash
+make install-kubectl-plugin   # installs kubectl-kpm to $(BINDIR), default /usr/local/bin
+kubectl kpm version
+kubectl kpm sample --config ./kpm.yml
+```
+
+GoReleaser ships both `kpm` and `kubectl-kpm`. Krew index deferred.
+
 [↑ Back to top](#top)
 
 ---
@@ -131,6 +146,10 @@ make lint
 make test
 make cover-check
 ```
+
+BSD port skeletons: `contrib/freebsd/`, `contrib/openbsd/` — sync with
+`make port-freebsd-sync` / `make port-openbsd-sync`.  
+Terminal demo: `docs/demo.tape` → `docs/demo.gif` (re-record with VHS on VERSION bump).
 
 Before a release tag: **`make release-check`**.
 

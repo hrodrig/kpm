@@ -69,10 +69,23 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - Local GSD / SDD / AID / GSM: use `.planning/` (gitignored) when the operator
   starts that pass — do not invent product behavior only in README.
 
+## Version bump (on `develop`, before merge/tag)
+
+| # | Artifact | Action |
+|---|----------|--------|
+| 1 | **`VERSION`** | New semver without `v` |
+| 2 | **`README.md`** | Static Version badge; Status table if needed |
+| 3 | **`CHANGELOG.md`** | Move `[Unreleased]` → `[X.Y.Z]` |
+| 4 | **`contrib/man/man1/*.1`** | `.TH` date + `kpm v<VERSION>` on **both** pages |
+| 5 | **BSD ports** | `make port-freebsd-sync` + `make port-openbsd-sync` |
+| 6 | **VHS** | Re-record `docs/demo.gif` from `docs/demo.tape` when help/version strings change |
+| 7 | **Gate** | `make release-check` — only when asked |
+| 8 | **Ship** | PR `develop` → `main`, tag — only with explicit operator OK |
+
 ## Deferrals (do not invent in code yet)
 
 - Full recommend engine, capacity, TUI (roadmap `0.3.x`)
 - Notifications / MCP / server (`0.4`–`0.6`)
 - Homebrew tap (`homebrew-kpm`)
-- FreeBSD/OpenBSD port skeletons
+- Official FreeBSD/OpenBSD ports submission (skeletons live under `contrib/`)
 - `kpm-selfhosted`
