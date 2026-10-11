@@ -8,12 +8,16 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - **What it is:** Go CLI whose **core** samples control-plane pod metrics into
   **SQLite** (plus backup/export). Adjacent: recommend, `capacity`, interactive
   **TUI** (heatmap pod list). Optional: notifications (webhook), read-only
-  **MCP**, HTTP **server** charts. **Scaffold only** at `VERSION` 0.1.0.
-- **Entrypoint:** `cmd/kpm/main.go`. Packages today: `internal/cli` (Cobra),
+  **MCP**, HTTP **server** charts. Core sample→SQLite shipped at `VERSION`
+  0.2.0; adjacent recommend/capacity/TUI still planned.
+- **Entrypoint:** `cmd/kpm/main.go`. Packages: `internal/cli` (Cobra),
+  `internal/config`, `internal/identity` (`client.id` cascade),
+  `internal/cluster`, `internal/store`, `internal/sample`,
   `internal/exitcode`, `configs` (embedded sample YAML).
-- **Config contract:** [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.3**.
-  Example profile: `configs/kpm.sample.yml`.
-- **Kubernetes client:** planned **`client-go`** (no `kubectl` subprocess).
+- **Config contract:** [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.4**
+  (Core normative). Path to v1: [docs/ROADMAP.md](docs/ROADMAP.md). Example:
+  `configs/kpm.sample.yml`.
+- **Kubernetes client:** **`client-go`** + Metrics API (no `kubectl` subprocess).
 
 ## Scope (product vs operator)
 
@@ -60,14 +64,29 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 ## Planning docs
 
 - User-facing: **README.md**
-- Behavior contract: **SPECIFICATIONS.md** (stub until SDD)
+- Behavior contract: **SPECIFICATIONS.md** (draft until bands promote sections)
+- Roadmap / band plans: **docs/ROADMAP.md**, **docs/plan-0.2.0.md**
 - Shipped history: **CHANGELOG.md**
 - Local GSD / SDD / AID / GSM: use `.planning/` (gitignored) when the operator
   starts that pass — do not invent product behavior only in README.
 
+## Version bump (on `develop`, before merge/tag)
+
+| # | Artifact | Action |
+|---|----------|--------|
+| 1 | **`VERSION`** | New semver without `v` |
+| 2 | **`README.md`** | Static Version badge; Status table if needed |
+| 3 | **`CHANGELOG.md`** | Move `[Unreleased]` → `[X.Y.Z]` |
+| 4 | **`contrib/man/man1/*.1`** | `.TH` date + `kpm v<VERSION>` on **both** pages |
+| 5 | **BSD ports** | `make port-freebsd-sync` + `make port-openbsd-sync` |
+| 6 | **VHS** | Re-record `docs/demo.gif` from `docs/demo.tape` when help/version strings change |
+| 7 | **Gate** | `make release-check` — only when asked |
+| 8 | **Ship** | PR `develop` → `main`, tag — only with explicit operator OK |
+
 ## Deferrals (do not invent in code yet)
 
-- Full recommend engine, SQLite schema, Metrics API sampler
+- Full recommend engine, capacity, TUI (roadmap `0.3.x`)
+- Notifications / MCP / server (`0.4`–`0.6`)
 - Homebrew tap (`homebrew-kpm`)
-- FreeBSD/OpenBSD port skeletons
+- Official FreeBSD/OpenBSD ports submission (skeletons live under `contrib/`)
 - `kpm-selfhosted`

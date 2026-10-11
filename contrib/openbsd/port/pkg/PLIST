@@ -1,0 +1,6 @@
+bin/kpm
+bin/kubectl-kpm
+man/man1/kpm.1
+man/man1/kubectl-kpm.1
+share/doc/kpm/LICENSE
+share/examples/kpm/kpm.sample.yml

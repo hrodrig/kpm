@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -13,18 +13,17 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
 > **Early development (pre-1.0).** kpm is under active development.
-> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.3**; config schema, CLI
-> surface, SQLite layout, and recommend semantics may change without a
-> stability guarantee until **v1.0.0**. The binary today ships only `version`
-> and `--print-sample-config`. **Do not** treat this as a production
-> rightsizing gate before then. **Use at your own risk.** The software is
-> provided under the [MIT License](./LICENSE) **“AS IS”**, without warranty of
-> any kind (see [LICENSE](./LICENSE)).
+> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core (`sample` /
+> `backup` / `export` / daemon sample-only) is **normative in-tree**; recommend /
+> TUI / notify / MCP / server remain draft until **v1.0.0**. **Do not** treat
+> this as a production rightsizing gate before then. **Use at your own risk.**
+> The software is provided under the [MIT License](./LICENSE) **“AS IS”**,
+> without warranty of any kind (see [LICENSE](./LICENSE)).
 
 **The problem:** Cluster CPU/memory **requests** often dwarf real utilization
 (oversizing). Snapshots (`kubectl top`, kube-capacity) lack history. Full
@@ -57,6 +56,7 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 - [Early development disclaimer](#early-development-disclaimer)
 - [How it works](#how-it-works)
 - [Status](#status)
+- [Roadmap](#roadmap)
 - [Quick start](#quick-start)
 - [Development](#development)
 - [License](#license)
@@ -80,7 +80,8 @@ flowchart LR
 
 Details (bands, defaults, more diagrams):  
 **[docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)** ·  
-**[SPECIFICATIONS.md](SPECIFICATIONS.md)**
+**[SPECIFICATIONS.md](SPECIFICATIONS.md)** ·  
+**[docs/ROADMAP.md](docs/ROADMAP.md)**
 
 [↑ Back to top](#top)
 
@@ -90,12 +91,24 @@ Details (bands, defaults, more diagrams):
 
 | Area | State |
 |------|--------|
-| Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (scaffold) |
+| Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
-| Core: sample → SQLite, backup, export | Pending (SPEC draft v0.3) |
-| Recommend / capacity / TUI | Pending |
-| Notifications / MCP / server charts | Pending (optional layers) |
-| `kpm-selfhosted` | Deferred |
+| Core: sample → SQLite, backup, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
+| `kubectl kpm` plugin shim | **Done** (`make install-kubectl-plugin` / release binary) |
+| FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
+| VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
+| Recommend / capacity / TUI | Planned (`0.3.x`) |
+| Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
+| Homebrew / Krew / `kpm-selfhosted` | Deferred |
+
+[↑ Back to top](#top)
+
+---
+
+## Roadmap
+
+Path to **v1.0.0** (full SPEC stack): **[docs/ROADMAP.md](docs/ROADMAP.md)**.  
+Core band plan: **[docs/plan-0.2.0.md](docs/plan-0.2.0.md)**.
 
 [↑ Back to top](#top)
 
@@ -110,6 +123,18 @@ make build
 ./bin/kpm --help
 ```
 
+### kubectl plugin
+
+Same binary under the `kubectl-` prefix → `kubectl kpm …`:
+
+```bash
+make install-kubectl-plugin   # installs kubectl-kpm to $(BINDIR), default /usr/local/bin
+kubectl kpm version
+kubectl kpm sample --config ./kpm.yml
+```
+
+GoReleaser ships both `kpm` and `kubectl-kpm`. Krew index deferred.
+
 [↑ Back to top](#top)
 
 ---
@@ -121,6 +146,10 @@ make lint
 make test
 make cover-check
 ```
+
+BSD port skeletons: `contrib/freebsd/`, `contrib/openbsd/` — sync with
+`make port-freebsd-sync` / `make port-openbsd-sync`.  
+Terminal demo: `docs/demo.tape` → `docs/demo.gif` (re-record with VHS on VERSION bump).
 
 Before a release tag: **`make release-check`**.
 

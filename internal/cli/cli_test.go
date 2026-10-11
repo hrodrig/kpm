@@ -55,6 +55,17 @@ func TestExecuteContextBareIsHelp(t *testing.T) {
 	}
 }
 
+func TestExecuteCallsExecuteContext(t *testing.T) {
+	printSampleConfig = false
+	old := os.Args
+	t.Cleanup(func() { os.Args = old })
+	os.Args = []string{"kpm", "version"}
+	Version = "v0.0.0-test"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestExecuteContextPrintSampleFiltersSentinel(t *testing.T) {
 	printSampleConfig = false
 	old := os.Args

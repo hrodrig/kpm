@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
+### Added
+
+- [docs/ROADMAP.md](docs/ROADMAP.md) — path to v1.0.0 (full SPEC stack); bands
+  `0.2.x`–`1.0.0` and global work IDs `#1`–`#23`.
+- [docs/plan-0.2.0.md](docs/plan-0.2.0.md) — Core band merge order and success
+  criteria (`#1`–`#7`).
+- Config load + validation (`internal/config`, `--config`, Viper) `(0.2.x #1)`.
+- `client.id` identity cascade (`KPM_CLIENT_ID` → YAML → hostname → IPv4 → MAC →
+  `unknown`); persisted on sample rows with `cluster.name` (kwd/pgwd pattern).
+- `kpm sample` one-shot: client-go + Metrics API → SQLite
+  (`internal/cluster`, `internal/store`, `internal/sample`) `(0.2.x #2)`.
+- Schema + retention prune + indexes `(0.2.x #3)`.
+- Daemon sample loop when `interval_seconds > 0` (SIGINT/SIGTERM clean)
+  `(0.2.x #4)`.
+- `kpm backup` via SQLite `VACUUM INTO` `(0.2.x #5)`.
+- `kpm export` csv/tsv with since/until/namespace/pod/workload filters
+  `(0.2.x #6)`.
+- Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7)`.
+- FreeBSD / OpenBSD port skeletons under `contrib/freebsd/` and
+  `contrib/openbsd/`; `make port-freebsd-sync`, `port-openbsd-sync`,
+  `dist-freebsd`, `dist-openbsd` `(0.2.x #24)`.
+- VHS terminal demo [`docs/demo.tape`](docs/demo.tape) →
+  [`docs/demo.gif`](docs/demo.gif) `(0.2.x #25)`.
+- README + man docs for `kubectl kpm` (`make install-kubectl-plugin`)
+  `(0.2.x #26)`.
+
+### Changed
+
+- [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.4**: §1, §2 (Core), §9.2.1
+  (`client.id`), and exit codes `0`/`1`/`2` marked **normative**; adjacent and
+  optional layers remain draft. Backup documented as `VACUUM INTO`.
+- `contrib/man/man1/kubectl-kpm.1`: document `sample` / `backup` / `export`.
+
 ## [0.1.0] - 2026-10-11
 
 ### Added
@@ -20,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sample→SQLite, recommend, capacity/TUI, optional notify/MCP/server (not yet
   implemented in the binary).
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md) —
-  measurement + rights strategy (Mermaid); OSS hero `docs/kpm-hero-oss.jpg`.
+  measurement + dimension strategy (Mermaid); OSS hero `docs/kpm-hero-oss.jpg`.
 
 ### Changed
 
@@ -32,3 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   > 45 days** recommended.
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
+
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hrodrig/kpm/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/hrodrig/kpm/releases/tag/v0.1.0

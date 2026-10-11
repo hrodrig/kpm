@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-11" "kpm v0.1.0" "User Commands"
+.TH KPM 1 "2026-10-11" "kpm v0.2.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -17,11 +17,10 @@ directly (no
 .BR kubectl
 binary) once the sampler is implemented.
 .PP
-This man page tracks the
-.B scaffold
-release. Full command set and config contract will be defined in
+Behavior contract:
 .B SPECIFICATIONS.md
-after the product SDD.
+and roadmap
+.BR docs/ROADMAP.md .
 .SH OPTIONS
 .TP
 .B \-\-print\-sample\-config
@@ -30,6 +29,34 @@ Print the embedded sample configuration to stdout and exit.
 .TP
 .B version
 Print version and build metadata.
+.TP
+.B sample
+Sample pod CPU/memory into SQLite
+.RB ( \-\-config ,
+.BR \-\-kubeconfig ).
+.B sample.interval_seconds: 0
+is one-shot;
+.B > 0
+runs a daemon loop until SIGINT/SIGTERM.
+.TP
+.B backup
+Safe SQLite copy via
+.B VACUUM INTO
+.RB ( \-\-config ,
+.BR \-o ).
+.TP
+.B export
+Export samples as
+.B csv
+or
+.B tsv
+.RB ( \-\-format ,
+.BR \-o ,
+.BR \-\-since ,
+.BR \-\-until ,
+.BR \-\-namespace ,
+.BR \-\-pod ,
+.BR \-\-workload ).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

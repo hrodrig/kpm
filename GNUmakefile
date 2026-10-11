@@ -7,6 +7,8 @@ DIST     := dist
 PREFIX   ?= /usr/local
 BINDIR   ?= $(PREFIX)/bin
 MANDIR   ?= $(PREFIX)/share/man
+FREEBSD_ARCH ?= amd64
+OPENBSD_ARCH ?= amd64
 # Minimum total statement coverage for `make cover-check`.
 COVERAGE_MIN ?= 80
 GOBIN    ?= $(shell go env GOPATH)/bin
@@ -15,6 +17,7 @@ COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BRANCH   := $(shell b=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); [ -n "$$b" ] && [ "$$b" != "HEAD" ] && echo "$$b" || echo "unknown")
 BUILDDATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -ldflags "-s -w -X github.com/hrodrig/kpm/internal/cli.Version=$(VERSION) -X github.com/hrodrig/kpm/internal/cli.Commit=$(COMMIT) -X github.com/hrodrig/kpm/internal/cli.BuildDate=$(BUILDDATE) -X github.com/hrodrig/kpm/internal/cli.Branch=$(BRANCH)"
+PORT_VERSION := $(shell cat VERSION 2>/dev/null | tr -d '\n\r' | sed 's/^v//')
 
 GREEN  := \033[0;32m
 YELLOW := \033[0;33m
@@ -41,6 +44,8 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Install & clean:$(RESET)"
 	@echo "  $(GREEN)install$(RESET)                   go install to \$$GOBIN"
+	@echo "  $(GREEN)install-man$(RESET)               Install man pages to \$$(MANDIR)"
+	@echo "  $(GREEN)install-kubectl-plugin$(RESET)    Install kubectl-kpm shim (\$$(BINDIR))"
 	@echo "  $(GREEN)clean$(RESET)                     Remove ./bin/kpm, coverage.out, and $(DIST)/"
 	@echo ""
 	@echo "$(YELLOW)Test:$(RESET)"
@@ -62,12 +67,17 @@ help:
 	@echo "  $(GREEN)release-check$(RESET)             VERSION semver + lint + test + cover-check + security + docker-scan"
 	@echo "  $(GREEN)release$(RESET)                   release-check then goreleaser (only from main)"
 	@echo "  $(GREEN)snapshot$(RESET)                  Goreleaser snapshot to $(DIST)/ (no tag)"
+	@echo "  $(GREEN)port-freebsd-sync$(RESET)         Set PORTVERSION in contrib/freebsd/Makefile from VERSION"
+	@echo "  $(GREEN)port-openbsd-sync$(RESET)         Sync OpenBSD port Makefile to VERSION"
+	@echo "  $(GREEN)dist-freebsd$(RESET)               FreeBSD release tarball under $(DIST)/"
+	@echo "  $(GREEN)dist-openbsd$(RESET)               OpenBSD release tarball under $(DIST)/"
 	@echo ""
 	@echo "$(CYAN)Current version:$(RESET) $$(cat VERSION 2>/dev/null | tr -d '\n\r' || echo '?') (ldflags $(VERSION), branch $(BRANCH))"
 
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
 .PHONY: test cover cover-check lint lint-fix tools security release-check release snapshot
 .PHONY: check-pins check-man-version check-docker govulncheck gocyclo grype
+.PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
 
 build:
 	@mkdir -p bin
@@ -241,3 +251,79 @@ snapshot:
 	ver=$${ver_raw#v}; \
 	echo "$$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "Error: VERSION must be semantic MAJOR.MINOR.PATCH (got: $$ver_raw)"; exit 1; }; \
 	KPM_SNAPSHOT_VERSION="$$ver-next" goreleaser release --snapshot --clean
+
+.PHONY: port-freebsd-sync
+port-freebsd-sync:
+	@[ -n "$(PORT_VERSION)" ] || { echo "Error: VERSION file empty or missing"; exit 1; }
+	@sed -i.bak "s/^PORTVERSION=.*/PORTVERSION=\t$(PORT_VERSION)/" contrib/freebsd/Makefile
+	@rm -f contrib/freebsd/Makefile.bak
+	@echo "Updated contrib/freebsd/Makefile PORTVERSION to $(PORT_VERSION)"
+
+.PHONY: port-openbsd-sync
+port-openbsd-sync:
+	@[ -n "$(PORT_VERSION)" ] || { echo "Error: VERSION file empty or missing"; exit 1; }
+	@test -f contrib/openbsd/port/Makefile || { echo "Error: contrib/openbsd/port/Makefile not found"; exit 1; }
+	@sed -i.bak \
+	  -e 's#^DISTNAME =.*#DISTNAME =	kpm_v$(PORT_VERSION)_openbsd_$${MACHINE_ARCH:S/aarch64/arm64/}#' \
+	  -e 's#^PKGNAME =.*#PKGNAME =	kpm-$(PORT_VERSION)#' \
+	  -e 's#^MASTER_SITES =.*#MASTER_SITES =	https://github.com/hrodrig/kpm/releases/download/v$(PORT_VERSION)/#' \
+	  -e 's#^DISTFILES =.*#DISTFILES =	kpm_v$(PORT_VERSION)_openbsd_$${MACHINE_ARCH:S/aarch64/arm64/}.tar.gz#' \
+	  contrib/openbsd/port/Makefile
+	@rm -f contrib/openbsd/port/Makefile.bak
+	@echo "Updated contrib/openbsd/port/Makefile to $(PORT_VERSION)"
+
+.PHONY: dist-freebsd
+dist-freebsd:
+	@set -e; \
+	ver_raw=$$(cat VERSION 2>/dev/null | tr -d '\n\r'); \
+	[ -n "$$ver_raw" ] || { echo "Error: VERSION file is required"; exit 1; }; \
+	ver=$${ver_raw#v}; \
+	echo "$$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "Error: VERSION must be semantic MAJOR.MINOR.PATCH (got: $$ver_raw)"; exit 1; }; \
+	echo "$(FREEBSD_ARCH)" | grep -qE '^(amd64|arm64)$$' || { echo "Error: FREEBSD_ARCH must be amd64 or arm64"; exit 1; }; \
+	arch="$(FREEBSD_ARCH)"; \
+	out="$(DIST)/kpm_v$${ver}_freebsd_$$arch.tar.gz"; \
+	stage="/tmp/kpm-dist-root-$$PPID"; \
+	tmpbin="$(DIST)/kpm-freebsd-$$arch-$$PPID"; \
+	echo "Building kpm for FreeBSD $$arch with VERSION=v$$ver..."; \
+	mkdir -p "$(DIST)"; \
+	GOOS=freebsd GOARCH="$$arch" go build -trimpath $(LDFLAGS) -o "$$tmpbin" ./cmd/kpm; \
+	rm -rf "$$stage"; \
+	mkdir -p "$$stage/share/man/man1" "$$stage/share/doc/kpm" "$$stage/share/examples/kpm"; \
+	cp "$$tmpbin" "$$stage/kpm"; \
+	cp "$$tmpbin" "$$stage/kubectl-kpm"; \
+	rm -f "$$tmpbin"; \
+	cp LICENSE "$$stage/share/doc/kpm/LICENSE"; \
+	cp configs/kpm.sample.yml "$$stage/share/examples/kpm/kpm.sample.yml"; \
+	cp contrib/man/man1/kpm.1 "$$stage/share/man/man1/kpm.1"; \
+	cp contrib/man/man1/kubectl-kpm.1 "$$stage/share/man/man1/kubectl-kpm.1"; \
+	tar -C "$$stage" -czf "$$out" .; \
+	rm -rf "$$stage"; \
+	echo "Wrote $$out"
+
+.PHONY: dist-openbsd
+dist-openbsd:
+	@set -e; \
+	ver_raw=$$(cat VERSION 2>/dev/null | tr -d '\n\r'); \
+	[ -n "$$ver_raw" ] || { echo "Error: VERSION file is required"; exit 1; }; \
+	ver=$${ver_raw#v}; \
+	echo "$$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "Error: VERSION must be semantic MAJOR.MINOR.PATCH (got: $$ver_raw)"; exit 1; }; \
+	echo "$(OPENBSD_ARCH)" | grep -qE '^(amd64|arm64)$$' || { echo "Error: OPENBSD_ARCH must be amd64 or arm64"; exit 1; }; \
+	arch="$(OPENBSD_ARCH)"; \
+	out="$(DIST)/kpm_v$${ver}_openbsd_$$arch.tar.gz"; \
+	stage="/tmp/kpm-openbsd-dist-root-$$PPID"; \
+	tmpbin="$(DIST)/kpm-openbsd-$$arch-$$PPID"; \
+	echo "Building kpm for OpenBSD $$arch with VERSION=v$$ver..."; \
+	mkdir -p "$(DIST)"; \
+	GOOS=openbsd GOARCH="$$arch" go build -trimpath $(LDFLAGS) -o "$$tmpbin" ./cmd/kpm; \
+	rm -rf "$$stage"; \
+	mkdir -p "$$stage/share/man/man1" "$$stage/share/doc/kpm" "$$stage/share/examples/kpm"; \
+	cp "$$tmpbin" "$$stage/kpm"; \
+	cp "$$tmpbin" "$$stage/kubectl-kpm"; \
+	rm -f "$$tmpbin"; \
+	cp LICENSE "$$stage/share/doc/kpm/LICENSE"; \
+	cp configs/kpm.sample.yml "$$stage/share/examples/kpm/kpm.sample.yml"; \
+	cp contrib/man/man1/kpm.1 "$$stage/share/man/man1/kpm.1"; \
+	cp contrib/man/man1/kubectl-kpm.1 "$$stage/share/man/man1/kubectl-kpm.1"; \
+	tar -C "$$stage" -czf "$$out" .; \
+	rm -rf "$$stage"; \
+	echo "Wrote $$out"
