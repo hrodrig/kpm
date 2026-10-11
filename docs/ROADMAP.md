@@ -67,11 +67,11 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 |----|------|--------|
 | `#1` | Config load (`kpm.yaml`, Viper) + validation for `cluster` / `kube` / `client` / `store` / `sample` / `scope`; `client.id` cascade | **Done** (in tree) |
 | `#2` | client-go Metrics + Pods; `kpm sample` one-shot → SQLite | **Done** (one-shot; daemon → `#4`) |
-| `#3` | Schema version + retention prune + indexes | Planned |
-| `#4` | Daemon loop (`interval_seconds > 0`) sample-only; SIGINT/TERM clean | Planned |
-| `#5` | `kpm backup` (SQLite backup API) | Planned |
-| `#6` | `kpm export` csv/tsv + filters | Planned |
-| `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | Planned |
+| `#3` | Schema version + retention prune + indexes | **Done** (in tree) |
+| `#4` | Daemon loop (`interval_seconds > 0`) sample-only; SIGINT/TERM clean | **Done** (in tree) |
+| `#5` | `kpm backup` (SQLite `VACUUM INTO`) | **Done** (in tree) |
+| `#6` | `kpm export` csv/tsv + filters | **Done** (in tree) |
+| `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | **Done** (exit `2` wired) |
 
 **Success:** fixtures or kind+metrics-server path; SPEC §2 normative; cover ≥ 80%.
 

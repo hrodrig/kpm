@@ -94,7 +94,7 @@ Details (bands, defaults, more diagrams):
 |------|--------|
 | Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
-| Core: sample → SQLite, backup, export | **Current** — band `0.2.x` ([ROADMAP](docs/ROADMAP.md)) |
+| Core: sample → SQLite, backup, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
 | Recommend / capacity / TUI | Planned (`0.3.x`) |
 | Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
 | `kpm-selfhosted` | Deferred (post-1.0 packaging) |

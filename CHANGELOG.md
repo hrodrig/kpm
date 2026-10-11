@@ -18,7 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unknown`); persisted on sample rows with `cluster.name` (kwd/pgwd pattern).
 - `kpm sample` one-shot: client-go + Metrics API → SQLite
   (`internal/cluster`, `internal/store`, `internal/sample`) `(0.2.x #2)`.
-- Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7` partial).
+- Schema + retention prune + indexes `(0.2.x #3)`.
+- Daemon sample loop when `interval_seconds > 0` (SIGINT/SIGTERM clean)
+  `(0.2.x #4)`.
+- `kpm backup` via SQLite `VACUUM INTO` `(0.2.x #5)`.
+- `kpm export` csv/tsv with since/until/namespace/pod/workload filters
+  `(0.2.x #6)`.
+- Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7)`.
 
 ## [0.1.0] - 2026-10-11
 

@@ -71,9 +71,8 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 
 ## Deferrals (do not invent in code yet)
 
-- Daemon sample loop, backup, export (roadmap `#4`–`#6`)
-- Full recommend engine, capacity, TUI
-- Notifications / MCP / server
+- Full recommend engine, capacity, TUI (roadmap `0.3.x`)
+- Notifications / MCP / server (`0.4`–`0.6`)
 - Homebrew tap (`homebrew-kpm`)
 - FreeBSD/OpenBSD port skeletons
 - `kpm-selfhosted`
