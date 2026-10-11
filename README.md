@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -100,7 +100,8 @@ Details (bands, defaults, more diagrams):
 | `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
 | `kpm tui` / `capacity --tui` | **In tree** (`0.3.x #11`; Δ vs recommend — SPEC §5.3.1) |
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
-| Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
+| Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
+| MCP / server charts | Planned (`0.5`–`0.6`) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)
