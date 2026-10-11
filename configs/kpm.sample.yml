@@ -60,17 +60,20 @@ tui:
   # pod_labels: "kpm.watch=true"
 
 # OPTIONAL — sustained threshold alerts (daemon only).
+# If enabled and rules is empty/omitted → built-in defaults (CPU + mem util vs
+# request at 80%) and a one-time log; see SPEC §6.0.
 # notifications:
 #   enabled: true
-#   rules:
-#     - name: cpu-hot
-#       namespaces: ["app"]
-#       metric: cpu.util_vs_request   # or mem.util_vs_request | *.util_vs_limit | absolute
-#       threshold_ratio: 0.90
-#       hold_for_seconds: 600
-#       clear_after_seconds: 600
-#       repeat_seconds: 3600
-#       notify_on_resolve: true
+#   rules: []   # empty → built-in 80% defaults + log
+#   # rules:
+#   #   - name: cpu-hot
+#   #     namespaces: ["app"]
+#   #     metric: cpu.util_vs_request   # or mem.util_vs_request | *.util_vs_limit | absolute
+#   #     threshold_ratio: 0.90
+#   #     hold_for_seconds: 600
+#   #     clear_after_seconds: 600
+#   #     repeat_seconds: 3600
+#   #     notify_on_resolve: true
 #   webhook:
 #     url_env: KPM_WEBHOOK_URL
 

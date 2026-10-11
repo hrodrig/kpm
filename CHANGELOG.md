@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SPECIFICATIONS.md` / sample config: daemon (`interval_seconds > 0`) **always**
   persists metrics; notifications, MCP, and HTTP server are each optional
   facades when enabled (§2.3, §15.4).
+- Notifications: if `enabled` and `rules` empty/omitted → built-in CPU+mem
+  util-vs-request @ **80%** plus one-time English startup log (§6.0, §15.5).
 - `SPECIFICATIONS.md`: **draft v0.3** — closed open points (notify
   predicate/lifecycle, MCP stdio+HTTP bearer, embedded server UI, csv/tsv
   export); added adjacent **TUI** (`kpm tui` / `capacity --tui`): preselected
