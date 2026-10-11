@@ -102,7 +102,7 @@ Details (bands, defaults, more diagrams):
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
-| Server charts / JSON API | Planned (`0.6.x`) |
+| Server charts / JSON API | Planned (`0.6.x` — [plan-0.6.0](docs/plan-0.6.0.md)) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)

@@ -721,26 +721,30 @@ Result:
 
 ---
 
-## 8. OPTIONAL — server mode (charts)
+## 8. OPTIONAL — server mode (charts) (draft — 0.6.x)
 
-Off unless `server.enabled: true`. Intended to run inside the sample daemon
-(`interval_seconds > 0`) so charts see a live scrape path; does not replace
-core sampling.
+Off unless `server.enabled: true` (or `kpm serve`). **Analyze-local** is a
+first-class mode: open an existing SQLite store with
+`sample.interval_seconds: 0` (no collection), serve charts + JSON (+ MCP HTTP
+on the shared mux) without kube. Live Metrics enrichment is optional when
+kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.1 Stack (decided)
 
 - **Boring embedded UI**: Go `net/http` + small templates + minimal JS (or HTMX).
   **No** SPA framework / npm app in-repo for v1.
-- Data: last scrape cache and/or SQLite recent window.
+- Data: SQLite history (required); optional live snapshot from Metrics API.
 - Optional **bearer** auth (`token_env`); fail closed if `auth: true` and unset.
-- Default listen `127.0.0.1`.
+- Default listen loopback; may share `mcp.listen` when `server.listen` empty.
+- HTTP facade must **not** require a running sample loop (decouple from
+  `interval_seconds > 0` — see plan `#19a`).
 
 ### 8.2 Relationship to capacity / TUI (decided)
 
 - Shared **read model** (usage snapshots) behind `capacity`, `tui`, and server API.
 - `capacity` remains a **CLI** command; server is not required to use it.
-- Server JSON endpoints may power charts; TUI talks to cluster (and optionally
-  store) directly — no hard dependency on server process.
+- Server JSON endpoints power charts and non-MCP clients; TUI talks to cluster
+  (and optionally store) directly — no hard dependency on server process.
 
 ### 8.3 Recommend export in UI (planned)
 
@@ -751,6 +755,13 @@ core sampling.
   source of truth.
 - Reuses the same formatters as CLI recommend export when those land.
 
+### 8.4 Analyze-local UX (draft)
+
+- Per-workload chart cards from store series; window presets (1h / 24h / 48h /
+  7d / 15d) + custom range.
+- Collapsible drawer: store recommendations; if kube available, current
+  request/limit (+ delta vs suggest when both exist).
+
 ---
 
 ## 9. Configuration (draft)
@@ -758,6 +769,20 @@ core sampling.
 ### 9.1 Discovery (kwd-style)
 
 `--config` default **`kpm.yaml`**.
+
+### 9.1.1 Precedence (decided — Viper / family mold)
+
+Lowest → highest (later wins):
+
+1. Built-in **defaults**
+2. **YAML** file (`--config`)
+3. Environment **`KPM_*`** (`AutomaticEnv` / `BindEnv`; `.` → `_`)
+4. **CLI flags** (only when the flag is explicitly set / `Changed`)
+
+Every YAML knob that operators need at runtime must be overridable via ENV and
+CLI (band implementation rule for 0.6.x+). Secrets use `*_env` **names** in
+YAML; values come only from the environment (fail closed if missing when
+required).
 
 ### 9.2 Top-level keys
 
@@ -854,7 +879,7 @@ tui:
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
-| **P5 — Server** | embedded charts UI + optional auth | Planned |
+| **P5 — Server** | analyze-local + charts + JSON API | Planned (`docs/plan-0.6.0.md`) |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 
@@ -964,6 +989,6 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
   · [docs/plan-0.3.0.md](docs/plan-0.3.0.md) · [docs/plan-0.4.0.md](docs/plan-0.4.0.md)
-  · [docs/plan-0.5.0.md](docs/plan-0.5.0.md)
+  · [docs/plan-0.5.0.md](docs/plan-0.5.0.md) · [docs/plan-0.6.0.md](docs/plan-0.6.0.md)
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)

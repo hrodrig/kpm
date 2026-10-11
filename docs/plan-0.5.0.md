@@ -72,8 +72,8 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [x] PR feat → `develop` merged (`#31`)
 - [x] Version-cut artifacts (`chore/release-0.5.0`) when shipping
 - [x] VHS re-record if help/version strings change
-- [ ] PR develop → main + tag `v0.5.0` (operator OK)
-- [ ] Sync main → develop via PR
+- [x] PR develop → main + tag `v0.5.0` (operator OK) — `#34` / tag
+- [x] Sync main → develop via PR — `#35`
 
 [↑ Back to top](#top)
 
