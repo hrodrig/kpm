@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(0.5.x #17)`.
 - SPEC §7.5 + sample: how to generate `KPM_MCP_TOKEN` (`openssl rand -hex 32`).
 
+### Changed
+
+- SPECIFICATIONS.md: promote §7 MCP to **normative**; CLI map `mcp`;
+  anonymized tool examples §7.6 (band-exit before `v0.5.0` cut).
+
 ## [0.4.0] - 2026-10-11
 
 ### Added

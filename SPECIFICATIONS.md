@@ -1,9 +1,9 @@
 # SPECIFICATIONS — kpm
 
 > **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
-> adjacent Insights (§3–5), notifications (§6), `client.id` (§9.2.1), and
-> exit codes `0`/`1`/`2`/`3`. Optional facades MCP (§7) and server (§8)
-> remain **draft** until those bands ship.
+> adjacent Insights (§3–5), notifications (§6), MCP (§7), `client.id`
+> (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Optional server (§8) remains
+> **draft** until the 0.6.x band ships.
 
 | Term | Meaning |
 |------|---------|
@@ -403,11 +403,12 @@ daemon path.
 
 ---
 
-## 7. OPTIONAL — MCP (read-only)
+## 7. OPTIONAL — MCP (read-only, normative today)
 
 Off unless explicitly started. HTTP/SSE in the daemon requires
 `mcp.enabled: true`. Stdio mode is the separate `kpm mcp` command (does not
-require the sample daemon, but may share the same store).
+require the sample daemon, but may share the same store). Implemented in-tree
+(`#16a` / `#16` / `#17`). Must not regress without CHANGELOG.
 
 ### 7.1 Transport (decided)
 
@@ -441,10 +442,10 @@ logs a one-shot warning that forwarded client-IP headers are ignored.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
-### 7.3 Tools (draft — 0.5.x store-only MVP)
+### 7.3 Tools (normative — store-only MVP)
 
 Same surface on **stdio** and **HTTP/SSE**. No cluster mutations; no SQLite writes.
-Live Metrics / `internal/live` tools are **deferred** (not in first MCP cut).
+Live Metrics / `internal/live` tools are **deferred**.
 
 | Tool | Reads | Notes |
 |------|-------|-------|
@@ -453,7 +454,7 @@ Live Metrics / `internal/live` tools are **deferred** (not in first MCP cut).
 | `list_recommendations` | Store recommendations | Optional grain filter |
 | `get_status` | Config + build meta | Version, store path, sample interval, notify/mcp flags; **never** secret values |
 
-### 7.4 Daemon HTTP ops (draft — with MCP listen)
+### 7.4 Daemon HTTP ops (normative — with MCP listen)
 
 When the sample daemon runs with `mcp.enabled: true`, the process listens on
 `mcp.listen` (default loopback) and serves:
@@ -475,7 +476,7 @@ Bearer auth (`token_env`) applies to MCP paths only — **not** to ops probes.
 Allowlist and rate limit also skip ops probes (§7.2).
 JSON REST `/api/*` and charts belong to **server** mode (§8 / P5), not MCP.
 
-### 7.5 Client integration examples (draft — target after `#16`/`#17`)
+### 7.5 Client integration examples (normative)
 
 Prefer **stdio** (`kpm mcp`) on a laptop. Use **HTTP/SSE** when the sample
 daemon already runs with `mcp.enabled: true`. Paths below are anonymized;
@@ -607,6 +608,117 @@ Then `hermes mcp test kpm` and `/reload-mcp` after edits.
 | **stdio** | Spawn `kpm mcp --config /home/ops/kpm.yaml`; JSON-RPC on stdin/stdout; diagnostics on **stderr** only |
 | **HTTP/SSE** | Connect to `mcp.listen` (default `127.0.0.1:9740`); send `Authorization: Bearer <token>` when required (SPEC §7.2) |
 
+### 7.6 Tool call / response examples (anonymized)
+
+Structured arguments and results as returned by the Go MCP tool handlers
+(field names match `internal/mcp`). Paths and cluster names are fake.
+
+**`get_status`** — no arguments:
+
+```json
+{
+  "version": "0.5.0",
+  "store_path": "/var/lib/kpm/prod-east.db",
+  "sample_interval_seconds": 60,
+  "notifications_enabled": true,
+  "mcp_enabled": true,
+  "cluster_name": "prod-east"
+}
+```
+
+**`list_samples`** — arguments:
+
+```json
+{
+  "namespace": "app",
+  "workload": "api",
+  "since": "2026-10-11T12:00:00Z",
+  "until": "2026-10-11T18:00:00Z",
+  "limit": 100
+}
+```
+
+Result (truncated when more rows exist than `limit`):
+
+```json
+{
+  "count": 1,
+  "truncated": false,
+  "rows": [
+    {
+      "sampled_at": "2026-10-11T16:05:00Z",
+      "namespace": "app",
+      "pod": "api-0",
+      "container": "main",
+      "owner_kind": "StatefulSet",
+      "owner_name": "api",
+      "cpu_util_mcores": 180,
+      "mem_util_bytes": 268435456,
+      "cpu_request_mcores": 500,
+      "mem_request_bytes": 536870912,
+      "cpu_util_ratio": 0.36,
+      "mem_util_ratio": 0.5
+    }
+  ]
+}
+```
+
+**`summarize_window`** — arguments:
+
+```json
+{
+  "namespace": "app",
+  "since": "2026-10-11T00:00:00Z",
+  "until": "2026-10-12T00:00:00Z"
+}
+```
+
+Result:
+
+```json
+{
+  "sample_count": 240,
+  "rows_with_cpu_request": 230,
+  "rows_with_mem_request": 230,
+  "cpu_util_ratio_avg": 0.41,
+  "cpu_util_ratio_p95": 0.72,
+  "mem_util_ratio_avg": 0.55,
+  "mem_util_ratio_p95": 0.81
+}
+```
+
+**`list_recommendations`** — arguments:
+
+```json
+{
+  "grain": "workload"
+}
+```
+
+Result:
+
+```json
+{
+  "count": 1,
+  "rows": [
+    {
+      "recorded_at": "2026-10-11T15:00:00Z",
+      "grain": "workload",
+      "grain_key": "app/StatefulSet/api",
+      "namespace": "app",
+      "owner_kind": "StatefulSet",
+      "owner_name": "api",
+      "samples": 120,
+      "cpu_sug_mcores": 350,
+      "mem_sug_bytes": 402653184,
+      "cpu_req_mcores": 500,
+      "mem_req_bytes": 536870912,
+      "target_utilization": 0.7
+    }
+  ]
+}
+```
+
 ---
 
 ## 8. OPTIONAL — server mode (charts)
@@ -707,12 +819,12 @@ tui:
 | `recommend` | Adjacent | **Normative** | No | Yes |
 | `capacity` | Adjacent | **Normative** | Yes | No |
 | `tui` / `capacity --tui` | Adjacent | **Normative** | Yes | Read* |
-| `mcp` | Optional | Draft | No** | Read |
+| `mcp` | Optional | **Normative** | No** | Read |
 | `notify-test` | Optional | **Normative** | No | No |
-| daemon `sample` loop | Core | **Normative** (notify when `notifications.enabled`) | Yes | Write |
+| daemon `sample` loop | Core | **Normative** (notify / MCP HTTP when enabled) | Yes | Write |
 
 \*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
-\*\*MCP read tools use store; cluster tools optional and read-only.
+\*\*MCP store-only tools; live-cluster MCP tools deferred.
 
 ---
 
@@ -741,7 +853,7 @@ tui:
 | **P1 — Core** | sample → SQLite; backup; export csv/tsv; daemon sample-only | **Shipped** `v0.2.0` |
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
-| **P4 — MCP** | stdio + localhost HTTP/SSE, bearer on HTTP | Planned |
+| **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **In tree** (cut `v0.5.0`) |
 | **P5 — Server** | embedded charts UI + optional auth | Planned |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
@@ -815,8 +927,15 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | §3–5 Insights | **Normative** when `v0.3.0` shipped |
 | §6 Notifications | **Normative** when `v0.4.0` shipped (multi-sink) |
 | Exit `3` | **Normative** with recommend |
-| §7–8 | Stay **draft** until MCP / server bands |
 | Band exit rule | Feature PR must update SPEC/man/sample/CHANGELOG; release cut must not leave status banner stale |
+
+### 15.11 SPEC normative after MCP (`v0.5.0`)
+
+| Topic | Decision |
+|-------|----------|
+| §7 MCP | **Normative** when band code is on `develop` + docs exit (stdio, HTTP/SSE, ops mux, access control) |
+| §8 Server | Stays **draft** until 0.6.x |
+| Tools | Store-only MVP (`get_status`, `list_samples`, `summarize_window`, `list_recommendations`); live-cluster tools deferred |
 
 ### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 

@@ -30,7 +30,7 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [ ] man `kpm.1` / `kubectl-kpm.1` — `mcp` command + daemon HTTP notes
 - [ ] CHANGELOG `[Unreleased]` MCP section
 - [x] Client integration examples in SPEC §7.5 (Cursor / Claude / Codex / Hermes / generic)
-- [ ] Anonymized MCP tool call / response examples in SPEC (band exit)
+- [x] Anonymized MCP tool call / response examples in SPEC (band exit)
 
 ### `#16a` Shared HTTP mux + ops
 
@@ -66,10 +66,10 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 
 ### Gates / band exit
 
-- [ ] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC §7 → Normative in status banner + CLI map `mcp`
-- [ ] SPEC anonymized tool examples (mold §6.4 style)
-- [ ] PR feat → `develop` merged
+- [x] `make lint` + `make cover-check` ≥ 80% (CI on PR `#31`)
+- [x] SPEC §7 → Normative in status banner + CLI map `mcp`
+- [x] SPEC anonymized tool examples (mold §6.4 style) — §7.6
+- [x] PR feat → `develop` merged (`#31`)
 - [ ] Version-cut artifacts (`chore/release-0.5.0`) when shipping
 - [ ] VHS re-record if help/version strings change
 - [ ] PR develop → main + tag `v0.5.0` (operator OK)
@@ -115,7 +115,7 @@ internal/store/       — read APIs only from tools
 
 ---
 
-## Client integration (draft — see SPEC §7.5)
+## Client integration (see SPEC §7.5)
 
 Prefer **stdio** for IDE/agent attach. HTTP only when daemon + `mcp.enabled`.
 Full anonymized snippets live in SPEC §7.5; summary:
@@ -129,7 +129,7 @@ Full anonymized snippets live in SPEC §7.5; summary:
 | Hermes | `~/.hermes/config.yaml` | `mcp_servers.kpm.command/args` |
 | Generic | spawn / URL | stdio JSON-RPC or HTTP/SSE + bearer |
 
-HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
+HTTP URL: `http://127.0.0.1:9740/sse` (and streamable `/mcp`).
 
 [↑ Back to top](#top)
 
@@ -143,7 +143,7 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 | 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [x] |
 | 3 | `#16` | tools + `kpm mcp` stdio | [x] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [x] |
-| 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [ ] |
+| 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [x] |
 | 6 | cut | `chore/release-0.5.0` → main + tag (later) | [ ] |
 
 **Suggested PRs:** docs-first (this), then `feat/0.5-mcp` (code slices) → develop.
@@ -158,8 +158,8 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 - [x] Daemon + `mcp.enabled` serves MCP HTTP/SSE + `/healthz` `/readyz` `/metrics`
 - [x] Bearer rules per SPEC §7.2; fail-closed off-loopback
 - [x] Core sample works with mcp disabled / absent
-- [ ] Cover ≥ 80%; gocyclo ≤ 14 (on merge)
-- [ ] SPEC §7 normative; merged + release cut `v0.5.0`
+- [x] Cover ≥ 80%; gocyclo ≤ 14 (on merge)
+- [ ] SPEC §7 normative (docs); release cut `v0.5.0` (operator OK)
 
 ## Out of scope
 
