@@ -106,9 +106,11 @@ func RunOnce(ctx context.Context, cfg *config.Config, st *store.Store, pods kube
 		res.Records[i].ClientID = clientID
 		res.Records[i].ClusterName = clusterName
 	}
+	t0 := time.Now()
 	if err := st.InsertRecords(ctx, res.Records); err != nil {
 		return Result{}, fmt.Errorf("insert samples: %w", err)
 	}
+	res.StoreWrite = time.Since(t0)
 	if _, err := st.PruneRetention(ctx, cfg.Store.RetentionDays); err != nil {
 		return Result{}, fmt.Errorf("prune retention: %w", err)
 	}

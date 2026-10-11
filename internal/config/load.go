@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -42,6 +44,7 @@ func Load(path string) (*Config, error) {
 		Recommend:     raw.Recommend,
 		TUI:           raw.TUI,
 		Notifications: raw.Notifications,
+		MCP:           raw.MCP,
 	}
 
 	cfg.applyDefaults()
@@ -61,6 +64,7 @@ type rawConfig struct {
 	Recommend     Recommend     `mapstructure:"recommend"`
 	TUI           TUI           `mapstructure:"tui"`
 	Notifications Notifications `mapstructure:"notifications"`
+	MCP           MCP           `mapstructure:"mcp"`
 }
 
 func bindConfigEnv(v *viper.Viper) {
@@ -120,6 +124,9 @@ func (c *Config) applyDefaults() {
 	if strings.TrimSpace(c.TUI.Baseline) == "" {
 		c.TUI.Baseline = "request"
 	}
+	if c.MCP.Enabled && strings.TrimSpace(c.MCP.Listen) == "" {
+		c.MCP.Listen = "127.0.0.1:9740"
+	}
 }
 
 func (c *Config) validate() error {
@@ -149,7 +156,96 @@ func (c *Config) validate() error {
 	if err := c.validateNotifications(); err != nil {
 		return err
 	}
+	if err := c.validateMCP(); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c *Config) validateMCP() error {
+	m := c.MCP
+	if !m.Enabled {
+		return nil
+	}
+	listen := strings.TrimSpace(m.Listen)
+	if listen == "" {
+		return fmt.Errorf("mcp.enabled requires listen (or default)")
+	}
+	if _, _, err := net.SplitHostPort(listen); err != nil {
+		return fmt.Errorf("mcp.listen: %w", err)
+	}
+	if !listenIsLoopback(listen) {
+		if strings.TrimSpace(m.TokenEnv) == "" {
+			return fmt.Errorf("mcp.token_env required when mcp.listen is non-loopback")
+		}
+	}
+	if err := validateMCPRateLimit(m.RateLimit); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateMCPRateLimit(rl MCPRateLimit) error {
+	period := strings.TrimSpace(rl.Period)
+	if period != "" {
+		d, err := time.ParseDuration(period)
+		if err != nil {
+			return fmt.Errorf("mcp.rate_limit.period: %w", err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("mcp.rate_limit.period must be > 0")
+		}
+	}
+	if rl.Requests < 0 {
+		return fmt.Errorf("mcp.rate_limit.requests must be >= 0")
+	}
+	if rl.Burst < 0 {
+		return fmt.Errorf("mcp.rate_limit.burst must be >= 0")
+	}
+	return nil
+}
+
+// MCPRateLimitEnabled reports whether per-IP rate limiting is on (default true).
+func (m MCP) MCPRateLimitEnabled() bool {
+	if m.RateLimit.Enabled != nil {
+		return *m.RateLimit.Enabled
+	}
+	return true
+}
+
+// MCPRateLimitResolved returns concrete rate-limit knobs with gghstats defaults.
+func (m MCP) MCPRateLimitResolved() (requests int, period time.Duration, burst int) {
+	requests = m.RateLimit.Requests
+	if requests == 0 {
+		requests = 120
+	}
+	burst = m.RateLimit.Burst
+	if burst == 0 {
+		burst = 20
+	}
+	period = time.Minute
+	if p := strings.TrimSpace(m.RateLimit.Period); p != "" {
+		if d, err := time.ParseDuration(p); err == nil && d > 0 {
+			period = d
+		}
+	}
+	return requests, period, burst
+}
+
+func listenIsLoopback(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return false
+	}
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (c *Config) validateNotifications() error {

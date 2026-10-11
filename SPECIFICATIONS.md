@@ -418,13 +418,26 @@ require the sample daemon, but may share the same store).
 
 Both supported; same tool surface.
 
-### 7.2 Auth (decided)
+### 7.2 Auth and HTTP access control (decided)
 
 | Transport | Auth |
 |-----------|------|
 | stdio | Trust process boundary; **no** extra token |
 | HTTP/SSE | **Bearer token** via `token_env` **required** if listen is non-loopback; on loopback, token **optional but recommended** |
 | mTLS | **Deferred** (not in first MCP cut) |
+
+Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** ops):
+
+| Knob | Default | Role |
+|------|---------|------|
+| `mcp.listen` | `127.0.0.1:9740` | Bind; use `0.0.0.0` only when the operator intentionally exposes the port |
+| `mcp.trusted_proxies` | empty | TCP peers allowed to supply `X-Forwarded-For` / `X-Real-IP` for rate-limit / allowlist identity |
+| `mcp.allowlist_cidrs` | empty (off) | Optional client IP/CIDR allowlist; matching `Authorization: Bearer` bypasses IP check |
+| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables |
+
+Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
+When rate limit or allowlist is active and `trusted_proxies` is empty, the process
+logs a one-shot warning that forwarded client-IP headers are ignored.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
@@ -451,19 +464,37 @@ When the sample daemon runs with `mcp.enabled: true`, the process listens on
 | `GET /readyz` | Readiness (store open; kube/Metrics reachable when sampling) |
 | `GET /metrics` | **Process** Prometheus text (daemon/ops counters) — **not** a re-export of cluster pod metrics |
 
-MCP HTTP/SSE mounts on the **same** mux. JSON REST `/api/*` and charts belong
-to **server** mode (§8 / P5), not MCP.
+MCP HTTP mounts on the **same** mux:
+
+| Path | Transport |
+|------|-----------|
+| `/sse` | MCP SSE (client examples in §7.5) |
+| `/mcp` | MCP streamable HTTP |
+
+Bearer auth (`token_env`) applies to MCP paths only — **not** to ops probes.
+Allowlist and rate limit also skip ops probes (§7.2).
+JSON REST `/api/*` and charts belong to **server** mode (§8 / P5), not MCP.
 
 ### 7.5 Client integration examples (draft — target after `#16`/`#17`)
 
 Prefer **stdio** (`kpm mcp`) on a laptop. Use **HTTP/SSE** when the sample
 daemon already runs with `mcp.enabled: true`. Paths below are anonymized;
-replace with a real absolute config path and `which kpm`. The HTTP MCP path
-`/sse` is a draft until `#17` locks the mount.
+replace with a real absolute config path and `which kpm`. HTTP mounts:
+`/sse` (SSE) and `/mcp` (streamable).
 
 **Preflight:** `kpm sample --config /home/ops/kpm.yaml` so the store has rows;
 then attach a client. Smoke tools: `get_status`, `list_samples`,
 `summarize_window`, `list_recommendations`.
+
+**Bearer token** (HTTP only): opaque shared secret — not a JWT. Generate once,
+export as the env named by `mcp.token_env` (sample: `KPM_MCP_TOKEN`):
+
+```bash
+export KPM_MCP_TOKEN="$(openssl rand -hex 32)"
+```
+
+Clients send `Authorization: Bearer <same value>`. Off-loopback listen requires
+`token_env` set and non-empty (SPEC §7.2).
 
 #### Cursor — `~/.cursor/mcp.json` or project `.cursor/mcp.json`
 

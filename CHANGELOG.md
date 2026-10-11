@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Daemon HTTP ops mux when `mcp.enabled` (`internal/httpserver`):
+  `GET /healthz`, `/readyz`, process `/metrics` on `mcp.listen`
+  `(0.5.x #16a)`.
+- `kpm mcp` stdio read-only tools (`get_status`, `list_samples`,
+  `summarize_window`, `list_recommendations`) via official Go MCP SDK
+  `(0.5.x #16)`.
+- Daemon MCP HTTP: SSE `/sse` + streamable `/mcp` on `mcp.listen`, bearer
+  via `token_env` (ops `/healthz` `/readyz` `/metrics` stay open)
+  `(0.5.x #17)`.
+- Daemon HTTP access control (gghstats mold): `mcp.trusted_proxies`,
+  `mcp.allowlist_cidrs`, per-IP `mcp.rate_limit` (ops paths exempt)
+  `(0.5.x #17)`.
+- SPEC §7.5 + sample: how to generate `KPM_MCP_TOKEN` (`openssl rand -hex 32`).
+
 ## [0.4.0] - 2026-10-11
 
 ### Added

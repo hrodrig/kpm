@@ -16,6 +16,8 @@ type Result struct {
 	Records     []store.Record
 	SkippedPods int
 	SampledAt   time.Time
+	// StoreWrite is time spent in SQLite InsertRecords (zero if not measured).
+	StoreWrite time.Duration
 }
 
 // BuildRecords joins pods and pod metrics into container-grain records.

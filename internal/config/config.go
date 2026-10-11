@@ -22,6 +22,26 @@ type Config struct {
 	Recommend     Recommend     `yaml:"recommend" mapstructure:"recommend"`
 	TUI           TUI           `yaml:"tui" mapstructure:"tui"`
 	Notifications Notifications `yaml:"notifications" mapstructure:"notifications"`
+	MCP           MCP           `yaml:"mcp" mapstructure:"mcp"`
+}
+
+// MCP is optional read-only MCP + daemon HTTP ops (SPEC §7).
+type MCP struct {
+	Enabled        bool         `yaml:"enabled" mapstructure:"enabled"`
+	Listen         string       `yaml:"listen" mapstructure:"listen"`
+	TokenEnv       string       `yaml:"token_env" mapstructure:"token_env"`
+	TrustedProxies []string     `yaml:"trusted_proxies" mapstructure:"trusted_proxies"`
+	AllowlistCIDRs []string     `yaml:"allowlist_cidrs" mapstructure:"allowlist_cidrs"`
+	RateLimit      MCPRateLimit `yaml:"rate_limit" mapstructure:"rate_limit"`
+}
+
+// MCPRateLimit is per-IP token-bucket limiting on the daemon HTTP mux (gghstats mold).
+// Enabled nil → default true when mcp.enabled; ops paths are always exempt.
+type MCPRateLimit struct {
+	Enabled  *bool  `yaml:"enabled" mapstructure:"enabled"`
+	Requests int    `yaml:"requests" mapstructure:"requests"`
+	Period   string `yaml:"period" mapstructure:"period"` // Go duration, e.g. "1m"
+	Burst    int    `yaml:"burst" mapstructure:"burst"`
 }
 
 // Notifications is optional daemon threshold alerting (SPEC §6).
