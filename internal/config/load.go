@@ -33,14 +33,15 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		Cluster:   raw.Cluster,
-		Kube:      raw.Kube,
-		Client:    raw.Client,
-		Store:     raw.Store,
-		Sample:    raw.Sample,
-		Scope:     raw.Scope,
-		Recommend: raw.Recommend,
-		TUI:       raw.TUI,
+		Cluster:       raw.Cluster,
+		Kube:          raw.Kube,
+		Client:        raw.Client,
+		Store:         raw.Store,
+		Sample:        raw.Sample,
+		Scope:         raw.Scope,
+		Recommend:     raw.Recommend,
+		TUI:           raw.TUI,
+		Notifications: raw.Notifications,
 	}
 
 	cfg.applyDefaults()
@@ -51,14 +52,15 @@ func Load(path string) (*Config, error) {
 }
 
 type rawConfig struct {
-	Cluster   Cluster   `mapstructure:"cluster"`
-	Kube      Kube      `mapstructure:"kube"`
-	Client    Client    `mapstructure:"client"`
-	Store     Store     `mapstructure:"store"`
-	Sample    Sample    `mapstructure:"sample"`
-	Scope     Scope     `mapstructure:"scope"`
-	Recommend Recommend `mapstructure:"recommend"`
-	TUI       TUI       `mapstructure:"tui"`
+	Cluster       Cluster       `mapstructure:"cluster"`
+	Kube          Kube          `mapstructure:"kube"`
+	Client        Client        `mapstructure:"client"`
+	Store         Store         `mapstructure:"store"`
+	Sample        Sample        `mapstructure:"sample"`
+	Scope         Scope         `mapstructure:"scope"`
+	Recommend     Recommend     `mapstructure:"recommend"`
+	TUI           TUI           `mapstructure:"tui"`
+	Notifications Notifications `mapstructure:"notifications"`
 }
 
 func bindConfigEnv(v *viper.Viper) {
@@ -143,6 +145,106 @@ func (c *Config) validate() error {
 	}
 	if _, err := c.ExpandedStorePath(); err != nil {
 		return err
+	}
+	if err := c.validateNotifications(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) validateNotifications() error {
+	n := c.Notifications
+	if !n.Enabled {
+		return nil
+	}
+	if len(n.Sinks) == 0 {
+		return fmt.Errorf("notifications.enabled requires at least one sinks[] entry")
+	}
+	for i, s := range n.Sinks {
+		if err := validateNotifySink(i, s); err != nil {
+			return err
+		}
+	}
+	return validateNotifyRules(n.Rules)
+}
+
+func validateNotifySink(i int, s NotifySink) error {
+	switch strings.ToLower(strings.TrimSpace(s.Type)) {
+	case "slack":
+		if strings.TrimSpace(s.WebhookURLEnv) == "" {
+			return fmt.Errorf("notifications.sinks[%d]: slack requires webhook_url_env", i)
+		}
+	case "webhook":
+		return validateWebhookSink(i, s)
+	case "smtp":
+		return validateSMTPSink(i, s)
+	default:
+		return fmt.Errorf("notifications.sinks[%d]: unknown type %q (want slack, webhook, smtp)", i, s.Type)
+	}
+	return nil
+}
+
+func validateWebhookSink(i int, s NotifySink) error {
+	if strings.TrimSpace(s.URLEnv) == "" {
+		return fmt.Errorf("notifications.sinks[%d]: webhook requires url_env", i)
+	}
+	body := strings.ToLower(strings.TrimSpace(s.Body))
+	if body == "" {
+		body = "generic"
+	}
+	switch body {
+	case "generic", "discord", "teams":
+		return nil
+	default:
+		return fmt.Errorf("notifications.sinks[%d]: webhook.body must be generic, discord, or teams (got %q)", i, s.Body)
+	}
+}
+
+func validateSMTPSink(i int, s NotifySink) error {
+	for _, pair := range []struct {
+		name, val string
+	}{
+		{"host_env", s.HostEnv},
+		{"port_env", s.PortEnv},
+		{"from_env", s.FromEnv},
+		{"to_env", s.ToEnv},
+	} {
+		if strings.TrimSpace(pair.val) == "" {
+			return fmt.Errorf("notifications.sinks[%d]: smtp requires %s", i, pair.name)
+		}
+	}
+	return nil
+}
+
+func validateNotifyRules(rules []NotifyRule) error {
+	for i, r := range rules {
+		if strings.TrimSpace(r.Name) == "" {
+			return fmt.Errorf("notifications.rules[%d]: name must be non-empty", i)
+		}
+		if strings.TrimSpace(r.Metric) == "" {
+			return fmt.Errorf("notifications.rules[%d]: metric must be non-empty", i)
+		}
+		if err := validateNotifyMetric(r); err != nil {
+			return fmt.Errorf("notifications.rules[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func validateNotifyMetric(r NotifyRule) error {
+	m := strings.TrimSpace(r.Metric)
+	switch m {
+	case "cpu.util_vs_request", "mem.util_vs_request",
+		"cpu.util_vs_limit", "mem.util_vs_limit":
+		if r.ThresholdRatio <= 0 {
+			return fmt.Errorf("threshold_ratio must be > 0 for metric %s", m)
+		}
+	case "cpu.util_mcores", "mem.util_bytes":
+		if r.Threshold <= 0 {
+			return fmt.Errorf("threshold must be > 0 for metric %s", m)
+		}
+	default:
+		return fmt.Errorf("unsupported metric %q", m)
 	}
 	return nil
 }

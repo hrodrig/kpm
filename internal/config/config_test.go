@@ -122,6 +122,60 @@ tui:
 `))); err == nil {
 		t.Fatal("expected bad baseline")
 	}
+	if _, err := Load(write("notify-no-sinks.yaml", base(`
+notifications:
+  enabled: true
+  sinks: []
+`))); err == nil {
+		t.Fatal("expected enabled notify without sinks to fail")
+	}
+	cfg, err := Load(write("notify-ok.yaml", base(`
+notifications:
+  enabled: true
+  sinks:
+    - type: slack
+      webhook_url_env: KPM_SLACK_WEBHOOK
+`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Notifications.Enabled || len(cfg.Notifications.Sinks) != 1 {
+		t.Fatalf("notify cfg: %+v", cfg.Notifications)
+	}
+	if _, err := Load(write("notify-bad-metric.yaml", base(`
+notifications:
+  enabled: true
+  sinks:
+    - type: webhook
+      url_env: KPM_WEBHOOK_URL
+      body: discord
+  rules:
+    - name: x
+      metric: not.a.metric
+      threshold_ratio: 0.9
+`))); err == nil {
+		t.Fatal("bad metric")
+	}
+	if _, err := Load(write("notify-bad-sink.yaml", base(`
+notifications:
+  enabled: true
+  sinks:
+    - type: pagerduty
+`))); err == nil {
+		t.Fatal("bad sink type")
+	}
+	if _, err := Load(write("notify-smtp.yaml", base(`
+notifications:
+  enabled: true
+  sinks:
+    - type: smtp
+      host_env: KPM_SMTP_HOST
+      port_env: KPM_SMTP_PORT
+      from_env: KPM_SMTP_FROM
+      to_env: KPM_SMTP_TO
+`))); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func findModuleRoot(t *testing.T) string {

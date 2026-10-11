@@ -65,5 +65,6 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newTUICmd())
 	root.AddCommand(newBackupCmd())
 	root.AddCommand(newExportCmd())
+	root.AddCommand(newNotifyTestCmd())
 	return root
 }

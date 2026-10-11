@@ -287,10 +287,21 @@ To disable alerts while keeping the daemon: set `notifications.enabled: false`
 | Repeat | While still true, re-notify every `repeat_seconds` (default **3600**; `0` = no repeat) |
 | Resolve | When condition false for `clear_after_seconds` (default = same as `hold_for_seconds`); send resolve webhook if `notify_on_resolve: true` (default **true**) |
 
-### 6.3 Sinks
+### 6.3 Sinks (gghstats-school)
 
-- **webhook** first (`url_env`, fail closed if missing when enabled).
-- Family sinks (Slack, etc.) later.
+Config key: `notifications.sinks[]` (required non-empty when `enabled: true`).
+Fan-out to **all** sinks; continue on per-sink failure; aggregate errors.
+Fail-closed if any declared sink’s `*_env` is missing or empty.
+
+| `type` | Notes |
+|--------|--------|
+| `slack` | Incoming Webhook; `webhook_url_env` → `{"text":...}` |
+| `webhook` | JSON POST; `url_env`; optional `headers_env`; `body`: `generic` (default), `discord`, or `teams` |
+| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465), else STARTTLS |
+
+**Not first-class:** native `pagerduty` / `discord` / `teams` / `loki`.
+PagerDuty and similar: `type: webhook` + `body: generic` (or automation URL).
+`kpm notify-test` fans out one synthetic `firing` event (no hold wait).
 
 ---
 
@@ -420,7 +431,7 @@ tui:
 | `capacity` | Adjacent | Draft | Yes | No |
 | `tui` / `capacity --tui` | Adjacent | Draft | Yes | Read* |
 | `mcp` | Optional | Draft | No** | Read |
-| `notify-test` | Optional | Draft | No | No |
+| `notify-test` | Optional | Draft (P3) | No | No |
 | daemon `sample` loop | Core | **Normative** (sample-only; facades draft) | Yes | Write |
 
 \*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  

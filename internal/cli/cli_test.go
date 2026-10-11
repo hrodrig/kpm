@@ -76,3 +76,16 @@ func TestExecuteContextPrintSampleFiltersSentinel(t *testing.T) {
 		t.Fatalf("ExecuteContext should swallow errPrintSampleDone: %v", err)
 	}
 }
+
+func TestNotifyTestCommandRegistered(t *testing.T) {
+	cmd := NewRootCmd()
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{"notify-test", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "notify-test") || !strings.Contains(buf.String(), "fans out") {
+		t.Fatalf("help: %q", buf.String())
+	}
+}
