@@ -13,7 +13,7 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
@@ -57,6 +57,7 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 - [Early development disclaimer](#early-development-disclaimer)
 - [How it works](#how-it-works)
 - [Status](#status)
+- [Roadmap](#roadmap)
 - [Quick start](#quick-start)
 - [Development](#development)
 - [License](#license)
@@ -80,7 +81,8 @@ flowchart LR
 
 Details (bands, defaults, more diagrams):  
 **[docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)** ·  
-**[SPECIFICATIONS.md](SPECIFICATIONS.md)**
+**[SPECIFICATIONS.md](SPECIFICATIONS.md)** ·  
+**[docs/ROADMAP.md](docs/ROADMAP.md)**
 
 [↑ Back to top](#top)
 
@@ -90,12 +92,21 @@ Details (bands, defaults, more diagrams):
 
 | Area | State |
 |------|--------|
-| Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (scaffold) |
+| Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
-| Core: sample → SQLite, backup, export | Pending (SPEC draft v0.3) |
-| Recommend / capacity / TUI | Pending |
-| Notifications / MCP / server charts | Pending (optional layers) |
-| `kpm-selfhosted` | Deferred |
+| Core: sample → SQLite, backup, export | **Current** — band `0.2.x` ([ROADMAP](docs/ROADMAP.md)) |
+| Recommend / capacity / TUI | Planned (`0.3.x`) |
+| Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
+| `kpm-selfhosted` | Deferred (post-1.0 packaging) |
+
+[↑ Back to top](#top)
+
+---
+
+## Roadmap
+
+Path to **v1.0.0** (full SPEC stack): **[docs/ROADMAP.md](docs/ROADMAP.md)**.  
+Core band plan: **[docs/plan-0.2.0.md](docs/plan-0.2.0.md)**.
 
 [↑ Back to top](#top)
 

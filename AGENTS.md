@@ -9,11 +9,14 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
   **SQLite** (plus backup/export). Adjacent: recommend, `capacity`, interactive
   **TUI** (heatmap pod list). Optional: notifications (webhook), read-only
   **MCP**, HTTP **server** charts. **Scaffold only** at `VERSION` 0.1.0.
-- **Entrypoint:** `cmd/kpm/main.go`. Packages today: `internal/cli` (Cobra),
+- **Entrypoint:** `cmd/kpm/main.go`. Packages: `internal/cli` (Cobra),
+  `internal/config`, `internal/identity` (`client.id` cascade),
+  `internal/cluster`, `internal/store`, `internal/sample`,
   `internal/exitcode`, `configs` (embedded sample YAML).
 - **Config contract:** [SPECIFICATIONS.md](SPECIFICATIONS.md) **draft v0.3**.
-  Example profile: `configs/kpm.sample.yml`.
-- **Kubernetes client:** planned **`client-go`** (no `kubectl` subprocess).
+  Path to v1: [docs/ROADMAP.md](docs/ROADMAP.md). Example:
+  `configs/kpm.sample.yml`.
+- **Kubernetes client:** **`client-go`** + Metrics API (no `kubectl` subprocess).
 
 ## Scope (product vs operator)
 
@@ -60,14 +63,17 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 ## Planning docs
 
 - User-facing: **README.md**
-- Behavior contract: **SPECIFICATIONS.md** (stub until SDD)
+- Behavior contract: **SPECIFICATIONS.md** (draft until bands promote sections)
+- Roadmap / band plans: **docs/ROADMAP.md**, **docs/plan-0.2.0.md**
 - Shipped history: **CHANGELOG.md**
 - Local GSD / SDD / AID / GSM: use `.planning/` (gitignored) when the operator
   starts that pass — do not invent product behavior only in README.
 
 ## Deferrals (do not invent in code yet)
 
-- Full recommend engine, SQLite schema, Metrics API sampler
+- Daemon sample loop, backup, export (roadmap `#4`–`#6`)
+- Full recommend engine, capacity, TUI
+- Notifications / MCP / server
 - Homebrew tap (`homebrew-kpm`)
 - FreeBSD/OpenBSD port skeletons
 - `kpm-selfhosted`

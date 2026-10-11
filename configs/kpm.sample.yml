@@ -14,6 +14,12 @@ cluster:
 kube:
   context: ""
 
+# client: who is sampling (bastion/host). Empty resolves via cascade:
+# KPM_CLIENT_ID -> client.id -> hostname -> IPv4 -> MAC -> unknown.
+# Tag every notification / sample line with client.id + cluster.name.
+client:
+  id: ""
+
 store:
   path: "~/.local/share/kpm/metrics.db"
   # Keep enough history for stable percentiles / recommend (prefer ≥ window_days).

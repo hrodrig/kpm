@@ -34,7 +34,6 @@ func ExecuteContext(ctx context.Context) error {
 }
 
 // NewRootCmd builds the kpm command tree.
-// Domain commands (sample, recommend, …) land after the product SPEC / SDD.
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "kpm",
@@ -60,5 +59,6 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().BoolVar(&printSampleConfig, "print-sample-config", false, "print sample kpm.yml to stdout and exit")
 
 	root.AddCommand(newVersionCmd())
+	root.AddCommand(newSampleCmd())
 	return root
 }
