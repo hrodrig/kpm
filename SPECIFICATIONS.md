@@ -183,6 +183,11 @@ If empty → all pods matching `scope` (same as capacity default).
 - **Δ is not “drift vs cluster policy / Git / Helm defaults”.** It compares
   today’s live allocation to the **last `recommend --record` snapshot only**.
   The bar percent is a separate signal (live util ÷ live request|limit).
+- **Enter (detail):** read-only panel comparing **owner template** resources
+  (Deployment / StatefulSet / DaemonSet; ReplicaSet walked up to Deployment)
+  vs **live Pod** requests/limits. No cluster writes. Esc closes. Unsupported
+  owners (Job, etc.) show `n/a`. Empty/error frames still render a header so
+  the alt-screen never goes blank.
 
 #### 5.3.1 Worked example (anonymized)
 

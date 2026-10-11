@@ -21,8 +21,9 @@ func newTUICmd() *cobra.Command {
 		Short: "Interactive live heatmap of pod util ratios",
 		Long: `Full-screen TUI (bubbletea) over live Metrics API data.
 Shows util/request (or util/limit) bars; optional Δ vs last recommend snapshots
-from the SQLite store (read-only). Does not write the store.
-Also available as: kpm capacity --tui`,
+from the SQLite store (read-only). Enter opens owner template vs live Pod
+resources (Deploy/STS/DS; read-only GETs). Does not write the store or mutate
+the cluster. Also available as: kpm capacity --tui`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runTUI(cmd, configPath, kubeconfig)

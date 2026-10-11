@@ -31,6 +31,10 @@ func Run(ctx context.Context, cfg *config.Config, cs kubernetes.Interface, mcs m
 			return st.LatestRecommendations(c, "")
 		}
 	}
+	wg := live.NewWorkloadGetter(cs)
+	ownerFn := func(c context.Context, ns, kind, name string) (live.OwnerTemplate, error) {
+		return live.ResolveOwnerTemplate(c, wg, ns, kind, name)
+	}
 	sec := cfg.TUI.RefreshSeconds
 	if sec < 1 {
 		sec = 5
@@ -42,7 +46,7 @@ func Run(ctx context.Context, cfg *config.Config, cs kubernetes.Interface, mcs m
 		ShowDelta: true,
 		Version:   version,
 	}
-	m := NewModel(ctx, tuiCfg, snapFn, recsFn)
+	m := NewModel(ctx, tuiCfg, snapFn, recsFn, ownerFn)
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("tui: %w", err)

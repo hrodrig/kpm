@@ -15,10 +15,10 @@ import (
 
 func sampleSnap() live.Snapshot {
 	return live.Snapshot{Containers: []live.ContainerRow{
-		{Namespace: "a", Pod: "p1", Container: "c", HasUtil: true,
+		{Namespace: "a", Pod: "p1", Container: "c", OwnerKind: "ReplicaSet", OwnerName: "web-x", HasUtil: true,
 			CPUUtilMcores: 80, CPURequestMcores: 100, CPULimitMcores: 200,
 			MemUtilBytes: 40, MemRequestBytes: 100, MemLimitBytes: 200},
-		{Namespace: "a", Pod: "p2", Container: "c", HasUtil: true,
+		{Namespace: "a", Pod: "p2", Container: "c", OwnerKind: "ReplicaSet", OwnerName: "web-x", HasUtil: true,
 			CPUUtilMcores: 10, CPURequestMcores: 100,
 			MemUtilBytes: 10, MemRequestBytes: 100},
 	}}
@@ -30,10 +30,16 @@ func newTestModel() Model {
 		Refresh:  time.Second,
 		Sort:     live.SortCPURatio,
 		Baseline: BaselineRequest,
+		Version:  "v0.3.0",
 	}, func(context.Context) (live.Snapshot, error) {
 		return snap, nil
 	}, func(context.Context) ([]store.Recommendation, error) {
 		return nil, nil
+	}, func(_ context.Context, _, _, _ string) (live.OwnerTemplate, error) {
+		return live.OwnerTemplate{
+			Kind: "Deployment", Name: "web",
+			Containers: []live.ContainerResources{{Name: "c", CPURequestMcores: 100}},
+		}, nil
 	})
 }
 
@@ -108,7 +114,7 @@ func TestModelSnapErrorsAndInit(t *testing.T) {
 		return live.Snapshot{}, errors.New("api down")
 	}, func(context.Context) ([]store.Recommendation, error) {
 		return nil, errors.New("db")
-	})
+	}, nil)
 	if m.Init() == nil {
 		t.Fatal("init")
 	}
@@ -137,5 +143,57 @@ func TestModelEmptyPodsView(t *testing.T) {
 	mod := updated.(Model)
 	if !strings.Contains(mod.View(), "(no pods)") {
 		t.Fatalf("view: %q", mod.View())
+	}
+}
+
+func TestModelEnterDetailNotBlank(t *testing.T) {
+	m := newTestModel()
+	m.ready = true
+	m.width = 80
+	m.height = 24
+	updated, _ := m.Update(snapMsg{snap: sampleSnap(), idx: RecIndex{}})
+	mod := updated.(Model)
+	updated, cmd := mod.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mod = updated.(Model)
+	if !mod.detailOpen || cmd == nil {
+		t.Fatal("enter should open detail")
+	}
+	v := mod.View()
+	if strings.TrimSpace(v) == "" || !strings.Contains(v, "owner template") {
+		t.Fatalf("blank detail frame: %q", v)
+	}
+	// simulate fetch result
+	updated, _ = mod.Update(detailMsg{body: FormatOwnerDetail("a", "p1", live.OwnerTemplate{
+		Kind: "Deployment", Name: "web",
+		Containers: []live.ContainerResources{{Name: "c", CPURequestMcores: 100}},
+	}, live.LiveContainerResources(sampleSnap().Containers, "a", "p1"))})
+	mod = updated.(Model)
+	if !strings.Contains(mod.View(), "Deployment/web") {
+		t.Fatalf("detail body: %q", mod.View())
+	}
+	updated, _ = mod.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	mod = updated.(Model)
+	if mod.detailOpen {
+		t.Fatal("esc should close")
+	}
+}
+
+func TestRenderDetailEmptyAndError(t *testing.T) {
+	m := newTestModel()
+	m.detailOpen = true
+	m.detailLoading = true
+	m.detailBody = ""
+	if !strings.Contains(m.View(), "loading") {
+		t.Fatalf("loading: %q", m.View())
+	}
+	updated, _ := m.Update(detailMsg{err: errors.New("forbidden")})
+	mod := updated.(Model)
+	if !strings.Contains(mod.View(), "forbidden") {
+		t.Fatalf("err: %q", mod.View())
+	}
+	// tick while detail open should not refresh list
+	_, cmd := mod.Update(tickMsg(time.Now()))
+	if cmd == nil {
+		t.Fatal("tick")
 	}
 }

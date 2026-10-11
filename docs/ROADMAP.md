@@ -89,6 +89,7 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | **In tree** (`--record` / `--score`) |
 | `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | **In tree** (`kpm tui`) |
+| `#11b` | TUI Enter: owner template (Deploy/STS/DS) vs live Pod resources | **In tree** (Enter detail) |
 
 **Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md).
 

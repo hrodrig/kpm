@@ -22,11 +22,11 @@ func FormatPodTable(w io.Writer, rows []PodRow) error {
 		}
 		cpuUtil := "n/a"
 		if r.HasUtil {
-			cpuUtil = formatMillicores(r.CPUUtilMcores)
+			cpuUtil = FormatMillicores(r.CPUUtilMcores)
 		}
 		memUtil := "n/a"
 		if r.HasUtil {
-			memUtil = formatBytes(r.MemUtilBytes)
+			memUtil = FormatBytes(r.MemUtilBytes)
 		}
 		node := r.Node
 		if node == "" {
@@ -36,10 +36,10 @@ func FormatPodTable(w io.Writer, rows []PodRow) error {
 			r.Namespace,
 			r.Pod,
 			cpuUtil,
-			formatMillicores(r.CPURequestMcores),
+			FormatMillicores(r.CPURequestMcores),
 			cpuRatio,
 			memUtil,
-			formatBytes(r.MemRequestBytes),
+			FormatBytes(r.MemRequestBytes),
 			memRatio,
 			node,
 		)
@@ -47,7 +47,8 @@ func FormatPodTable(w io.Writer, rows []PodRow) error {
 	return tw.Flush()
 }
 
-func formatMillicores(m float64) string {
+// FormatMillicores formats millicores as e.g. 100m.
+func FormatMillicores(m float64) string {
 	if m == 0 {
 		return "0"
 	}
@@ -57,7 +58,8 @@ func formatMillicores(m float64) string {
 	return fmt.Sprintf("%.0fm", m)
 }
 
-func formatBytes(b int64) string {
+// FormatBytes formats bytes as MiB.
+func FormatBytes(b int64) string {
 	if b == 0 {
 		return "0"
 	}

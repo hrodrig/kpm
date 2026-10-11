@@ -35,6 +35,8 @@ func ParseBaseline(s string) Baseline {
 type DisplayRow struct {
 	Namespace string
 	Pod       string
+	OwnerKind string
+	OwnerName string
 	Ratio     float64
 	HasRatio  bool
 	Delta     PodDelta
@@ -88,6 +90,8 @@ func PrepareRows(snap live.Snapshot, idx RecIndex, key live.SortKey, metric Metr
 		out = append(out, DisplayRow{
 			Namespace: p.Namespace,
 			Pod:       p.Pod,
+			OwnerKind: p.OwnerKind,
+			OwnerName: p.OwnerName,
 			Ratio:     r,
 			HasRatio:  ok,
 			Delta:     DeltaForPod(p, snap.Containers, idx),
@@ -130,7 +134,7 @@ func HeaderLine(version string, n int, metric Metric, baseline Baseline, sort li
 	if strings.TrimSpace(version) == "" {
 		version = "dev"
 	}
-	line := fmt.Sprintf("kpm %s  pods=%d  %s/%s  sort=%s  delta=%s  [j/k] [s]ort [m]etric [b]aseline [d]elta [q]uit",
+	line := fmt.Sprintf("kpm %s  pods=%d  %s/%s  sort=%s  delta=%s  [j/k] [enter]detail [s]ort [m]etric [b]aseline [d]elta [q]uit",
 		version, n, MetricLabel(metric), BaselineLabel(baseline), sort, delta)
 	if errMsg != "" {
 		line += "  ERR: " + errMsg
