@@ -191,6 +191,32 @@ Daemon only (`interval_seconds > 0`). Off unless `notifications.enabled: true`.
 Does not change the sample→SQLite loop; evaluates rules against live ticks /
 recent store as implemented.
 
+### 6.0 Rules source (decided)
+
+| `notifications.rules` | Behavior |
+|-----------------------|----------|
+| Non-empty | Use **user-defined** rules only (no merge with built-ins) |
+| Empty / omitted while `enabled: true` | Apply **built-in default rules** (below) and log once at daemon start |
+
+**Built-in defaults** (when rules empty):
+
+| Rule name | Metric | `threshold_ratio` | Scope |
+|-----------|--------|-------------------|-------|
+| `default-cpu-util-vs-request` | `cpu.util_vs_request` | **0.80** | All pods in sample `scope` |
+| `default-mem-util-vs-request` | `mem.util_vs_request` | **0.80** | All pods in sample `scope` |
+
+Other rule fields use §6.1–6.2 defaults (`hold_for_seconds`, `repeat_seconds`,
+resolve, etc.) unless later made configurable under `notifications.defaults`.
+
+**Startup log** (English, once per process; info level):
+
+```text
+notification rules not defined in user config; using built-in defaults: CPU and memory util vs request at 80%
+```
+
+To disable alerts while keeping the daemon: set `notifications.enabled: false`
+(or omit the block). Empty `rules` with `enabled: true` is **not** a silent no-op.
+
 ### 6.1 Predicate (decided)
 
 | Field | Decision |
@@ -381,6 +407,14 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | MCP | Optional — HTTP in daemon if `mcp.enabled`; stdio via `kpm mcp` |
 | Server | Optional — only if `server.enabled` |
 | Sample-only daemon | Valid (no notify/MCP/server blocks) |
+
+### 15.5 Notify default rules (decided)
+
+| Topic | Decision |
+|-------|----------|
+| Empty `rules` + `enabled: true` | Built-in CPU + mem **util vs request @ 80%**; log once (English) |
+| Non-empty `rules` | User rules only — no merge with built-ins |
+| Silent no-op on empty rules | **Rejected** |
 
 ---
 
