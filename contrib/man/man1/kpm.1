@@ -152,6 +152,26 @@ without auth (also exempt from allowlist/rate limit), plus MCP
 and
 .B mcp.rate_limit
 follow the gghstats HTTP access mold.
+.TP
+.B serve
+Analyze-local HTTP facade
+.RB ( \-\-config ,
+optional
+.BR \-\-kubeconfig ).
+Requires
+.B mcp.enabled .
+Opens
+.B store.path
+and binds
+.B mcp.listen
+with the same ops + MCP routes as the sample daemon, but
+.B without
+a Metrics scrape or sample loop
+.RB ( sample.interval_seconds
+may be
+.BR 0 ).
+.B /readyz
+checks the store only; kube is optional.
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

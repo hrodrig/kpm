@@ -87,15 +87,16 @@ Rules:
 Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 `interval_seconds > 0`).
 
-- [ ] Start ops + MCP HTTP (+ later server) when `mcp.enabled` and/or
+- [x] Start ops + MCP HTTP (+ later server) when `mcp.enabled` and/or
       `server.enabled`, **even if** `sample.interval_seconds == 0`
-- [ ] No sample ticks / no Metrics scrape in that mode
-- [ ] `/readyz`: store open required; kube **optional** (skip or soft-fail when
+      (`kpm serve`; `server.enabled` still pending `#19`/`#18`)
+- [x] No sample ticks / no Metrics scrape in that mode
+- [x] `/readyz`: store open required; kube **optional** (skip or soft-fail when
       no clientset / unreachable)
-- [ ] Prefer dedicated CLI entry: `kpm serve` (open store → mux → block on
+- [x] Prefer dedicated CLI entry: `kpm serve` (open store → mux → block on
       signal) **or** document `kpm sample` path that listens without looping —
       pick one in implement PR; default recommendation: **`kpm serve`**
-- [ ] Unit/integration: serve with temp DB, `interval=0`, hit `/healthz` + MCP
+- [x] Unit/integration: serve with temp DB, `interval=0`, hit `/healthz` + MCP
       mount; assert no sample writes
 
 ### `#19` JSON read API + auth
@@ -293,14 +294,14 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | Order | ID | Deliverable | Status |
 |------:|----|-------------|--------|
 | 1 | docs | This plan + ROADMAP + SPEC §8 draft expand | [x] |
-| 2 | `#19a` | Listen / `kpm serve` without sample loop | [ ] |
+| 2 | `#19a` | Listen / `kpm serve` without sample loop | [x] (this PR) |
 | 3 | `#19` | JSON `/api/v1/*` + auth | [ ] |
 | 4 | `#18` | Charts UI + drawers + windows | [ ] |
 | 5 | `#18b` | Kustomize/patch export in drawer | [ ] |
 | 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
 
-**Suggested PRs:** docs-first (this), then `feat/0.6-serve` (`#19a`+`#19`), then
-`feat/0.6-charts` (`#18`), then `#18b` (can ride charts PR if small).
+**Suggested PRs:** docs-first (done `#36`), `feat/0.6-serve` (`#19a`), then
+`#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b` (can ride charts PR).
 
 [↑ Back to top](#top)
 

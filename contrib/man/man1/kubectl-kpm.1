@@ -59,6 +59,13 @@ Interactive live heatmap
 .BR \-\-kubeconfig );
 alias
 .BR "capacity \-\-tui" .
+.TP
+.B mcp
+Read-only MCP over stdio (see
+.BR kpm (1)).
+.TP
+.B serve
+Ops + MCP HTTP against an existing store (no sample loop).
 .SH EXAMPLES
 .nf
 make install-kubectl-plugin

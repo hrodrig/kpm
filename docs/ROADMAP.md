@@ -130,7 +130,7 @@ Checklist detail: [plan-0.6.0.md](./plan-0.6.0.md) (`[x]`/`[ ]` — keep history
 
 | ID | Item | Status |
 |----|------|--------|
-| `#19a` | Facade listen / `kpm serve` **without** sample loop (analyze-local) | Planned |
+| `#19a` | Facade listen / `kpm serve` **without** sample loop (analyze-local) | **Done** (PR) |
 | `#19` | JSON `/api/v1/*` + bearer; shared read model; optional live | Planned |
 | `#18` | Embedded charts UI (history + drawers + time windows) on shared mux | Planned |
 | `#18b` | Recommend UI: **Kustomize patch/diff** copy/download (no cluster apply) | Planned |
