@@ -62,7 +62,7 @@ func TestWrapDaemonTickDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	called := false
 	logTick := func(sample.Result) { called = true }
-	fn, err := wrapDaemonTick(context.Background(), cfg, "c", "k", logTick, &bytes.Buffer{})
+	fn, err := wrapDaemonTick(context.Background(), cfg, "c", "k", logTick, &bytes.Buffer{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestWrapDaemonTickEnabledFailClosed(t *testing.T) {
 	cfg.Notifications.Sinks = []config.NotifySink{{
 		Type: "slack", WebhookURLEnv: "KPM_MISSING_WRAP_SLACK",
 	}}
-	_, err := wrapDaemonTick(context.Background(), cfg, "c", "k", func(sample.Result) {}, &bytes.Buffer{})
+	_, err := wrapDaemonTick(context.Background(), cfg, "c", "k", func(sample.Result) {}, &bytes.Buffer{}, nil)
 	if err == nil {
 		t.Fatal("expected fail-closed")
 	}
@@ -96,7 +96,7 @@ func TestWrapDaemonTickEnabledOK(t *testing.T) {
 		Type: "slack", WebhookURLEnv: "KPM_WRAP_SLACK_OK",
 	}}
 	errBuf := &bytes.Buffer{}
-	fn, err := wrapDaemonTick(context.Background(), cfg, "c", "k", func(sample.Result) {}, errBuf)
+	fn, err := wrapDaemonTick(context.Background(), cfg, "c", "k", func(sample.Result) {}, errBuf, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

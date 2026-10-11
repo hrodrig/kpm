@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -18,10 +18,10 @@
 <a id="early-development-disclaimer"></a>
 
 > **Early development (pre-1.0).** kpm is under active development.
-> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core (`sample` /
-> `backup` / `export` / daemon sample-only) is **normative in-tree**; recommend /
-> TUI / notify / MCP / server remain draft until **v1.0.0**. **Do not** treat
-> this as a production rightsizing gate before then. **Use at your own risk.**
+> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core, Insights,
+> notifications, and MCP (§1–7) are **normative in-tree**; server charts (§8)
+> remain draft until **0.6.x** / **v1.0.0**. **Do not** treat this as a
+> production rightsizing gate before then. **Use at your own risk.**
 > The software is provided under the [MIT License](./LICENSE) **“AS IS”**,
 > without warranty of any kind (see [LICENSE](./LICENSE)).
 
@@ -101,7 +101,8 @@ Details (bands, defaults, more diagrams):
 | `kpm tui` / `capacity --tui` | **In tree** (`0.3.x #11`; Δ vs recommend — SPEC §5.3.1) |
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
-| MCP / server charts | Planned (`0.5`–`0.6`) |
+| MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
+| Server charts / JSON API | Planned (`0.6.x`) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)
