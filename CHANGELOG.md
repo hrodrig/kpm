@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SPEC: recommend stays read-only (no cluster apply); §8.3 + §15.8/`#9b` + §15.9
   GitOps export / server Kustomize copy-download (no live patch).
 - SPEC §4 capacity: pod-sum grain, `n/a` util, shared `internal/live`.
+- P2 band exit: `#9b` + TUI delta vs last recommendation **required** (SPEC §5.3 /
+  §15.8; plan-0.3.0).
 
 ## [0.2.0] - 2026-10-11
 

@@ -85,13 +85,14 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 |----|------|--------|
 | `#8` | Shared read model (live snapshot helpers) | **In tree** (`internal/live`) |
 | `#9` | `kpm recommend` (dual grain, p/0.70, offline) | **In tree** (`kpm recommend`) |
-| `#9b` | Recommendation outcomes / calibration scoring (after `#9`) | Planned |
+| `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | Planned |
 | `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
-| `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |
+| `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | Planned |
 
-**Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md) (`#9b` sketch under Follow-on).
+**Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md).
 
-**Success:** SPEC §3–5 normative; re-record VHS if CLI help strings change.
+**Success (P2 exit):** `#8`–`#11` **and** `#9b`; SPEC §3–5 normative; VHS if help/UX change.
+TUI **must** show deviation vs last recommendation when a `#9b` snapshot exists.
 
 ### 0.4.x — Notifications (P3)
 
