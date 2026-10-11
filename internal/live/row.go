@@ -73,7 +73,17 @@ func (r PodRow) CPURatioRequest() (float64, bool) {
 	return Ratio(r.CPUUtilMcores, r.CPURequestMcores, r.HasUtil)
 }
 
+// CPURatioLimit is util/limit for a pod row.
+func (r PodRow) CPURatioLimit() (float64, bool) {
+	return Ratio(r.CPUUtilMcores, r.CPULimitMcores, r.HasUtil)
+}
+
 // MemRatioRequest is util/request for a pod row.
 func (r PodRow) MemRatioRequest() (float64, bool) {
 	return Ratio(float64(r.MemUtilBytes), float64(r.MemRequestBytes), r.HasUtil)
+}
+
+// MemRatioLimit is util/limit for a pod row.
+func (r PodRow) MemRatioLimit() (float64, bool) {
+	return Ratio(float64(r.MemUtilBytes), float64(r.MemLimitBytes), r.HasUtil)
 }
