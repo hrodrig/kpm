@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- [docs/plan-0.3.0.md](docs/plan-0.3.0.md) — Insights band plan (`#8`–`#11`, `#9b`).
+- ROADMAP `#9b` (recommendation outcomes) and `#18b` (server Kustomize patch/diff UI).
+
+### Changed
+
+- SPEC: recommend stays read-only (no cluster apply); §8.3 + §15.8/`#9b` + §15.9
+  GitOps export / server Kustomize copy-download (no live patch).
+
 ## [0.2.0] - 2026-10-11
 
 ### Added
