@@ -19,8 +19,11 @@ store:
   retention_days: 14
 
 # sample.interval_seconds:
-#   0  = one-shot
-#   >0 = daemon (notify + MCP + optional server)
+#   0  = one-shot sample → SQLite → exit
+#   >0 = daemon: ALWAYS sample → SQLite each tick
+#        + notifications if notifications.enabled
+#        + MCP HTTP if mcp.enabled
+#        + HTTP charts if server.enabled
 sample:
   interval_seconds: 300
 
