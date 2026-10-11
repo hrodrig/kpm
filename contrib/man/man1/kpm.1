@@ -121,6 +121,27 @@ Requires
 and valid sink
 .B *_env
 variables (fail-closed).
+.TP
+.B mcp
+Run a read-only MCP server over stdio
+.RB ( \-\-config ).
+Tools:
+.BR get_status ,
+.BR list_samples ,
+.BR summarize_window ,
+.BR list_recommendations .
+Uses
+.B store.path
+from the config; does not require the sample daemon.
+When the daemon runs with
+.B mcp.enabled ,
+ops HTTP
+.RB ( /healthz ,
+.BR /readyz ,
+.BR /metrics )
+listens on
+.BR mcp.listen ;
+MCP HTTP/SSE is planned separately.
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

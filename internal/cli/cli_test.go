@@ -77,6 +77,20 @@ func TestExecuteContextPrintSampleFiltersSentinel(t *testing.T) {
 	}
 }
 
+func TestMCPCommandRegistered(t *testing.T) {
+	cmd := NewRootCmd()
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+	cmd.SetArgs([]string{"mcp", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "get_status") || !strings.Contains(out, "stdio") {
+		t.Fatalf("help: %q", out)
+	}
+}
+
 func TestNotifyTestCommandRegistered(t *testing.T) {
 	cmd := NewRootCmd()
 	buf := &bytes.Buffer{}

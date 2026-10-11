@@ -45,14 +45,14 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 
 ### `#16` Stdio MCP + tools
 
-- [ ] Package `internal/mcp` — tool registry (read-only)
-- [ ] Tool `list_samples` — `store.ListRecords` + ns/workload/window filters; hard row cap
-- [ ] Tool `summarize_window` — aggregates over samples (count; util stats when request cols present); no second Metrics API call
-- [ ] Tool `list_recommendations` — `store.LatestRecommendations`; optional grain
-- [ ] Tool `get_status` — version, store path, sample interval, notify/mcp enabled flags; **no** secrets
-- [ ] CLI `kpm mcp` — stdio transport; opens store read-only; no daemon required
+- [x] Package `internal/mcp` — tool registry (read-only)
+- [x] Tool `list_samples` — `store.ListRecords` + ns/workload/window filters; hard row cap
+- [x] Tool `summarize_window` — aggregates over samples (count; util stats when request cols present); no second Metrics API call
+- [x] Tool `list_recommendations` — `store.LatestRecommendations`; optional grain
+- [x] Tool `get_status` — version, store path, sample interval, notify/mcp enabled flags; **no** secrets
+- [x] CLI `kpm mcp` — stdio transport; opens store; no daemon required
 - [ ] Same tool surface as HTTP/SSE (`#17`)
-- [ ] Unit tests with temp store fixtures
+- [x] Unit tests with temp store fixtures
 
 ### `#17` HTTP/SSE + bearer
 
@@ -139,7 +139,7 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 |------:|----|-------------|--------|
 | 1 | docs | This plan + ROADMAP + SPEC §7.3–7.5 draft | [x] |
 | 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [x] |
-| 3 | `#16` | tools + `kpm mcp` stdio | [ ] |
+| 3 | `#16` | tools + `kpm mcp` stdio | [x] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [ ] |
 | 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [ ] |
 | 6 | cut | `chore/release-0.5.0` → main + tag (later) | [ ] |

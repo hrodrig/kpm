@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Daemon HTTP ops mux when `mcp.enabled` (`internal/httpserver`):
   `GET /healthz`, `/readyz`, process `/metrics` on `mcp.listen`
-  `(0.5.x #16a)`. MCP tools / SSE still planned (`#16`–`#17`).
+  `(0.5.x #16a)`.
+- `kpm mcp` stdio read-only tools (`get_status`, `list_samples`,
+  `summarize_window`, `list_recommendations`) via official Go MCP SDK
+  `(0.5.x #16)`. HTTP/SSE mount still planned (`#17`).
 
 ## [0.4.0] - 2026-10-11
 
