@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-11
+
+### Added
+
+- [docs/plan-0.4.0.md](docs/plan-0.4.0.md) — Notifications band plan (`#12`–`#15`);
+  checklist `[x]`/`[ ]` kept for history.
+- Daemon notifications (SPEC §6): hold/repeat/resolve/dedupe rule engine;
+  built-in 80% util-vs-request defaults + startup log; multi-sink fan-out
+  `slack` / `webhook` (`generic`|`discord`|`teams`) / `smtp` (fail-closed
+  `*_env`); `kpm notify-test` `(0.4.x #12`–`#15)`.
+- `kpm tui` **Enter**: read-only detail — Deploy/STS/DS pod template resources
+  vs live Pod requests/limits (ReplicaSet → Deployment); Esc closes; never blank
+  alt-screen on empty/error.
+
+### Changed
+
+- SPECIFICATIONS.md: promote §3–6 (Insights + notifications) and exit `3` to
+  **normative**; status banner + CLI map + phasing tables; AGENTS band-exit /
+  version-bump docs must stay in lockstep with features.
+- SPEC §6.4 — anonymized notification examples (plain text, generic/discord/teams
+  JSON, config sketch) so sink payloads stay documented with the feature.
+- SPEC §6.3 — multi-sink gghstats-school (replaces solo webhook sketch);
+  PagerDuty via generic webhook; Loki deferred.
+
 ## [0.3.0] - 2026-10-11
 
 ### Added
@@ -96,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/hrodrig/kpm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hrodrig/kpm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hrodrig/kpm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hrodrig/kpm/releases/tag/v0.1.0

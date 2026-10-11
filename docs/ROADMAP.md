@@ -7,9 +7,9 @@ Product path from scaffold to **v1.0.0**. Behavior contract:
 [CHANGELOG.md](../CHANGELOG.md). Band plans (when needed): `docs/plan-0.Y.Z.md`.
 
 **v1.0 cut (decided):** tag `v1.0.0` only when CORE + adjacent
-(`recommend`, `capacity`, `tui`) + optional facades (notifications webhook,
-MCP stdio+HTTP, server embedded charts) are **stable and normative**.
-`kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
+(`recommend`, `capacity`, `tui`) + optional facades (notifications
+multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
+normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
 **Last reviewed:** 2026-10-11
 
@@ -21,7 +21,8 @@ MCP stdio+HTTP, server embedded charts) are **stable and normative**.
 |------|-------|------|
 | **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
 | **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
-| **Next** | **0.4.x Notifications** | — |
+| **0.4.x Notify** | P3 shipped `v0.4.0` (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
+| **Next** | **0.5.x MCP** | — |
 
 ---
 
@@ -42,8 +43,8 @@ flowchart LR
 |------|------|--------|
 | **0.1.x** Scaffold | mold + CLI version/sample-config | **Shipped** `v0.1.0` |
 | **0.2.x** Core (P1) | §2 sample, store, daemon sample-only, backup, export | **In tree** (SPEC draft v0.4 normative Core) |
-| **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | Planned |
-| **0.4.x** Notify (P3) | §6 webhook thresholds | Planned |
+| **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | **Shipped** `v0.3.0` |
+| **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE | Planned |
 | **0.6.x** Server (P5) | §8 embedded charts (no SPA) | Planned |
 | **0.7.x** Harden | E2E, docs freeze, security, Homebrew | Planned |
@@ -89,6 +90,7 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#9b` | Persist recommend + score + **TUI delta feed** (**P2 required**) | **In tree** (`--record` / `--score`) |
 | `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap + delta vs last recommend | **In tree** (`kpm tui`) |
+| `#11b` | TUI Enter: owner template (Deploy/STS/DS) vs live Pod resources | **In tree** (Enter detail) |
 
 **Band plan:** [docs/plan-0.3.0.md](./plan-0.3.0.md).
 
@@ -97,14 +99,17 @@ TUI **must** show deviation vs last recommendation when a `#9b` snapshot exists.
 
 ### 0.4.x — Notifications (P3)
 
+Checklist detail: [plan-0.4.0.md](./plan-0.4.0.md) (`[x]`/`[ ]` — keep history).
+
 | ID | Item | Status |
 |----|------|--------|
-| `#12` | Rule engine (hold / repeat / resolve / dedupe) | Planned |
-| `#13` | Built-in 80% defaults + startup log when rules empty | Planned |
-| `#14` | Webhook sink (`url_env`, fail closed) | Planned |
-| `#15` | `kpm notify-test` | Planned |
+| `#12` | Rule engine (hold / repeat / resolve / dedupe) | **Done** (`v0.4.0`) |
+| `#13` | Built-in 80% defaults + startup log when rules empty | **Done** (`v0.4.0`) |
+| `#14` | Multi-sink fan-out: `slack`, `webhook` (`generic`/`discord`/`teams`), `smtp`; fail-closed `*_env` | **Done** (`v0.4.0`) |
+| `#15` | `kpm notify-test` | **Done** (`v0.4.0`) |
 
 **Success:** SPEC §6 normative; daemon + notify without MCP/server.
+**Note:** PagerDuty via generic `webhook` (no native type). Loki deferred.
 
 ### 0.5.x — MCP (P4)
 

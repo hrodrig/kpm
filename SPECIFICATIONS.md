@@ -1,9 +1,9 @@
 # SPECIFICATIONS — kpm
 
-> **Status: draft v0.4 — Core (§2) + scaffold (§1) + `client.id` (§9.2.1)
-> normative in-tree.** Adjacent (§3–5) and optional facades (§6–8) remain
-> draft until their bands ship. Semver tag for Core still pending
-> (`docs/ROADMAP.md` band `0.2.x`).
+> **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
+> adjacent Insights (§3–5), notifications (§6), `client.id` (§9.2.1), and
+> exit codes `0`/`1`/`2`/`3`. Optional facades MCP (§7) and server (§8)
+> remain **draft** until those bands ship.
 
 | Term | Meaning |
 |------|---------|
@@ -119,7 +119,7 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ---
 
-## 3. ADJACENT — recommend
+## 3. ADJACENT — recommend (normative today)
 
 - `kpm recommend` — **offline** from SQLite (no cluster access).
 - Grains: workload+container **and** pod+container (both emitted).
@@ -132,7 +132,7 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ---
 
-## 4. ADJACENT — capacity (non-interactive)
+## 4. ADJACENT — capacity (non-interactive, normative today)
 
 - `kpm capacity` — one-shot **live** table (kube-capacity-like); **no SQLite**.
 - Shared read model: `internal/live` (also for TUI/server).
@@ -144,7 +144,7 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ---
 
-## 5. ADJACENT — TUI (interactive heatmap list)
+## 5. ADJACENT — TUI (interactive heatmap list, normative today)
 
 Interactive terminal UI for watching a **preselected** set of pods.
 
@@ -183,6 +183,11 @@ If empty → all pods matching `scope` (same as capacity default).
 - **Δ is not “drift vs cluster policy / Git / Helm defaults”.** It compares
   today’s live allocation to the **last `recommend --record` snapshot only**.
   The bar percent is a separate signal (live util ÷ live request|limit).
+- **Enter (detail):** read-only panel comparing **owner template** resources
+  (Deployment / StatefulSet / DaemonSet; ReplicaSet walked up to Deployment)
+  vs **live Pod** requests/limits. No cluster writes. Esc closes. Unsupported
+  owners (Job, etc.) show `n/a`. Empty/error frames still render a header so
+  the alt-screen never goes blank.
 
 #### 5.3.1 Worked example (anonymized)
 
@@ -233,7 +238,7 @@ Default sort: `cpu.ratio` descending (hottest first).
 
 ---
 
-## 6. OPTIONAL — notifications (sustained thresholds)
+## 6. OPTIONAL — notifications (sustained thresholds, normative today)
 
 Daemon only (`interval_seconds > 0`). Off unless `notifications.enabled: true`.
 Does not change the sample→SQLite loop; evaluates rules against live ticks /
@@ -282,10 +287,119 @@ To disable alerts while keeping the daemon: set `notifications.enabled: false`
 | Repeat | While still true, re-notify every `repeat_seconds` (default **3600**; `0` = no repeat) |
 | Resolve | When condition false for `clear_after_seconds` (default = same as `hold_for_seconds`); send resolve webhook if `notify_on_resolve: true` (default **true**) |
 
-### 6.3 Sinks
+### 6.3 Sinks (gghstats-school)
 
-- **webhook** first (`url_env`, fail closed if missing when enabled).
-- Family sinks (Slack, etc.) later.
+Config key: `notifications.sinks[]` (required non-empty when `enabled: true`).
+Fan-out to **all** sinks; continue on per-sink failure; aggregate errors.
+Fail-closed if any declared sink’s `*_env` is missing or empty.
+
+| `type` | Notes |
+|--------|--------|
+| `slack` | Incoming Webhook; `webhook_url_env` → `{"text":...}` |
+| `webhook` | JSON POST; `url_env`; optional `headers_env`; `body`: `generic` (default), `discord`, or `teams` |
+| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465), else STARTTLS |
+
+**Not first-class:** native `pagerduty` / `discord` / `teams` / `loki`.
+PagerDuty and similar: `type: webhook` + `body: generic` (or automation URL).
+`kpm notify-test` fans out one synthetic `firing` event (no hold wait).
+
+### 6.4 Examples (anonymized)
+
+Illustrative only — fictional namespace/pod/client/cluster labels. Real
+payloads always include resolved `client.id` + `cluster.name` (§9.2.1).
+
+**Plain text** (Slack Incoming Webhook `text` field, SMTP body, and the
+`text` string inside generic JSON):
+
+```text
+kpm ALERT: default-cpu-util-vs-request app/api-0/main
+metric=cpu.util_vs_request value=0.91 threshold=0.8
+event=firing level=alert client.id=bastion-a cluster=prod-east ts=2026-10-11T16:05:00Z
+```
+
+Repeat (still above threshold after `repeat_seconds`):
+
+```text
+kpm ALERT (ongoing): default-cpu-util-vs-request app/api-0/main
+metric=cpu.util_vs_request value=0.93 threshold=0.8
+event=repeat level=alert client.id=bastion-a cluster=prod-east ts=2026-10-11T17:05:00Z
+```
+
+Resolve (condition clear for `clear_after_seconds`; `notify_on_resolve: true`):
+
+```text
+kpm RESOLVED: default-cpu-util-vs-request app/api-0/main
+metric=cpu.util_vs_request value=0.42 threshold=0.8
+event=resolved level=ok client.id=bastion-a cluster=prod-east ts=2026-10-11T17:20:00Z
+```
+
+**Webhook `body: generic`** (JSON POST; fields match `internal/notify`
+`GenericPayload`):
+
+```json
+{
+  "event": "firing",
+  "level": "alert",
+  "title": "kpm ALERT: default-cpu-util-vs-request app/api-0/main",
+  "text": "kpm ALERT: default-cpu-util-vs-request app/api-0/main\nmetric=cpu.util_vs_request value=0.91 threshold=0.8\nevent=firing level=alert client.id=bastion-a cluster=prod-east ts=2026-10-11T16:05:00Z",
+  "rule": "default-cpu-util-vs-request",
+  "metric": "cpu.util_vs_request",
+  "value": 0.91,
+  "threshold": 0.8,
+  "namespace": "app",
+  "pod": "api-0",
+  "container": "main",
+  "client.id": "bastion-a",
+  "cluster": "prod-east",
+  "cluster.name": "prod-east",
+  "ts": "2026-10-11T16:05:00Z"
+}
+```
+
+**Webhook `body: discord`:**
+
+```json
+{
+  "content": "kpm ALERT: default-cpu-util-vs-request app/api-0/main\nmetric=cpu.util_vs_request value=0.91 threshold=0.8\nevent=firing level=alert client.id=bastion-a cluster=prod-east ts=2026-10-11T16:05:00Z"
+}
+```
+
+**Webhook `body: teams`** (MessageCard-shaped; theme red on alert / green on resolve):
+
+```json
+{
+  "@type": "MessageCard",
+  "@context": "https://schema.org/extensions",
+  "summary": "kpm ALERT: default-cpu-util-vs-request app/api-0/main",
+  "themeColor": "FF0000",
+  "title": "kpm ALERT: default-cpu-util-vs-request app/api-0/main",
+  "text": "kpm ALERT: default-cpu-util-vs-request app/api-0/main\nmetric=cpu.util_vs_request value=0.91 threshold=0.8\nevent=firing level=alert client.id=bastion-a cluster=prod-east ts=2026-10-11T16:05:00Z"
+}
+```
+
+**Config sketch** (secrets via env names only — never inline URLs/passwords):
+
+```yaml
+notifications:
+  enabled: true
+  rules: []   # → built-in 80% + startup log
+  sinks:
+    - type: slack
+      webhook_url_env: KPM_SLACK_WEBHOOK
+    - type: webhook
+      url_env: KPM_DISCORD_WEBHOOK_URL
+      body: discord
+    - type: smtp
+      host_env: KPM_SMTP_HOST
+      port_env: KPM_SMTP_PORT
+      from_env: KPM_SMTP_FROM
+      to_env: KPM_SMTP_TO
+```
+
+`kpm notify-test` sends one synthetic **firing** event (rule name
+`notify-test`, demo pod `demo/notify-test/main`) to all configured sinks
+without waiting for hold — use to validate env/fan-out before enabling the
+daemon path.
 
 ---
 
@@ -411,12 +525,12 @@ tui:
 | `sample` | Core | **Normative** | Yes | Write |
 | `backup` | Core | **Normative** | No | Yes |
 | `export` | Core | **Normative** | No | Yes |
-| `recommend` | Adjacent | Draft | No | Yes |
-| `capacity` | Adjacent | Draft | Yes | No |
-| `tui` / `capacity --tui` | Adjacent | Draft | Yes | Read* |
+| `recommend` | Adjacent | **Normative** | No | Yes |
+| `capacity` | Adjacent | **Normative** | Yes | No |
+| `tui` / `capacity --tui` | Adjacent | **Normative** | Yes | Read* |
 | `mcp` | Optional | Draft | No** | Read |
-| `notify-test` | Optional | Draft | No | No |
-| daemon `sample` loop | Core | **Normative** (sample-only; facades draft) | Yes | Write |
+| `notify-test` | Optional | **Normative** | No | No |
+| daemon `sample` loop | Core | **Normative** (notify when `notifications.enabled`) | Yes | Write |
 
 \*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
 \*\*MCP read tools use store; cluster tools optional and read-only.
@@ -430,7 +544,7 @@ tui:
 | `0` | ok | **Normative** |
 | `1` | generic failure | **Normative** |
 | `2` | cluster / Metrics API / RBAC | **Normative** |
-| `3` | empty / insufficient store data | Draft (recommend band) |
+| `3` | empty / insufficient store data | **Normative** (recommend) |
 
 ---
 
@@ -445,9 +559,9 @@ tui:
 
 | Phase | Deliver | Status |
 |-------|---------|--------|
-| **P1 — Core** | sample → SQLite; backup; export csv/tsv; daemon sample-only | **In tree** (band `0.2.x`) |
-| **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | Planned |
-| **P3 — Notify** | sustained thresholds + webhook | Planned |
+| **P1 — Core** | sample → SQLite; backup; export csv/tsv; daemon sample-only | **Shipped** `v0.2.0` |
+| **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
+| **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + localhost HTTP/SSE, bearer on HTTP | Planned |
 | **P5 — Server** | embedded charts UI + optional auth | Planned |
 
@@ -512,8 +626,18 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 |-------|----------|
 | Backup mechanism | SQLite **`VACUUM INTO`** (not online backup API) |
 | Export formats | csv + tsv only; filters since/until/namespace/pod/workload |
-| Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
-| SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
+| Daemon | `interval_seconds > 0` → always sample; notify optional when enabled |
+| SPEC bump (historical) | At `v0.2.0`: §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative** |
+
+### 15.10 SPEC normative after Insights + Notify (`v0.3.0` / `v0.4.0`)
+
+| Topic | Decision |
+|-------|----------|
+| §3–5 Insights | **Normative** when `v0.3.0` shipped |
+| §6 Notifications | **Normative** when `v0.4.0` shipped (multi-sink) |
+| Exit `3` | **Normative** with recommend |
+| §7–8 | Stay **draft** until MCP / server bands |
+| Band exit rule | Feature PR must update SPEC/man/sample/CHANGELOG; release cut must not leave status banner stale |
 
 ### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 

@@ -13,14 +13,53 @@ const DefaultConfigPath = "kpm.yaml"
 
 // Config is the root kpm configuration (core keys for band 0.2.x).
 type Config struct {
-	Cluster   Cluster   `yaml:"cluster" mapstructure:"cluster"`
-	Kube      Kube      `yaml:"kube" mapstructure:"kube"`
-	Client    Client    `yaml:"client" mapstructure:"client"`
-	Store     Store     `yaml:"store" mapstructure:"store"`
-	Sample    Sample    `yaml:"sample" mapstructure:"sample"`
-	Scope     Scope     `yaml:"scope" mapstructure:"scope"`
-	Recommend Recommend `yaml:"recommend" mapstructure:"recommend"`
-	TUI       TUI       `yaml:"tui" mapstructure:"tui"`
+	Cluster       Cluster       `yaml:"cluster" mapstructure:"cluster"`
+	Kube          Kube          `yaml:"kube" mapstructure:"kube"`
+	Client        Client        `yaml:"client" mapstructure:"client"`
+	Store         Store         `yaml:"store" mapstructure:"store"`
+	Sample        Sample        `yaml:"sample" mapstructure:"sample"`
+	Scope         Scope         `yaml:"scope" mapstructure:"scope"`
+	Recommend     Recommend     `yaml:"recommend" mapstructure:"recommend"`
+	TUI           TUI           `yaml:"tui" mapstructure:"tui"`
+	Notifications Notifications `yaml:"notifications" mapstructure:"notifications"`
+}
+
+// Notifications is optional daemon threshold alerting (SPEC §6).
+type Notifications struct {
+	Enabled bool         `yaml:"enabled" mapstructure:"enabled"`
+	Rules   []NotifyRule `yaml:"rules" mapstructure:"rules"`
+	Sinks   []NotifySink `yaml:"sinks" mapstructure:"sinks"`
+}
+
+// NotifyRule is one sustained-threshold rule.
+type NotifyRule struct {
+	Name              string   `yaml:"name" mapstructure:"name"`
+	Namespaces        []string `yaml:"namespaces" mapstructure:"namespaces"`
+	Metric            string   `yaml:"metric" mapstructure:"metric"`
+	ThresholdRatio    float64  `yaml:"threshold_ratio" mapstructure:"threshold_ratio"`
+	Threshold         float64  `yaml:"threshold" mapstructure:"threshold"`
+	HoldForSeconds    int      `yaml:"hold_for_seconds" mapstructure:"hold_for_seconds"`
+	ClearAfterSeconds int      `yaml:"clear_after_seconds" mapstructure:"clear_after_seconds"`
+	// RepeatSeconds nil → default 3600; pointer 0 → no repeat (SPEC §6.2).
+	RepeatSeconds *int `yaml:"repeat_seconds" mapstructure:"repeat_seconds"`
+	// NotifyOnResolve nil means default true (SPEC §6.2).
+	NotifyOnResolve *bool `yaml:"notify_on_resolve" mapstructure:"notify_on_resolve"`
+}
+
+// NotifySink is one fan-out destination (gghstats-school).
+type NotifySink struct {
+	Type          string            `yaml:"type" mapstructure:"type"`
+	WebhookURLEnv string            `yaml:"webhook_url_env" mapstructure:"webhook_url_env"`
+	URLEnv        string            `yaml:"url_env" mapstructure:"url_env"`
+	Body          string            `yaml:"body" mapstructure:"body"`
+	HeadersEnv    map[string]string `yaml:"headers_env" mapstructure:"headers_env"`
+	HostEnv       string            `yaml:"host_env" mapstructure:"host_env"`
+	PortEnv       string            `yaml:"port_env" mapstructure:"port_env"`
+	UserEnv       string            `yaml:"user_env" mapstructure:"user_env"`
+	PasswordEnv   string            `yaml:"password_env" mapstructure:"password_env"`
+	FromEnv       string            `yaml:"from_env" mapstructure:"from_env"`
+	ToEnv         string            `yaml:"to_env" mapstructure:"to_env"`
+	UseTLS        bool              `yaml:"use_tls" mapstructure:"use_tls"`
 }
 
 // Client is the sampling identity ("who samples"). ID empty resolves via the

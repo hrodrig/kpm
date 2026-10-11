@@ -67,23 +67,44 @@ tui:
   #   - "app/api-0"
   # pod_labels: "kpm.watch=true"
 
-# OPTIONAL — sustained threshold alerts (daemon only).
+# OPTIONAL — sustained threshold alerts (daemon only; interval_seconds > 0).
 # If enabled and rules is empty/omitted → built-in defaults (CPU + mem util vs
 # request at 80%) and a one-time log; see SPEC §6.0.
+# Sinks are gghstats-school: slack | webhook (generic/discord/teams) | smtp.
+# PagerDuty / n8n: use type webhook + body generic (no native pagerduty type).
+# Anonymized payload examples: SPECIFICATIONS.md §6.4. Smoke: kpm notify-test.
 # notifications:
 #   enabled: true
 #   rules: []   # empty → built-in 80% defaults + log
 #   # rules:
 #   #   - name: cpu-hot
 #   #     namespaces: ["app"]
-#   #     metric: cpu.util_vs_request   # or mem.util_vs_request | *.util_vs_limit | absolute
+#   #     metric: cpu.util_vs_request
 #   #     threshold_ratio: 0.90
 #   #     hold_for_seconds: 600
 #   #     clear_after_seconds: 600
-#   #     repeat_seconds: 3600
+#   #     repeat_seconds: 3600   # omit → 3600; set 0 for no repeat
 #   #     notify_on_resolve: true
-#   webhook:
-#     url_env: KPM_WEBHOOK_URL
+#   sinks:
+#     - type: slack
+#       webhook_url_env: KPM_SLACK_WEBHOOK
+#     - type: webhook
+#       url_env: KPM_DISCORD_WEBHOOK_URL
+#       body: discord
+#     - type: webhook
+#       url_env: KPM_TEAMS_WEBHOOK_URL
+#       body: teams
+#     - type: webhook
+#       url_env: KPM_PAGERDUTY_WEBHOOK_URL
+#       body: generic
+#     - type: smtp
+#       host_env: KPM_SMTP_HOST
+#       port_env: KPM_SMTP_PORT
+#       user_env: KPM_SMTP_USER
+#       password_env: KPM_SMTP_PASSWORD
+#       from_env: KPM_SMTP_FROM
+#       to_env: KPM_SMTP_TO
+#       # use_tls: true   # 465 implicit TLS; omit/false → STARTTLS (587)
 
 # OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP when enabled in daemon).
 # mcp:

@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-11" "kpm v0.3.0" "User Commands"
+.TH KPM 1 "2026-10-11" "kpm v0.4.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -38,6 +38,11 @@ Sample pod CPU/memory into SQLite
 is one-shot;
 .B > 0
 runs a daemon loop until SIGINT/SIGTERM.
+When
+.B notifications.enabled
+is true, each daemon tick also evaluates threshold rules and fans out to
+.B notifications.sinks
+(slack / webhook / smtp).
 .TP
 .B backup
 Safe SQLite copy via
@@ -89,7 +94,8 @@ calibrates latest snapshots against later samples (mutually exclusive with
 Interactive live heatmap of pod util ratios (Metrics API).
 .RB ( \-\-config ,
 .BR \-\-kubeconfig ).
-Keys: j/k move, s sort, m cpu/mem, b request/limit, d delta column, q quit.
+Keys: j/k move, Enter owner-template vs pod-live detail (read-only; Esc close),
+s sort, m cpu/mem, b request/limit, d delta column, q quit.
 Delta joins read-only
 .B recommendations
 snapshots when the store file exists; otherwise
@@ -104,6 +110,17 @@ Example:
 request; CPU request 60m below last advice (see SPECIFICATIONS.md §5.3.1).
 Alias:
 .BR "capacity \-\-tui" .
+.TP
+.B notify\-test
+Send one synthetic firing alert to all configured
+.B notifications.sinks
+.RB ( \-\-config ).
+Does not sample the cluster or wait for hold duration.
+Requires
+.B notifications.enabled
+and valid sink
+.B *_env
+variables (fail-closed).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm
