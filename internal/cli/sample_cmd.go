@@ -67,10 +67,15 @@ Daemon loop when interval_seconds > 0 (SIGINT/SIGTERM clean exit).`,
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
 					"daemon sample interval=%ds client.id=%s cluster=%s store=%s\n",
 					cfg.Sample.IntervalSeconds, clientID, clusterName, st.Path())
-				onTick, err := wrapDaemonTick(cmd.Context(), cfg, clientID, clusterName, logTick, cmd.ErrOrStderr())
+				metrics, err := startOpsHTTP(cmd.Context(), cfg, st, cs, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
+				onTick, err := wrapDaemonTick(cmd.Context(), cfg, clientID, clusterName, logTick, cmd.ErrOrStderr(), metrics)
+				if err != nil {
+					return err
+				}
+				onTick = withProcessMetrics(onTick, metrics)
 				if err := sample.RunLoop(cmd.Context(), cfg, st, cs, mcs, onTick); err != nil {
 					return exitcode.New(exitcode.Cluster, err)
 				}

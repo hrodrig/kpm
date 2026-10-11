@@ -22,6 +22,14 @@ type Config struct {
 	Recommend     Recommend     `yaml:"recommend" mapstructure:"recommend"`
 	TUI           TUI           `yaml:"tui" mapstructure:"tui"`
 	Notifications Notifications `yaml:"notifications" mapstructure:"notifications"`
+	MCP           MCP           `yaml:"mcp" mapstructure:"mcp"`
+}
+
+// MCP is optional read-only MCP + daemon HTTP ops (SPEC §7).
+type MCP struct {
+	Enabled  bool   `yaml:"enabled" mapstructure:"enabled"`
+	Listen   string `yaml:"listen" mapstructure:"listen"`
+	TokenEnv string `yaml:"token_env" mapstructure:"token_env"`
 }
 
 // Notifications is optional daemon threshold alerting (SPEC §6).

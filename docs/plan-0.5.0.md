@@ -34,14 +34,14 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 
 ### `#16a` Shared HTTP mux + ops
 
-- [ ] Package `internal/httpserver` — `net/http` mux (no SPA)
-- [ ] `GET /healthz` — process up (liveness)
-- [ ] `GET /readyz` — store open (+ kube/Metrics reachable when sample daemon active)
-- [ ] `GET /metrics` — **process** Prometheus text (ticks, notify fan-out errors if wired, SQLite write latency); **not** cluster pod re-export
-- [ ] Wire listen from `mcp.listen` when `mcp.enabled` + daemon (`interval_seconds > 0`)
-- [ ] Default bind loopback; fail closed on listen error
-- [ ] Unit tests (httptest) for probes + metrics content-type
-- [ ] Core / `internal/sample` must **not** import `httpserver` or `mcp`
+- [x] Package `internal/httpserver` — `net/http` mux (no SPA)
+- [x] `GET /healthz` — process up (liveness)
+- [x] `GET /readyz` — store open (+ kube discovery when clientset present)
+- [x] `GET /metrics` — **process** Prometheus text (ticks, notify fan-out errors, SQLite write avg); **not** cluster pod re-export
+- [x] Wire listen from `mcp.listen` when `mcp.enabled` + daemon (`interval_seconds > 0`)
+- [x] Default bind loopback; fail closed on listen error; `token_env` required off-loopback
+- [x] Unit tests (httptest) for probes + metrics content-type
+- [x] Core / `internal/sample` must **not** import `httpserver` or `mcp`
 
 ### `#16` Stdio MCP + tools
 
@@ -138,7 +138,7 @@ HTTP draft URL: `http://127.0.0.1:9740/sse` (mount path locked in `#17`).
 | Order | ID | Deliverable | Status |
 |------:|----|-------------|--------|
 | 1 | docs | This plan + ROADMAP + SPEC §7.3–7.5 draft | [x] |
-| 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [ ] |
+| 2 | `#16a` | `internal/httpserver` + probes + daemon wire | [x] |
 | 3 | `#16` | tools + `kpm mcp` stdio | [ ] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [ ] |
 | 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [ ] |

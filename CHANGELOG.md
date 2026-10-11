@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Daemon HTTP ops mux when `mcp.enabled` (`internal/httpserver`):
+  `GET /healthz`, `/readyz`, process `/metrics` on `mcp.listen`
+  `(0.5.x #16a)`. MCP tools / SSE still planned (`#16`–`#17`).
+
 ## [0.4.0] - 2026-10-11
 
 ### Added

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -42,6 +43,7 @@ func Load(path string) (*Config, error) {
 		Recommend:     raw.Recommend,
 		TUI:           raw.TUI,
 		Notifications: raw.Notifications,
+		MCP:           raw.MCP,
 	}
 
 	cfg.applyDefaults()
@@ -61,6 +63,7 @@ type rawConfig struct {
 	Recommend     Recommend     `mapstructure:"recommend"`
 	TUI           TUI           `mapstructure:"tui"`
 	Notifications Notifications `mapstructure:"notifications"`
+	MCP           MCP           `mapstructure:"mcp"`
 }
 
 func bindConfigEnv(v *viper.Viper) {
@@ -120,6 +123,9 @@ func (c *Config) applyDefaults() {
 	if strings.TrimSpace(c.TUI.Baseline) == "" {
 		c.TUI.Baseline = "request"
 	}
+	if c.MCP.Enabled && strings.TrimSpace(c.MCP.Listen) == "" {
+		c.MCP.Listen = "127.0.0.1:9740"
+	}
 }
 
 func (c *Config) validate() error {
@@ -149,7 +155,46 @@ func (c *Config) validate() error {
 	if err := c.validateNotifications(); err != nil {
 		return err
 	}
+	if err := c.validateMCP(); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c *Config) validateMCP() error {
+	m := c.MCP
+	if !m.Enabled {
+		return nil
+	}
+	listen := strings.TrimSpace(m.Listen)
+	if listen == "" {
+		return fmt.Errorf("mcp.enabled requires listen (or default)")
+	}
+	if _, _, err := net.SplitHostPort(listen); err != nil {
+		return fmt.Errorf("mcp.listen: %w", err)
+	}
+	if !listenIsLoopback(listen) {
+		if strings.TrimSpace(m.TokenEnv) == "" {
+			return fmt.Errorf("mcp.token_env required when mcp.listen is non-loopback")
+		}
+	}
+	return nil
+}
+
+func listenIsLoopback(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return false
+	}
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (c *Config) validateNotifications() error {

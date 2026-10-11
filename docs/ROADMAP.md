@@ -117,7 +117,7 @@ Checklist detail: [plan-0.5.0.md](./plan-0.5.0.md) (`[x]`/`[ ]` — keep history
 
 | ID | Item | Status |
 |----|------|--------|
-| `#16a` | Shared daemon HTTP mux (`internal/httpserver`): `/healthz`, `/readyz`, process `/metrics`; listen via `mcp.listen` | Planned |
+| `#16a` | Shared daemon HTTP mux (`internal/httpserver`): `/healthz`, `/readyz`, process `/metrics`; listen via `mcp.listen` | **In tree** |
 | `#16` | `kpm mcp` stdio read-only store tools (`list_samples`, `summarize_window`, `list_recommendations`, `get_status`) | Planned |
 | `#17` | HTTP/SSE on same mux when `mcp.enabled`; bearer rules (SPEC §7.2) | Planned |
 

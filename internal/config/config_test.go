@@ -178,6 +178,74 @@ notifications:
 	}
 }
 
+func TestLoadMCP(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	base := func(extra string) string {
+		return `
+store:
+  path: ` + filepath.Join(dir, "m.db") + `
+  retention_days: 14
+sample:
+  interval_seconds: 0
+` + extra
+	}
+	if _, err := Load(write("mcp-nonloop-no-token.yaml", base(`
+mcp:
+  enabled: true
+  listen: "0.0.0.0:9740"
+`))); err == nil {
+		t.Fatal("expected mcp non-loopback without token_env to fail")
+	}
+	mcpCfg, err := Load(write("mcp-ok.yaml", base(`
+mcp:
+  enabled: true
+  listen: "127.0.0.1:9740"
+`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !mcpCfg.MCP.Enabled || mcpCfg.MCP.Listen != "127.0.0.1:9740" {
+		t.Fatalf("mcp cfg: %+v", mcpCfg.MCP)
+	}
+	def, err := Load(write("mcp-default-listen.yaml", base(`
+mcp:
+  enabled: true
+`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.MCP.Listen != "127.0.0.1:9740" {
+		t.Fatalf("default listen: %q", def.MCP.Listen)
+	}
+	if _, err := Load(write("mcp-bad-listen.yaml", base(`
+mcp:
+  enabled: true
+  listen: "not-a-host-port"
+`))); err == nil {
+		t.Fatal("expected bad listen")
+	}
+	tok, err := Load(write("mcp-nonloop-token.yaml", base(`
+mcp:
+  enabled: true
+  listen: "0.0.0.0:9740"
+  token_env: KPM_MCP_TOKEN
+`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tok.MCP.TokenEnv != "KPM_MCP_TOKEN" {
+		t.Fatalf("token_env: %+v", tok.MCP)
+	}
+}
+
 func findModuleRoot(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()
