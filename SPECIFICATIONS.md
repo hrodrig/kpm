@@ -428,6 +428,32 @@ Both supported; same tool surface.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
+### 7.3 Tools (draft — 0.5.x store-only MVP)
+
+Same surface on **stdio** and **HTTP/SSE**. No cluster mutations; no SQLite writes.
+Live Metrics / `internal/live` tools are **deferred** (not in first MCP cut).
+
+| Tool | Reads | Notes |
+|------|-------|-------|
+| `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap |
+| `summarize_window` | Store samples | Aggregates (count; util stats when request fields present); **no** second Metrics API call |
+| `list_recommendations` | Store recommendations | Optional grain filter |
+| `get_status` | Config + build meta | Version, store path, sample interval, notify/mcp flags; **never** secret values |
+
+### 7.4 Daemon HTTP ops (draft — with MCP listen)
+
+When the sample daemon runs with `mcp.enabled: true`, the process listens on
+`mcp.listen` (default loopback) and serves:
+
+| Path | Role |
+|------|------|
+| `GET /healthz` | Liveness (process up) |
+| `GET /readyz` | Readiness (store open; kube/Metrics reachable when sampling) |
+| `GET /metrics` | **Process** Prometheus text (daemon/ops counters) — **not** a re-export of cluster pod metrics |
+
+MCP HTTP/SSE mounts on the **same** mux. JSON REST `/api/*` and charts belong
+to **server** mode (§8 / P5), not MCP.
+
 ---
 
 ## 8. OPTIONAL — server mode (charts)
@@ -665,6 +691,7 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
-  · [docs/plan-0.3.0.md](docs/plan-0.3.0.md)
+  · [docs/plan-0.3.0.md](docs/plan-0.3.0.md) · [docs/plan-0.4.0.md](docs/plan-0.4.0.md)
+  · [docs/plan-0.5.0.md](docs/plan-0.5.0.md)
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)
