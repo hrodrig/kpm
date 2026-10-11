@@ -98,7 +98,8 @@ Details (bands, defaults, more diagrams):
 | FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
 | VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
 | `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
-| Recommend / TUI | Planned (`0.3.x`) |
+| `kpm recommend` (offline) | **In tree** (`0.3.x #9`) |
+| TUI | Planned (`0.3.x #11`) |
 | Notifications / MCP / server charts | Planned (`0.4`–`0.6`) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 

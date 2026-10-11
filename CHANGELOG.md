@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared live read model `internal/live` (Pod+Metrics → container/pod rows) `(0.3.x #8)`.
 - `kpm capacity` — one-shot live pod capacity table (no SQLite); `--sort`; exit `2`
   on API fail `(0.3.x #10)`.
+- `kpm recommend` — offline rightsizing from SQLite (dual grain, table/tsv);
+  exit `3` when insufficient samples `(0.3.x #9)`.
 
 ### Changed
 
