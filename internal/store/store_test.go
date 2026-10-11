@@ -92,3 +92,30 @@ func TestOpenInsertCountPrune(t *testing.T) {
 		t.Fatalf("after prune count: got %d", n)
 	}
 }
+
+func TestListRecords(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Now().UTC()
+	recs := []Record{
+		{SampledAt: now.Add(-time.Hour), Namespace: "app", Pod: "p", Container: "c", OwnerName: "web", CPUUtilMcores: 1},
+		{SampledAt: now, Namespace: "other", Pod: "p", Container: "c", OwnerName: "api", CPUUtilMcores: 2},
+	}
+	if err := st.InsertRecords(t.Context(), recs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.ListRecords(t.Context(), ExportFilter{Namespace: "app"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Namespace != "app" {
+		t.Fatalf("got %+v", got)
+	}
+	got, err = st.ListRecords(t.Context(), ExportFilter{Workload: "api"})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("workload: %v %#v", err, got)
+	}
+}

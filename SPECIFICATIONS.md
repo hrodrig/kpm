@@ -121,14 +121,14 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ## 3. ADJACENT — recommend
 
-- Grains: workload+container **and** pod+container (default both).
-- Verdicts vs request **and** limit; CPU/memory ratios **separate**.
-- `suggested_request = round_up(p / target_utilization)` (default **0.70**).
-- Offline; **no auto-apply** to the cluster (read-only). Pipelines / GitOps
-  (ADO, Jenkins, GitHub Actions, Helm, Argo, etc.) would overwrite live patches.
-- Preferred path: emit **export artifacts** (table/tsv first; later strategic-merge /
-  JSON patch / **Kustomize** overlay) for a PR into the release repo — operator or
-  CI applies, not `kpm`.
+- `kpm recommend` — **offline** from SQLite (no cluster access).
+- Grains: workload+container **and** pod+container (both emitted).
+- Window / percentile / `min_samples` / `target_utilization` from `recommend.*`.
+- `suggested_request = round_up(p / target_utilization)` — CPU ceil **10m**, mem ceil **1 MiB**.
+- Verdicts vs request **and** limit (oversize / undersize ratios); CPU/mem **separate**.
+- Keys below `min_samples` skipped; **no advice rows → exit `3`**.
+- Output: `--format table` (default) or `tsv`.
+- **No auto-apply** (read-only). Later: patch/Kustomize export + server `#18b`.
 
 ---
 

@@ -84,7 +84,7 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | ID | Item | Status |
 |----|------|--------|
 | `#8` | Shared read model (live snapshot helpers) | **In tree** (`internal/live`) |
-| `#9` | `kpm recommend` (dual grain, p/0.70, offline) | Planned |
+| `#9` | `kpm recommend` (dual grain, p/0.70, offline) | **In tree** (`kpm recommend`) |
 | `#9b` | Recommendation outcomes / calibration scoring (after `#9`) | Planned |
 | `#10` | `kpm capacity` table | **In tree** (`kpm capacity`) |
 | `#11` | `kpm tui` (+ `capacity --tui`): heatmap list, sort, refresh | Planned |

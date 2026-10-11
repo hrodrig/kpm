@@ -64,6 +64,17 @@ Live pod CPU/memory table from the Metrics API (no SQLite).
 .BR \-\-kubeconfig ,
 .BR \-\-sort ).
 Default grain: one row per pod (sum util / sum request).
+.TP
+.B recommend
+Offline rightsizing from SQLite history (no cluster).
+.RB ( \-\-config ,
+.BR \-\-format ,
+.BR \-\-namespace ,
+.BR \-\-workload ).
+Dual grain (workload and pod); exit
+.B 3
+when no key meets
+.BR min_samples .
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm
