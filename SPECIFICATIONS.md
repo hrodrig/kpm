@@ -1,6 +1,6 @@
 # SPECIFICATIONS — kpm
 
-> **Status: draft v0.3 (open points decided + TUI).**  
+> **Status: draft v0.3 (daemon facades clarified).**  
 > Scaffold (§1) is the only shipped behavior. Everything else is agreed
 > product direction for phased implementation.
 
@@ -20,8 +20,8 @@
 
 **kpm** samples pod CPU/memory (and requests/limits) from the Kubernetes
 **control plane** into **local SQLite**, then builds workflows on that history:
-export/backup, threshold alerts, rightsizing, interactive **TUI**, read-only
-**MCP** (daemon), and optional HTTP **server** charts.
+export/backup, rightsizing, interactive **TUI**, and optional daemon facades
+(threshold **notifications**, read-only **MCP**, HTTP **server** charts).
 
 ### 0.2 Layered model
 
@@ -79,13 +79,30 @@ copy.
 ### 2.2 Store (SQLite)
 
 - `store.path` (`~` expanded), `retention_days`, schema version, time indexes.
+- **Guidance:** larger `retention_days` keeps more history for percentiles /
+  recommend (closer to real usage patterns). Prefer
+  `retention_days` ≥ `recommend.window_days`. Default sample **14**;
+  **production: recommend > 45 days** (often 60–90 if disk allows). Short
+  retention → noisier p95.
 
-### 2.3 Sample loop
+### 2.3 Sample loop / daemon
 
 | `interval_seconds` | Behavior |
 |--------------------|----------|
-| `0` | One-shot |
-| `> 0` | **Daemon** (hosts notify + MCP + optional server) |
+| `0` | One-shot sample → write SQLite → exit |
+| `> 0` | **Daemon**: forever loop — **always** sample → write SQLite on each tick |
+
+Daemon **always** persists metrics. Optional facades attach only when
+configured (each independently):
+
+| Facade | When it runs in the daemon |
+|--------|----------------------------|
+| **notifications** | `notifications.enabled: true` (and rules/sink configured) |
+| **MCP** | `mcp.enabled: true` (HTTP/SSE in-process; stdio remains `kpm mcp`) |
+| **server** | `server.enabled: true` |
+
+A daemon with no optional blocks configured is valid: **sample-only** long-running
+collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ### 2.4 Backup / export
 
@@ -175,7 +192,35 @@ Default sort: `cpu.ratio` descending (hottest first).
 
 ## 6. OPTIONAL — notifications (sustained thresholds)
 
-Daemon only (`interval_seconds > 0`).
+Daemon only (`interval_seconds > 0`). Off unless `notifications.enabled: true`.
+Does not change the sample→SQLite loop; evaluates rules against live ticks /
+recent store as implemented.
+
+### 6.0 Rules source (decided)
+
+| `notifications.rules` | Behavior |
+|-----------------------|----------|
+| Non-empty | Use **user-defined** rules only (no merge with built-ins) |
+| Empty / omitted while `enabled: true` | Apply **built-in default rules** (below) and log once at daemon start |
+
+**Built-in defaults** (when rules empty):
+
+| Rule name | Metric | `threshold_ratio` | Scope |
+|-----------|--------|-------------------|-------|
+| `default-cpu-util-vs-request` | `cpu.util_vs_request` | **0.80** | All pods in sample `scope` |
+| `default-mem-util-vs-request` | `mem.util_vs_request` | **0.80** | All pods in sample `scope` |
+
+Other rule fields use §6.1–6.2 defaults (`hold_for_seconds`, `repeat_seconds`,
+resolve, etc.) unless later made configurable under `notifications.defaults`.
+
+**Startup log** (English, once per process; info level):
+
+```text
+notification rules not defined in user config; using built-in defaults: CPU and memory util vs request at 80%
+```
+
+To disable alerts while keeping the daemon: set `notifications.enabled: false`
+(or omit the block). Empty `rules` with `enabled: true` is **not** a silent no-op.
 
 ### 6.1 Predicate (decided)
 
@@ -201,7 +246,11 @@ Daemon only (`interval_seconds > 0`).
 
 ---
 
-## 7. OPTIONAL — MCP (daemon, read-only)
+## 7. OPTIONAL — MCP (read-only)
+
+Off unless explicitly started. HTTP/SSE in the daemon requires
+`mcp.enabled: true`. Stdio mode is the separate `kpm mcp` command (does not
+require the sample daemon, but may share the same store).
 
 ### 7.1 Transport (decided)
 
@@ -225,6 +274,10 @@ Tools: read-only query/summarize only; no cluster or SQLite mutations.
 ---
 
 ## 8. OPTIONAL — server mode (charts)
+
+Off unless `server.enabled: true`. Intended to run inside the sample daemon
+(`interval_seconds > 0`) so charts see a live scrape path; does not replace
+core sampling.
 
 ### 8.1 Stack (decided)
 
@@ -291,7 +344,7 @@ tui:
 | `tui` / `capacity --tui` | Adjacent | Yes | No* |
 | `mcp` | Optional | No** | Read |
 | `notify-test` | Optional | No | No |
-| daemon `sample` loop | hosts notify+MCP+server | Yes | Write |
+| daemon `sample` loop | **always** Write store; optional notify/MCP/server if enabled | Yes | Write |
 
 \*TUI may optionally show history snippets from store later; v1 is live.  
 \*\*MCP read tools use store; cluster tools optional and read-only.
@@ -349,6 +402,24 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | capacity vs server | Shared read model; **capacity stays CLI** |
 | Export formats | **csv + tsv** for a long time |
 | **TUI** | `kpm tui` (+ `capacity --tui`); preselected pods via scope / `tui.pods` / labels; horizontal heatmap bars; sort by name / util / allocation / ratio |
+
+### 15.4 Daemon facades (clarified)
+
+| Topic | Decision |
+|-------|----------|
+| Daemon core duty | `interval_seconds > 0` → **always** sample and persist metrics to SQLite |
+| Notifications | Optional — only if `notifications.enabled` |
+| MCP | Optional — HTTP in daemon if `mcp.enabled`; stdio via `kpm mcp` |
+| Server | Optional — only if `server.enabled` |
+| Sample-only daemon | Valid (no notify/MCP/server blocks) |
+
+### 15.5 Notify default rules (decided)
+
+| Topic | Decision |
+|-------|----------|
+| Empty `rules` + `enabled: true` | Built-in CPU + mem **util vs request @ 80%**; log once (English) |
+| Non-empty `rules` | User rules only — no merge with built-ins |
+| Silent no-op on empty rules | **Rejected** |
 
 ---
 

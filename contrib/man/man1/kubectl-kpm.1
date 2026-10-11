@@ -1,5 +1,5 @@
 .\" kubectl-kpm(1) - kubectl plugin shim for kpm
-.TH KUBECTL-KPM 1 "2026-10-10" "kpm v0.1.0" "User Commands"
+.TH KUBECTL-KPM 1 "2026-10-11" "kpm v0.1.0" "User Commands"
 .SH NAME
 kubectl-kpm \- kubectl plugin entrypoint for kpm
 .SH SYNOPSIS
@@ -17,6 +17,16 @@ prefix so
 discovers it as a plugin (
 .BR "kubectl kpm \.\.\."
 ).
+Behavior and flags match
+.BR kpm (1).
+.SH OPTIONS
+.TP
+.B \-\-print\-sample\-config
+Print the embedded sample configuration to stdout and exit.
+.SH COMMANDS
+.TP
+.B version
+Print version and build metadata.
 .SH SEE ALSO
 .BR kpm (1)
 .SH AUTHOR
