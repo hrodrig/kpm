@@ -41,7 +41,6 @@
 # CI
 !.github/
 !.github/**
-!.goreleaser.yaml
 
 # Never commit these
 .planning/
