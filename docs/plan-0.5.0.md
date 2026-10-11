@@ -26,9 +26,9 @@ Core sample path stays unaware of MCP. JSON REST / charts stay in **P5 server**.
 - [x] ROADMAP Current focus → 0.5.x MCP + link this plan
 - [x] ROADMAP `#16a` ops mux row + note JSON API → P5
 - [x] SPEC §7.3 draft tools table (store-only MVP) + §7.4 ops paths
-- [ ] `configs/kpm.sample.yml` mcp knobs + ops path comments (implement train)
-- [ ] man `kpm.1` / `kubectl-kpm.1` — `mcp` command + daemon HTTP notes
-- [ ] CHANGELOG `[Unreleased]` MCP section
+- [x] `configs/kpm.sample.yml` mcp knobs + ops path comments (shipped `v0.5.0`)
+- [x] man `kpm.1` / `kubectl-kpm.1` — `mcp` command + daemon HTTP notes (`v0.5.0`)
+- [x] CHANGELOG MCP section (moved into `[0.5.0]`)
 - [x] Client integration examples in SPEC §7.5 (Cursor / Claude / Codex / Hermes / generic)
 - [x] Anonymized MCP tool call / response examples in SPEC (band exit)
 
@@ -144,9 +144,10 @@ HTTP URL: `http://127.0.0.1:9740/sse` (and streamable `/mcp`).
 | 3 | `#16` | tools + `kpm mcp` stdio | [x] |
 | 4 | `#17` | HTTP/SSE + bearer + tests | [x] |
 | 5 | docs ship | man / sample / CHANGELOG / SPEC normative | [x] |
-| 6 | cut | `chore/release-0.5.0` → main + tag (later) | [x] cut PR; ship pending |
+| 6 | cut | `chore/release-0.5.0` → main + tag `v0.5.0` | [x] `#33` / `#34` / tag; sync `#35` |
 
 **Suggested PRs:** docs-first (this), then `feat/0.5-mcp` (code slices) → develop.
+**Band closed:** `v0.5.0` shipped; next focus [plan-0.6.0.md](./plan-0.6.0.md).
 
 [↑ Back to top](#top)
 
@@ -159,7 +160,7 @@ HTTP URL: `http://127.0.0.1:9740/sse` (and streamable `/mcp`).
 - [x] Bearer rules per SPEC §7.2; fail-closed off-loopback
 - [x] Core sample works with mcp disabled / absent
 - [x] Cover ≥ 80%; gocyclo ≤ 14 (on merge)
-- [x] SPEC §7 normative (docs); release cut artifacts `0.5.0` (ship tag pending)
+- [x] SPEC §7 normative (docs); release cut artifacts + tag `v0.5.0`
 
 ## Out of scope
 
