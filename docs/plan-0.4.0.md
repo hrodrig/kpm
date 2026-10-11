@@ -66,7 +66,8 @@ without mutating the cluster. Core sample path stays unaware of notify.
 
 - [x] `make lint` + `make cover-check` ≥ 80%
 - [ ] SPEC §6 → mark Normative in status banner (draft bump polish)
-- [ ] PR `feat/0.4-notify` → `develop` merged
+- [x] PR `feat/0.4-notify` → `develop` opened ([#23](https://github.com/hrodrig/kpm/pull/23))
+- [ ] PR `#23` merged
 - [ ] Cut `v0.4.0` (separate chore; operador OK)
 
 [↑ Back to top](#top)
