@@ -291,6 +291,63 @@ mcp:
 	}
 }
 
+func TestLoadServer(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	base := `
+store:
+  path: ` + filepath.Join(dir, "s.db") + `
+  retention_days: 14
+sample:
+  interval_seconds: 0
+`
+	ok, err := Load(write("server-ok.yaml", base+`
+server:
+  enabled: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok.Server.Enabled || ok.Server.Listen != "127.0.0.1:9740" {
+		t.Fatalf("server defaults: %+v", ok.Server)
+	}
+	if got := ok.HTTPListen(); got != "127.0.0.1:9740" {
+		t.Fatalf("HTTPListen %q", got)
+	}
+	shared, err := Load(write("server-share-mcp.yaml", base+`
+mcp:
+  enabled: true
+  listen: "127.0.0.1:9800"
+server:
+  enabled: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shared.Server.Listen != "127.0.0.1:9800" || shared.HTTPListen() != "127.0.0.1:9800" {
+		t.Fatalf("share listen: server=%q http=%q", shared.Server.Listen, shared.HTTPListen())
+	}
+	if _, err := Load(write("server-nonloop-no-tok.yaml", base+`
+server:
+  enabled: true
+  listen: "0.0.0.0:9740"
+`)); err == nil {
+		t.Fatal("expected non-loopback server without token to fail")
+	}
+	authTrue := true
+	cfg := &Config{Server: Server{Enabled: true, Auth: &authTrue, Listen: "127.0.0.1:9740"}}
+	if !cfg.ServerAuthRequired(cfg.Server.Listen) {
+		t.Fatal("auth:true should require token")
+	}
+}
+
 func findModuleRoot(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()

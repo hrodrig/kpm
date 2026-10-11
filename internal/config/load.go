@@ -45,6 +45,7 @@ func Load(path string) (*Config, error) {
 		TUI:           raw.TUI,
 		Notifications: raw.Notifications,
 		MCP:           raw.MCP,
+		Server:        raw.Server,
 	}
 
 	cfg.applyDefaults()
@@ -65,6 +66,7 @@ type rawConfig struct {
 	TUI           TUI           `mapstructure:"tui"`
 	Notifications Notifications `mapstructure:"notifications"`
 	MCP           MCP           `mapstructure:"mcp"`
+	Server        Server        `mapstructure:"server"`
 }
 
 func bindConfigEnv(v *viper.Viper) {
@@ -77,6 +79,12 @@ func bindConfigEnv(v *viper.Viper) {
 		"store.path",
 		"store.retention_days",
 		"sample.interval_seconds",
+		"mcp.enabled",
+		"mcp.listen",
+		"mcp.token_env",
+		"server.enabled",
+		"server.listen",
+		"server.token_env",
 	} {
 		_ = v.BindEnv(key)
 	}
@@ -124,9 +132,50 @@ func (c *Config) applyDefaults() {
 	if strings.TrimSpace(c.TUI.Baseline) == "" {
 		c.TUI.Baseline = "request"
 	}
+	c.applyHTTPListenDefaults()
+}
+
+func (c *Config) applyHTTPListenDefaults() {
 	if c.MCP.Enabled && strings.TrimSpace(c.MCP.Listen) == "" {
 		c.MCP.Listen = "127.0.0.1:9740"
 	}
+	if c.Server.Enabled && strings.TrimSpace(c.Server.Listen) == "" {
+		if c.MCP.Enabled && strings.TrimSpace(c.MCP.Listen) != "" {
+			c.Server.Listen = c.MCP.Listen
+		} else {
+			c.Server.Listen = "127.0.0.1:9740"
+		}
+	}
+}
+
+// HTTPListen returns the shared daemon/serve bind address.
+// Prefer server.listen when server.enabled; else mcp.listen; else default.
+func (c *Config) HTTPListen() string {
+	if c == nil {
+		return "127.0.0.1:9740"
+	}
+	if c.Server.Enabled {
+		if l := strings.TrimSpace(c.Server.Listen); l != "" {
+			return l
+		}
+	}
+	if c.MCP.Enabled {
+		if l := strings.TrimSpace(c.MCP.Listen); l != "" {
+			return l
+		}
+	}
+	return "127.0.0.1:9740"
+}
+
+// ServerAuthRequired reports whether JSON API bearer is mandatory.
+func (c *Config) ServerAuthRequired(listen string) bool {
+	if c == nil {
+		return false
+	}
+	if c.Server.Auth != nil && *c.Server.Auth {
+		return true
+	}
+	return !listenIsLoopback(listen)
 }
 
 func (c *Config) validate() error {
@@ -159,6 +208,9 @@ func (c *Config) validate() error {
 	if err := c.validateMCP(); err != nil {
 		return err
 	}
+	if err := c.validateServer(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -181,6 +233,25 @@ func (c *Config) validateMCP() error {
 	}
 	if err := validateMCPRateLimit(m.RateLimit); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (c *Config) validateServer() error {
+	s := c.Server
+	if !s.Enabled {
+		return nil
+	}
+	listen := strings.TrimSpace(s.Listen)
+	if listen == "" {
+		return fmt.Errorf("server.enabled requires listen (or default)")
+	}
+	if _, _, err := net.SplitHostPort(listen); err != nil {
+		return fmt.Errorf("server.listen: %w", err)
+	}
+	needTok := c.ServerAuthRequired(listen)
+	if needTok && strings.TrimSpace(s.TokenEnv) == "" && strings.TrimSpace(c.MCP.TokenEnv) == "" {
+		return fmt.Errorf("server.token_env (or mcp.token_env) required when server auth is required")
 	}
 	return nil
 }

@@ -23,6 +23,16 @@ type Config struct {
 	TUI           TUI           `yaml:"tui" mapstructure:"tui"`
 	Notifications Notifications `yaml:"notifications" mapstructure:"notifications"`
 	MCP           MCP           `yaml:"mcp" mapstructure:"mcp"`
+	Server        Server        `yaml:"server" mapstructure:"server"`
+}
+
+// Server is optional JSON API (+ later charts) on the shared HTTP mux (SPEC §8).
+type Server struct {
+	Enabled  bool   `yaml:"enabled" mapstructure:"enabled"`
+	Listen   string `yaml:"listen" mapstructure:"listen"`
+	TokenEnv string `yaml:"token_env" mapstructure:"token_env"`
+	// Auth nil → require bearer off-loopback only; true → always require token_env.
+	Auth *bool `yaml:"auth" mapstructure:"auth"`
 }
 
 // MCP is optional read-only MCP + daemon HTTP ops (SPEC §7).
