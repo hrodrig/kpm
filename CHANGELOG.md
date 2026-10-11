@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
 ### Added
 
 - [docs/ROADMAP.md](docs/ROADMAP.md) — path to v1.0.0 (full SPEC stack); bands
@@ -25,9 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `kpm export` csv/tsv with since/until/namespace/pod/workload filters
   `(0.2.x #6)`.
 - Exit code `2` for cluster/Metrics/RBAC failures `(0.2.x #7)`.
-
-### Added
-
 - FreeBSD / OpenBSD port skeletons under `contrib/freebsd/` and
   `contrib/openbsd/`; `make port-freebsd-sync`, `port-openbsd-sync`,
   `dist-freebsd`, `dist-openbsd` `(0.2.x #24)`.
@@ -56,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sample→SQLite, recommend, capacity/TUI, optional notify/MCP/server (not yet
   implemented in the binary).
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md) —
-  measurement + rights strategy (Mermaid); OSS hero `docs/kpm-hero-oss.jpg`.
+  measurement + dimension strategy (Mermaid); OSS hero `docs/kpm-hero-oss.jpg`.
 
 ### Changed
 
@@ -68,3 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   > 45 days** recommended.
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
+
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hrodrig/kpm/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/hrodrig/kpm/releases/tag/v0.1.0
