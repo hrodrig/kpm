@@ -70,11 +70,20 @@ Offline rightsizing from SQLite history (no cluster).
 .RB ( \-\-config ,
 .BR \-\-format ,
 .BR \-\-namespace ,
-.BR \-\-workload ).
+.BR \-\-workload ,
+.BR \-\-record ,
+.BR \-\-score ).
 Dual grain (workload and pod); exit
 .B 3
 when no key meets
 .BR min_samples .
+.B \-\-record
+persists advice into the
+.B recommendations
+table (schema v2).
+.B \-\-score
+calibrates latest snapshots against later samples (mutually exclusive with
+.BR \-\-record ).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

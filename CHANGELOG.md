@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on API fail `(0.3.x #10)`.
 - `kpm recommend` — offline rightsizing from SQLite (dual grain, table/tsv);
   exit `3` when insufficient samples `(0.3.x #9)`.
+- `kpm recommend --record` / `--score` — persist `recommendations` snapshots
+  (schema v2) and offline calibration vs later samples; `DeltaFromLive` helper
+  for TUI `(0.3.x #9b)`.
 
 ### Changed
 

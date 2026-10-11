@@ -491,14 +491,15 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Daemon | `interval_seconds > 0` → sample-only loop; facades still draft |
 | SPEC bump | §1 + §2 + §9.2.1 + exit `0`/`1`/`2` → **normative**; adjacent/optional stay draft |
 
-### 15.8 Recommendation outcomes (planned — `#9b`, **P2 required**)
+### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 
 | Topic | Decision |
 |-------|----------|
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
-| Persist | `recommendations` rows on recommend / `--record` |
-| TUI | `#11` shows delta vs latest snapshot (`n/a` if none) — **must ship in P2** |
-| Score | Later samples vs suggested; calibration vs applied modes |
+| Schema | SQLite schema v2: `recommendations` table + indexes |
+| Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
+| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A) |
+| TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
 | Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
 
 ### 15.9 Recommend apply vs GitOps export (decided 2026-10-11)
