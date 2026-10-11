@@ -1,0 +1,7 @@
+# Grype policy for `make docker-scan` / CI (default --fail-on high).
+# Empty for kpm scaffold — add entries with documented false-positive rationale
+# only when Grype reports a genuine false positive on the scanned image.
+# govulncheck: same IDs in .govulncheck-ignore.yaml (make security). Grype scans
+# the image SBOM and does not honor govulncheck ignores — mirror here.
+
+ignore: []

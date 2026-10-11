@@ -1,0 +1,6 @@
+# Known false-positive advisories, ignored by `make security` (govulncheck).
+# Each entry MUST carry a documented rationale; do not add entries blindly.
+#
+# Format is advisory IDs, one per line under `vulns`. Empty by default for kpm
+# scaffold — add entries only when govulncheck reports a genuine false positive.
+vulns: []

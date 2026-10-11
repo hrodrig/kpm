@@ -1,0 +1,11 @@
+# Small build context (same pattern as kwd / kzero).
+*
+.*
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!configs/
+!configs/**

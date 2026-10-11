@@ -1,0 +1,358 @@
+# SPECIFICATIONS — kpm
+
+> **Status: draft v0.3 (open points decided + TUI).**  
+> Scaffold (§1) is the only shipped behavior. Everything else is agreed
+> product direction for phased implementation.
+
+| Term | Meaning |
+|------|---------|
+| **Normative today** | Implemented; must not regress without CHANGELOG. |
+| **Draft** | Agreed product direction. |
+| **Core** | Must exist for kpm to be “itself”. |
+| **Adjacent** | First-class CLI, not optional config layers. |
+| **Optional** | Off unless configured / flagged. |
+
+---
+
+## 0. Product vision
+
+### 0.1 One-line
+
+**kpm** samples pod CPU/memory (and requests/limits) from the Kubernetes
+**control plane** into **local SQLite**, then builds workflows on that history:
+export/backup, threshold alerts, rightsizing, interactive **TUI**, read-only
+**MCP** (daemon), and optional HTTP **server** charts.
+
+### 0.2 Layered model
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  OPTIONAL: server — live charts + optional HTTP auth            │
+├─────────────────────────────────────────────────────────────────┤
+│  OPTIONAL: MCP (read-only) — daemon; stdio and/or localhost HTTP│
+├─────────────────────────────────────────────────────────────────┤
+│  OPTIONAL: notifications — threshold held for duration X        │
+│             webhook first                                        │
+├─────────────────────────────────────────────────────────────────┤
+│  ADJACENT: recommend · capacity (table) · tui (heatmap list)    │
+├─────────────────────────────────────────────────────────────────┤
+│  CORE: sample (CP → records) → SQLite ← backup / export csv|tsv │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 0.3 Position vs kube-capacity
+
+Live tables/TUI borrow the *quantities* (request/limit/util) and filters;
+**persistence + history workflows** are the product center. No upstream source
+copy.
+
+### 0.4 Repo split
+
+| Repo | Owns |
+|------|------|
+| **kpm** | Binary: core + adjacent + optional daemon facades |
+| **kpm-selfhosted** (future) | cron/systemd/Helm — not `run/` here |
+
+---
+
+## 1. Scaffold surface (normative today)
+
+| Item | Behavior |
+|------|----------|
+| Binary | `kpm` (also `kubectl-kpm`) |
+| `kpm version` | version, commit, build date, branch, Go runtime |
+| `kpm --print-sample-config` | embedded sample YAML → stdout, exit 0 |
+| Bare `kpm` | help, exit 0 |
+| Exit codes | `0` / `1` via `internal/exitcode` |
+
+---
+
+## 2. CORE — capture, store, backup, export
+
+### 2.1 Capture (`kpm sample`)
+
+- **client-go** + Metrics API only (no `kubectl` subprocess).
+- Container grain: util, request, limit, identities, `sampled_at` UTC.
+- Missing pod metrics → **skip** (+ count); API/RBAC failure → **fail closed**.
+- One process ↔ one cluster.
+
+### 2.2 Store (SQLite)
+
+- `store.path` (`~` expanded), `retention_days`, schema version, time indexes.
+
+### 2.3 Sample loop
+
+| `interval_seconds` | Behavior |
+|--------------------|----------|
+| `0` | One-shot |
+| `> 0` | **Daemon** (hosts notify + MCP + optional server) |
+
+### 2.4 Backup / export
+
+- `kpm backup` — safe copy of DB (prefer SQLite backup API while daemon runs).
+- `kpm export` — **csv** and **tsv** only for the foreseeable future (json later
+  only if demanded). Offline filters: window, namespace, workload, pod.
+
+---
+
+## 3. ADJACENT — recommend
+
+- Grains: workload+container **and** pod+container (default both).
+- Verdicts vs request **and** limit; CPU/memory ratios **separate**.
+- `suggested_request = round_up(p / target_utilization)` (default **0.70**).
+- Offline; no auto-apply.
+
+---
+
+## 4. ADJACENT — capacity (non-interactive)
+
+- `kpm capacity` — one-shot table (kube-capacity-like).
+- Shares query helpers with TUI/server; does not require SQLite.
+
+---
+
+## 5. ADJACENT — TUI (interactive heatmap list)
+
+Interactive terminal UI for watching a **preselected** set of pods.
+
+### 5.1 Entry
+
+- Preferred: `kpm tui` (full-screen app).
+- Also accept `kpm capacity --tui` as an alias that enters the same UI.
+
+### 5.2 Which pods (“indicados previamente”)
+
+Selection comes from config (not ad-hoc typing every launch):
+
+| Source | Role |
+|--------|------|
+| `scope` | Baseline filter (namespaces / labels / node labels) |
+| `tui.pods` (optional) | Explicit allowlist: `namespace/name` entries |
+| `tui.pod_labels` | Extra label selector ANDed with scope |
+
+If `tui.pods` is non-empty → only those pods (that also pass scope).  
+If empty → all pods matching `scope` (same as capacity default).
+
+### 5.3 Presentation
+
+- Scrollable **list of pods** (one row per pod; optional expand to containers
+  later).
+- Each row: identity + **horizontal bar** (heatmap style) for the selected
+  metric ratio, e.g. util/request or util/limit.
+- Color bands (draft): green &lt; 70%, yellow 70–90%, red ≥ 90% of baseline
+  (aligned with `target_utilization` / notify thresholds where sensible).
+- Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
+  vs **vs limit**.
+
+### 5.4 Sorting
+
+Operator can sort (keys / menu) by:
+
+| Key | Meaning |
+|-----|---------|
+| `name` | namespace/pod |
+| `cpu.util` | absolute CPU utilization |
+| `cpu.request` / `cpu.limit` | allocation |
+| `cpu.ratio` | util / request (or / limit per toggle) |
+| `mem.util` / `mem.request` / `mem.limit` / `mem.ratio` | same for memory |
+
+Default sort: `cpu.ratio` descending (hottest first).
+
+### 5.5 Refresh
+
+- Live re-query on an interval (default 5s; `tui.refresh_seconds`).
+- Does not write SQLite unless user also runs sample/daemon separately.
+- Requires working Metrics API for util bars; without util, show allocation
+  only and mark util as `n/a`.
+
+### 5.6 Non-goals for TUI v1
+
+- Editing cluster objects.
+- Full node-capacity dashboard (use `capacity` table or server charts).
+- Mouse-only UX (keyboard-first).
+
+---
+
+## 6. OPTIONAL — notifications (sustained thresholds)
+
+Daemon only (`interval_seconds > 0`).
+
+### 6.1 Predicate (decided)
+
+| Field | Decision |
+|-------|----------|
+| Default metric | **`cpu.util_vs_request`** and/or **`mem.util_vs_request`** per rule |
+| Also allowed | `*.util_vs_limit`; absolute `cpu.util_mcores` / `mem.util_bytes` |
+| Fire when | metric ≥ `threshold` **continuously** for `hold_for_seconds` |
+
+### 6.2 Resolve / repeat / dedupe (decided)
+
+| Policy | Decision |
+|--------|----------|
+| Dedupe key | `rule_name + namespace + pod + container + metric` |
+| Fire | Once when hold duration satisfied |
+| Repeat | While still true, re-notify every `repeat_seconds` (default **3600**; `0` = no repeat) |
+| Resolve | When condition false for `clear_after_seconds` (default = same as `hold_for_seconds`); send resolve webhook if `notify_on_resolve: true` (default **true**) |
+
+### 6.3 Sinks
+
+- **webhook** first (`url_env`, fail closed if missing when enabled).
+- Family sinks (Slack, etc.) later.
+
+---
+
+## 7. OPTIONAL — MCP (daemon, read-only)
+
+### 7.1 Transport (decided)
+
+| Mode | When |
+|------|------|
+| **stdio** | `kpm mcp` (or daemon child) for editor/agent attach — default for Cursor-style |
+| **HTTP/SSE** | Daemon with `mcp.enabled` + listen address (default `127.0.0.1`) |
+
+Both supported; same tool surface.
+
+### 7.2 Auth (decided)
+
+| Transport | Auth |
+|-----------|------|
+| stdio | Trust process boundary; **no** extra token |
+| HTTP/SSE | **Bearer token** via `token_env` **required** if listen is non-loopback; on loopback, token **optional but recommended** |
+| mTLS | **Deferred** (not in first MCP cut) |
+
+Tools: read-only query/summarize only; no cluster or SQLite mutations.
+
+---
+
+## 8. OPTIONAL — server mode (charts)
+
+### 8.1 Stack (decided)
+
+- **Boring embedded UI**: Go `net/http` + small templates + minimal JS (or HTMX).
+  **No** SPA framework / npm app in-repo for v1.
+- Data: last scrape cache and/or SQLite recent window.
+- Optional **bearer** auth (`token_env`); fail closed if `auth: true` and unset.
+- Default listen `127.0.0.1`.
+
+### 8.2 Relationship to capacity / TUI (decided)
+
+- Shared **read model** (usage snapshots) behind `capacity`, `tui`, and server API.
+- `capacity` remains a **CLI** command; server is not required to use it.
+- Server JSON endpoints may power charts; TUI talks to cluster (and optionally
+  store) directly — no hard dependency on server process.
+
+---
+
+## 9. Configuration (draft)
+
+### 9.1 Discovery (kwd-style)
+
+`--config` default **`kpm.yaml`**.
+
+### 9.2 Top-level keys
+
+`cluster`, `kube`, `store`, `sample`, `scope`, `recommend`, `tui`,
+`notifications`, `mcp`, `server`.
+
+### 9.3 `tui` sketch
+
+```yaml
+tui:
+  refresh_seconds: 5
+  default_sort: cpu.ratio   # see §5.4
+  baseline: request         # request | limit
+  # pods: ["app/frontend-x", "app/api-y"]
+  # pod_labels: "kpm.watch=true"
+```
+
+---
+
+## 10. Security posture (draft)
+
+| Area | Rule |
+|------|------|
+| Cluster | Read-only |
+| Secrets | `*_env` / env only |
+| Notify / MCP HTTP / server | Fail closed if enabled and secret missing |
+| MCP / server bind | Localhost default |
+| K8s RBAC deny | Fail closed |
+
+---
+
+## 11. CLI map (draft)
+
+| Command | Layer | Cluster? | Store? |
+|---------|-------|----------|--------|
+| `sample` | Core | Yes | Write |
+| `backup` | Core | No | Yes |
+| `export` | Core | No | Yes |
+| `recommend` | Adjacent | No | Yes |
+| `capacity` | Adjacent | Yes | No |
+| `tui` / `capacity --tui` | Adjacent | Yes | No* |
+| `mcp` | Optional | No** | Read |
+| `notify-test` | Optional | No | No |
+| daemon `sample` loop | hosts notify+MCP+server | Yes | Write |
+
+\*TUI may optionally show history snippets from store later; v1 is live.  
+\*\*MCP read tools use store; cluster tools optional and read-only.
+
+---
+
+## 12. Exit codes (draft)
+
+`0` ok · `1` generic · `2` cluster/metrics/RBAC · `3` empty/insufficient store data
+
+---
+
+## 13. Non-goals
+
+- Mutating workloads; multi-cluster process; replacing Prometheus;
+  Helm/`run/` here; MCP/HTTP write tools; TUI as cluster editor.
+
+---
+
+## 14. Implementation phasing
+
+| Phase | Deliver |
+|-------|---------|
+| **P1 — Core** | sample → SQLite; backup; export csv/tsv |
+| **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list |
+| **P3 — Notify** | sustained thresholds + webhook |
+| **P4 — MCP** | stdio + localhost HTTP/SSE, bearer on HTTP |
+| **P5 — Server** | embedded charts UI + optional auth |
+
+**Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
+
+---
+
+## 15. Decision log
+
+### 15.1 v0.1 (still in force)
+
+Recommend dual grain; request+limit verdicts; `p/0.70` suggest; separate
+memory ratios; skip missing pod metrics; daemon if interval &gt; 0;
+`--config` → `kpm.yaml`; K8s RBAC fail closed; live CLI name `capacity`.
+
+### 15.2 v0.2 (still in force)
+
+SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
+
+### 15.3 v0.3 (decided this revision)
+
+| Topic | Decision |
+|-------|----------|
+| Notify predicate | Default **util vs request**; also vs limit + absolute |
+| Notify lifecycle | Dedupe by rule/pod/container/metric; hold to fire; **repeat_seconds** default 1h; resolve after **clear_after** (default = hold); resolve webhook on by default |
+| MCP transport | **Both** stdio and HTTP/SSE |
+| MCP auth | Bearer on HTTP; none on stdio; **no mTLS** in v1 |
+| Server stack | **Embedded** templates + minimal JS; no SPA |
+| capacity vs server | Shared read model; **capacity stays CLI** |
+| Export formats | **csv + tsv** for a long time |
+| **TUI** | `kpm tui` (+ `capacity --tui`); preselected pods via scope / `tui.pods` / labels; horizontal heatmap bars; sort by name / util / allocation / ratio |
+
+---
+
+## Related docs
+
+- [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
+- [configs/kpm.sample.yml](configs/kpm.sample.yml)

@@ -1,0 +1,23 @@
+.\" kubectl-kpm(1) - kubectl plugin shim for kpm
+.TH KUBECTL-KPM 1 "2026-10-10" "kpm v0.1.0" "User Commands"
+.SH NAME
+kubectl-kpm \- kubectl plugin entrypoint for kpm
+.SH SYNOPSIS
+.B kubectl kpm
+.I command
+[\fIoptions\fR]
+.SH DESCRIPTION
+.B kubectl-kpm
+is the same binary as
+.BR kpm (1),
+installed under the
+.B kubectl\-
+prefix so
+.B kubectl
+discovers it as a plugin (
+.BR "kubectl kpm \.\.\."
+).
+.SH SEE ALSO
+.BR kpm (1)
+.SH AUTHOR
+Hermes Rodríguez and contributors.

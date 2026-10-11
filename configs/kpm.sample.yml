@@ -1,0 +1,85 @@
+# kpm sample configuration (draft v0.3 — see SPECIFICATIONS.md).
+# One process ↔ one cluster. Default config path: ./kpm.yaml (--config, kwd-style).
+#
+# Layers:
+#   CORE     — sample → SQLite; backup / export (csv|tsv)
+#   ADJACENT — recommend, capacity, tui
+#   OPTIONAL — notifications, mcp (daemon), server charts
+
+cluster:
+  name: "example-cluster"
+  environment: "dev"
+  description: "Reference profile for kpm"
+
+kube:
+  context: ""
+
+store:
+  path: "~/.local/share/kpm/metrics.db"
+  retention_days: 14
+
+# sample.interval_seconds:
+#   0  = one-shot
+#   >0 = daemon (notify + MCP + optional server)
+sample:
+  interval_seconds: 300
+
+# scope: baseline selection for sample / capacity / tui
+# scope:
+#   namespaces: ["app"]
+#   namespace_labels: ""
+#   pod_labels: ""
+#   node_labels: ""
+
+recommend:
+  window_days: 7
+  percentile: 95
+  min_samples: 24
+  target_utilization: 0.70
+  cpu_oversize_ratio: 0.35
+  cpu_undersize_ratio: 0.85
+  cpu_limit_oversize_ratio: 0.35
+  cpu_limit_undersize_ratio: 0.85
+  memory_oversize_ratio: 0.35
+  memory_undersize_ratio: 0.85
+  memory_limit_oversize_ratio: 0.35
+  memory_limit_undersize_ratio: 0.85
+
+# ADJACENT — interactive heatmap list (`kpm tui` / `kpm capacity --tui`)
+tui:
+  refresh_seconds: 5
+  default_sort: cpu.ratio # name | cpu.util | cpu.request | cpu.ratio | mem.*
+  baseline: request       # request | limit
+  # Explicit watch list (namespace/name). Empty = all pods matching scope.
+  # pods:
+  #   - "app/frontend-0"
+  #   - "app/api-0"
+  # pod_labels: "kpm.watch=true"
+
+# OPTIONAL — sustained threshold alerts (daemon only).
+# notifications:
+#   enabled: true
+#   rules:
+#     - name: cpu-hot
+#       namespaces: ["app"]
+#       metric: cpu.util_vs_request   # or mem.util_vs_request | *.util_vs_limit | absolute
+#       threshold_ratio: 0.90
+#       hold_for_seconds: 600
+#       clear_after_seconds: 600
+#       repeat_seconds: 3600
+#       notify_on_resolve: true
+#   webhook:
+#     url_env: KPM_WEBHOOK_URL
+
+# OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP when enabled in daemon).
+# mcp:
+#   enabled: true
+#   listen: "127.0.0.1:9740"
+#   token_env: KPM_MCP_TOKEN   # recommended; required if bind is non-loopback
+
+# OPTIONAL — embedded HTTP charts (no SPA).
+# server:
+#   enabled: false
+#   listen: "127.0.0.1:9741"
+#   auth: false
+#   # token_env: KPM_SERVER_TOKEN

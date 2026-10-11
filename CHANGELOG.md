@@ -1,0 +1,29 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- `SPECIFICATIONS.md`: **draft v0.3** — closed open points (notify
+  predicate/lifecycle, MCP stdio+HTTP bearer, embedded server UI, csv/tsv
+  export); added adjacent **TUI** (`kpm tui` / `capacity --tui`): preselected
+  pods, horizontal heatmap bars, sort by name/util/allocation/ratio. Phasing:
+  TUI in P2 with capacity.
+- `configs/kpm.sample.yml`: `tui` block + notify field comments for v0.3.
+
+
+## [0.1.0] - 2026-10-10
+
+### Added
+
+- Repository scaffold aligned with the [kwd](https://github.com/hrodrig/kwd) mold:
+  whitelist `.gitignore`, `GNUmakefile` / BSD `Makefile`, CI / Security / CodeQL /
+  Release workflows, GoReleaser (Homebrew deferred), Docker (distroless), man pages,
+  `AGENTS.md`, stub `SPECIFICATIONS.md`, sample config embed.
+- CLI scaffold: `kpm version`, `kpm --print-sample-config`, bare `kpm` → help.
+- Product sampler, SQLite store, and recommend path deferred until SDD / SPEC.

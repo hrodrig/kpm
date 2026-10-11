@@ -1,0 +1,9 @@
+# GoReleaser dockers_v2: copy pre-built linux binary into distroless (no BusyBox).
+FROM gcr.io/distroless/static-debian13:nonroot
+ARG TARGETARCH
+LABEL org.opencontainers.image.title="kpm"
+LABEL org.opencontainers.image.description="Kubernetes Pods Metrics — sample and rightsizing recommendations"
+LABEL org.opencontainers.image.source="https://github.com/hrodrig/kpm"
+COPY linux/${TARGETARCH}/kpm /usr/local/bin/kpm
+USER nonroot:nonroot
+ENTRYPOINT ["/usr/local/bin/kpm"]

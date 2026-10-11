@@ -1,0 +1,37 @@
+.\" kpm(1) - Kubernetes Pods Metrics
+.TH KPM 1 "2026-10-10" "kpm v0.1.0" "User Commands"
+.SH NAME
+kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
+.SH SYNOPSIS
+.B kpm
+.I command
+[\fIoptions\fR]
+.SH DESCRIPTION
+.B kpm
+is a Go CLI that samples pod CPU and memory metrics into a local
+.B SQLite
+store and surfaces rightsizing recommendations.
+It uses
+.B client-go
+directly (no
+.BR kubectl
+binary) once the sampler is implemented.
+.PP
+This man page tracks the
+.B scaffold
+release. Full command set and config contract will be defined in
+.B SPECIFICATIONS.md
+after the product SDD.
+.SH OPTIONS
+.TP
+.B \-\-print\-sample\-config
+Print the embedded sample configuration to stdout and exit.
+.SH COMMANDS
+.TP
+.B version
+Print version and build metadata.
+.SH SEE ALSO
+.BR kubectl-kpm (1),
+.I https://github.com/hrodrig/kpm
+.SH AUTHOR
+Hermes Rodríguez and contributors.

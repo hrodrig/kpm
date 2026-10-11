@@ -1,0 +1,48 @@
+# Whitelist .gitignore — ignore everything, then re-allow explicitly.
+*
+!*/
+
+# Project config and docs
+!.gitignore
+!AGENTS.md
+!SPECIFICATIONS.md
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!SECURITY.md
+!LICENSE
+!VERSION
+!go.mod
+!go.sum
+!GNUmakefile
+!Makefile
+!.golangci.yml
+!.goreleaser.yaml
+!.govulncheck-ignore.yaml
+!.grype.yaml
+!Dockerfile
+!Dockerfile.release
+!.dockerignore
+
+# Source
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!configs/
+!configs/**
+
+# Packaging
+!contrib/
+!contrib/**
+!docs/
+!docs/**
+
+# CI
+!.github/
+!.github/**
+!.goreleaser.yaml
+
+# Never commit these
+.planning/
+**/.DS_Store

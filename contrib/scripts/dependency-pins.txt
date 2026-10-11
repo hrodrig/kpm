@@ -1,0 +1,6 @@
+# Modules pinned for a cleared CVE. One entry per line:
+#
+#   <module> <minimum-fixed-version>
+#
+# `make check-pins` (run through `make lint`) fails when a module resolves
+# below its minimum. Empty until client-go / other deps land after SDD.

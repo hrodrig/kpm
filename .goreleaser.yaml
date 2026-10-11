@@ -1,0 +1,182 @@
+# GoReleaser for kpm — same flow as kwd: merge develop → main, tag vX.Y.Z,
+# push tag (CI runs release). Local: make release-check && make release (on main only).
+# Snapshot: make snapshot → artifacts under dist/
+# Homebrew tap (homebrew-kpm) deferred until first public release.
+
+version: 2
+
+project_name: kpm
+
+before:
+  hooks:
+    - sh -c 'gzip -c contrib/man/man1/kpm.1 > contrib/man/man1/kpm.1.gz'
+    - sh -c 'gzip -c contrib/man/man1/kubectl-kpm.1 > contrib/man/man1/kubectl-kpm.1.gz'
+
+builds:
+  - id: kpm
+    main: ./cmd/kpm
+    binary: kpm
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+      - openbsd
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s
+      - -w
+      - -X github.com/hrodrig/kpm/internal/cli.Version=v{{ .Version }}
+      - -X github.com/hrodrig/kpm/internal/cli.Commit={{ .ShortCommit }}
+      - -X github.com/hrodrig/kpm/internal/cli.BuildDate={{ .Date }}
+      - -X github.com/hrodrig/kpm/internal/cli.Branch={{ .Branch }}
+  - id: kubectl-kpm
+    main: ./cmd/kpm
+    binary: kubectl-kpm
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+      - openbsd
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s
+      - -w
+      - -X github.com/hrodrig/kpm/internal/cli.Version=v{{ .Version }}
+      - -X github.com/hrodrig/kpm/internal/cli.Commit={{ .ShortCommit }}
+      - -X github.com/hrodrig/kpm/internal/cli.BuildDate={{ .Date }}
+      - -X github.com/hrodrig/kpm/internal/cli.Branch={{ .Branch }}
+
+archives:
+  - id: default
+    ids:
+      - kpm
+      - kubectl-kpm
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - src: contrib/man/man1/kpm.1
+        dst: share/man/man1/kpm.1
+      - src: contrib/man/man1/kubectl-kpm.1
+        dst: share/man/man1/kubectl-kpm.1
+      - src: LICENSE
+        dst: share/doc/kpm/LICENSE
+      - src: configs/kpm.sample.yml
+        dst: share/examples/kpm/kpm.sample.yml
+
+checksum:
+  name_template: checksums.txt
+
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+      - --yes
+    artifacts: checksum
+
+source:
+  enabled: true
+
+sboms:
+  - id: kpm-sbom-spdx
+    artifacts: source
+    documents:
+      - "kpm_{{ .Version }}_sbom.spdx.json"
+    args: ["$artifact", "--output", "spdx-json=$document"]
+  - id: kpm-sbom-cdx
+    artifacts: source
+    documents:
+      - "kpm_{{ .Version }}_sbom.cyclonedx.json"
+    args: ["$artifact", "--output", "cyclonedx-json=$document"]
+
+nfpms:
+  - id: default
+    package_name: kpm
+    ids:
+      - kpm
+      - kubectl-kpm
+    file_name_template: "{{ .ProjectName }}_{{ if .IsSnapshot }}v{{ .Version }}{{ else }}{{ .Tag }}{{ end }}_{{ .Os }}_{{ .Arch }}"
+    description: Kubernetes Pods Metrics — sample CPU/mem and rightsizing recommendations
+    vendor: "Hermes Rodríguez"
+    maintainer: "Hermes Rodríguez <hrodrig@usb.ve>"
+    homepage: https://github.com/hrodrig/kpm
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: contrib/man/man1/kpm.1.gz
+        dst: /usr/share/man/man1/
+      - src: contrib/man/man1/kubectl-kpm.1.gz
+        dst: /usr/share/man/man1/
+      - src: configs/kpm.sample.yml
+        dst: /etc/kpm/kpm.yaml
+        type: config|noreplace
+
+snapshot:
+  version_template: "{{ .Env.KPM_SNAPSHOT_VERSION }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"
+
+release:
+  github:
+    owner: hrodrig
+    name: kpm
+
+dockers_v2:
+  - disable: "{{ .IsSnapshot }}"
+    sbom: false
+    dockerfile: Dockerfile.release
+    ids:
+      - kpm
+    images:
+      - ghcr.io/hrodrig/kpm
+    tags:
+      - "v{{ .Version }}"
+      - "{{ if not .IsSnapshot }}latest{{ end }}"
+    labels:
+      org.opencontainers.image.title: "kpm"
+      org.opencontainers.image.description: "Kubernetes Pods Metrics — sample and rightsizing recommendations"
+      org.opencontainers.image.source: "https://github.com/hrodrig/kpm"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+
+docker_signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    args:
+      - sign
+      - "${artifact}@${digest}"
+      - --yes
