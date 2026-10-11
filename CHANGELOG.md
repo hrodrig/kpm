@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- SPECIFICATIONS.md: promote §3–6 (Insights + notifications) and exit `3` to
+  **normative**; status banner + CLI map + phasing tables; AGENTS band-exit /
+  version-bump docs must stay in lockstep with features.
+- SPEC §6.4 — anonymized notification examples (plain text, generic/discord/teams
+  JSON, config sketch) so sink payloads stay documented with the feature.
 - SPEC §6.3 — multi-sink gghstats-school (replaces solo webhook sketch);
   PagerDuty via generic webhook; Loki deferred.
 

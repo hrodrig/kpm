@@ -72,6 +72,7 @@ tui:
 # request at 80%) and a one-time log; see SPEC §6.0.
 # Sinks are gghstats-school: slack | webhook (generic/discord/teams) | smtp.
 # PagerDuty / n8n: use type webhook + body generic (no native pagerduty type).
+# Anonymized payload examples: SPECIFICATIONS.md §6.4. Smoke: kpm notify-test.
 # notifications:
 #   enabled: true
 #   rules: []   # empty → built-in 80% defaults + log

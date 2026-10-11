@@ -69,7 +69,10 @@ without mutating the cluster. Core sample path stays unaware of notify.
 - [x] PR `feat/0.4-notify` → `develop` opened ([#23](https://github.com/hrodrig/kpm/pull/23))
 - [x] PR `#23` merged
 - [x] Version-cut artifacts on `chore/release-0.4.0` (VERSION / CHANGELOG / man / badge)
-- [ ] PR release → develop merged
+- [x] PR release → develop merged (#24)
+- [x] VHS re-record (#25)
+- [x] SPEC §6 (+ §3–5) normative banner / CLI map (docs train)
+- [x] SPEC §6.4 anonymized notify payload examples (slack/webhook/smtp/config)
 - [ ] PR develop → main + tag `v0.4.0` (operador OK)
 
 [↑ Back to top](#top)
