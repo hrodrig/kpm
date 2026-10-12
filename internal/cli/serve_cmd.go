@@ -67,7 +67,7 @@ checks the store. GET /api/v1/live returns 503 JSON when kube is unavailable.`,
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), " mcp=%s+%s", mcp.PathSSE, mcp.PathMCP)
 			}
 			if cfg.Server.Enabled {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), " api=%s", server.APIPrefix)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), " api=%s ui=/", server.APIPrefix)
 			}
 			_, _ = fmt.Fprintln(cmd.OutOrStdout())
 			return srv.ListenAndServe(cmd.Context())

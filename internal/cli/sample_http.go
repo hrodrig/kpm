@@ -79,7 +79,7 @@ func mountHTTPFacades(
 		mcp.MountHTTP(srv.Mux(), &mcp.Deps{Store: st, Config: cfg, Version: Version}, mcpTok)
 	}
 	if cfg.Server.Enabled {
-		server.Mount(srv.Mux(), &server.Deps{
+		server.MountAll(srv.Mux(), &server.Deps{
 			Store:   st,
 			Config:  cfg,
 			Version: Version,
@@ -119,7 +119,7 @@ func logOpsListen(errW io.Writer, cfg *config.Config, addr string) {
 		_, _ = fmt.Fprintf(errW, "; MCP %s + %s", mcp.PathSSE, mcp.PathMCP)
 	}
 	if cfg.Server.Enabled {
-		_, _ = fmt.Fprintf(errW, "; JSON %s/*", server.APIPrefix)
+		_, _ = fmt.Fprintf(errW, "; JSON %s/*; UI /", server.APIPrefix)
 	}
 	_, _ = fmt.Fprint(errW, ")\n")
 }
