@@ -42,6 +42,10 @@ func TestClassify(t *testing.T) {
 	if Classify(10, 0, 0.35, 0.85) != VerdictNA {
 		t.Fatal("n/a")
 	}
+	cpuV, memV := SnapshotVerdicts(20, 100, 10<<20, 100<<20, 0, 0)
+	if cpuV != VerdictOversized || memV != VerdictOversized {
+		t.Fatalf("snapshot %s %s", cpuV, memV)
+	}
 }
 
 func TestRunDualGrain(t *testing.T) {
