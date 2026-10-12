@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recommend verdicts on cards + summary strip (oversized / undersized / ok /
   no-req) from stored p-util vs request; API fields `cpu_verdict` /
   `mem_verdict` + deltas `(0.6.x #18c)`.
+- Status `kube_live` + UI mode chip (`live` / `analyze-local`); sticky footer
+  with repo, MIT license, and advisory-only disclaimer.
+- SPEC §8 → **Normative** (P5 band exit); ROADMAP **P6** 0.7.x adds `#20c`
+  search/filter (large grids) beside `#20b` nodes.
 
 ### Changed
 
@@ -32,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(0.6.x #19a)`.
 - `kpm serve` accepts `mcp.enabled` and/or `server.enabled`; shared listen prefers
   `server.listen` when set `(0.6.x #19)`.
-- Charts UI polish: chart req/limit overlays, local TZ patch stamp, repo link +
-  light/dark theme, cluster/context badge, version display fix.
+- Charts UI polish: chart req/limit overlays, local TZ patch stamp, light/dark
+  theme, cluster/context badge, version display fix.
 
 ## [0.5.0] - 2026-10-11
 

@@ -1,9 +1,9 @@
 # SPECIFICATIONS — kpm
 
 > **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
-> adjacent Insights (§3–5), notifications (§6), MCP (§7), `client.id`
-> (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Optional server (§8) remains
-> **draft** until the 0.6.x band ships.
+> adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
+> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Cut `v0.6.0` when
+> band code is on `main` (version-cut PR separate).
 
 | Term | Meaning |
 |------|---------|
@@ -721,7 +721,7 @@ Result:
 
 ---
 
-## 8. OPTIONAL — server mode (charts) (draft — 0.6.x)
+## 8. OPTIONAL — server mode (charts) (Normative — 0.6.x)
 
 Off unless `server.enabled: true` (or `kpm serve`). **Analyze-local** is a
 first-class mode: open an existing SQLite store with
@@ -729,7 +729,7 @@ first-class mode: open an existing SQLite store with
 on the shared mux) without kube. Live Metrics enrichment is optional when
 kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
-### 8.1 Stack (decided)
+### 8.1 Stack (Normative)
 
 - **Boring embedded UI**: Go `net/http` + small templates + minimal JS (or HTMX).
   **No** SPA framework / npm app in-repo for v1.
@@ -751,7 +751,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   ok / no-req. Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock
   form stores bearer for API calls when required.
 
-### 8.2 Relationship to capacity / TUI (decided)
+### 8.2 Relationship to capacity / TUI (Normative)
 
 - Shared **read model** (usage snapshots) behind `capacity`, `tui`, and server API.
 - `capacity` remains a **CLI** command; server is not required to use it.
@@ -773,14 +773,19 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - Formatter lives in `internal/recommend` (`FormatResourcePatch`); CLI recommend
   export may reuse the same helpers later.
 
-### 8.4 Analyze-local UX (draft)
+### 8.4 Analyze-local UX (Normative)
 
 - Per-workload chart cards from store series; window presets (1h / 24h / 48h /
   7d / 15d) + custom range.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
+- Mode chip from `status.kube_live`: **`live`** when the Metrics client was
+  wired at process start; **`analyze-local`** when store-only (`/live` 503).
+- Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
+  applies patches; operator owns production changes).
+- UI search/filter for large grids is **P6** (`#20c`, 0.7.x).
 
-### 8.5 Recommend verdicts on cards (`#18c`)
+### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
 
 - `GET /api/v1/recommendations` includes `cpu_verdict` / `mem_verdict`
   (`oversized|undersized|ok|n/a`) from p-util vs current request
@@ -790,7 +795,49 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   (undersized beats oversized beats ok; `n/a` = no request; missing row =
   no recommend).
 - Node / capacity under-demand snapshots are **out of band** for 0.6.x
-  (planned 0.7.x).
+  (planned 0.7.x P6 `#20b`).
+
+### 8.6 Status / recommendations examples (anonymized)
+
+`GET /api/v1/status` (no secrets):
+
+```json
+{
+  "version": "v0.6.0",
+  "store_path": "/var/lib/kpm/example.db",
+  "sample_interval_seconds": 0,
+  "server_enabled": true,
+  "cluster_name": "example-east",
+  "cluster_environment": "stg",
+  "kube_context": "example-east-admin",
+  "kube_live": false,
+  "sample_count": 4200
+}
+```
+
+`GET /api/v1/recommendations?grain=workload` (one row):
+
+```json
+{
+  "count": 1,
+  "rows": [
+    {
+      "grain": "workload",
+      "grain_key": "app/Deployment/api",
+      "namespace": "app",
+      "owner_kind": "Deployment",
+      "owner_name": "api",
+      "cpu_p_mcores": 40,
+      "cpu_req_mcores": 200,
+      "cpu_sug_mcores": 100,
+      "cpu_delta_mcores": -100,
+      "cpu_verdict": "oversized",
+      "mem_verdict": "ok",
+      "target_utilization": 0.7
+    }
+  ]
+}
+```
 
 ---
 
@@ -875,7 +922,7 @@ tui:
 | `capacity` | Adjacent | **Normative** | Yes | No |
 | `tui` / `capacity --tui` | Adjacent | **Normative** | Yes | Read* |
 | `mcp` | Optional | **Normative** | No** | Read |
-| `serve` | Optional | **Draft** (0.6.x `#19a`/`#19`) | No*** | Read |
+| `serve` | Optional | **Normative** | No*** | Read |
 | `notify-test` | Optional | **Normative** | No | No |
 | daemon `sample` loop | Core | **Normative** (notify / MCP HTTP when enabled) | Yes | Write |
 
@@ -911,7 +958,8 @@ tui:
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
-| **P5 — Server** | analyze-local + charts + JSON API | Planned (`docs/plan-0.6.0.md`) |
+| **P5 — Server** | analyze-local + charts + JSON API | **Band exit** (`docs/plan-0.6.0.md`; cut `v0.6.0` pending) |
+| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 
@@ -991,8 +1039,16 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Topic | Decision |
 |-------|----------|
 | §7 MCP | **Normative** when band code is on `develop` + docs exit (stdio, HTTP/SSE, ops mux, access control) |
-| §8 Server | Stays **draft** until 0.6.x |
+| §8 Server | **Normative** when 0.6.x band code + docs exit on `develop` (analyze-local, `/api/v1/*`, charts, `#18b`/`#18c`) |
 | Tools | Store-only MVP (`get_status`, `list_samples`, `summarize_window`, `list_recommendations`); live-cluster tools deferred |
+
+### 15.12 SPEC normative after Server (0.6.x / P5)
+
+| Topic | Decision |
+|-------|----------|
+| §8 Server | **Normative** on band-exit docs + code (serve, API, UI, GitOps export, verdicts) |
+| Cut | `chore/release-0.6.0` then develop → main + tag `v0.6.0` (operator OK) |
+| Deferred | Node snapshots `#20b`, UI search `#20c` → **P6** 0.7.x |
 
 ### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 

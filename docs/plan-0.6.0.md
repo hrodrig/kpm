@@ -154,10 +154,10 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 ### Gates / band exit
 
-- [ ] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC §8 → Normative in status banner + CLI map (`serve` / server)
-- [ ] SPEC anonymized API + UI examples
-- [ ] PR feat → `develop` merged
+- [x] SPEC §8 → Normative in status banner + CLI map (`serve` / server)
+- [x] SPEC anonymized API examples (§8.6)
+- [ ] `make lint` + `make cover-check` ≥ 80% (CI on PR)
+- [ ] PR feat → `develop` merged (`#41` + follow-ups)
 - [ ] Version-cut artifacts (`chore/release-0.6.0`) when shipping
 - [ ] VHS re-record if help/version strings change
 - [ ] PR develop → main + tag `v0.6.0` (operator OK)

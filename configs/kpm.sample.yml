@@ -1,10 +1,11 @@
-# kpm sample configuration (SPEC draft v0.4 — Core normative; see SPECIFICATIONS.md).
+# kpm sample configuration (SPEC draft v0.4 — Core + Insights + Notify + MCP +
+# Server normative; see SPECIFICATIONS.md).
 # One process ↔ one cluster. Default config path: ./kpm.yaml (--config, kwd-style).
 #
 # Layers:
 #   CORE     — sample → SQLite; backup / export (csv|tsv)  [implemented]
-#   ADJACENT — recommend, capacity, tui                   [draft]
-#   OPTIONAL — notifications, mcp (daemon), server charts [draft]
+#   ADJACENT — recommend, capacity, tui                   [implemented]
+#   OPTIONAL — notifications, mcp (daemon), server charts [implemented]
 
 cluster:
   name: "example-cluster"
