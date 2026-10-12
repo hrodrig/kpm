@@ -14,11 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   anti-slop for `#18` UI).
 - `kpm serve` — ops + MCP HTTP against an existing store without a sample loop
   (`mcp.enabled`; `/readyz` store-only; kube optional) `(0.6.x #19a)`.
+- JSON read API `GET /api/v1/{status,workloads,series,recommendations,live}`
+  when `server.enabled` on the shared mux; bearer via `server.token_env`
+  (or shared `mcp.token_env`); live 503 without kube `(0.6.x #19)`.
 
 ### Changed
 
 - Daemon ops `/readyz`: store open required; kube Discovery no longer gates ready
   `(0.6.x #19a)`.
+- `kpm serve` accepts `mcp.enabled` and/or `server.enabled`; shared listen prefers
+  `server.listen` when set `(0.6.x #19)`.
 
 ## [0.5.0] - 2026-10-11
 

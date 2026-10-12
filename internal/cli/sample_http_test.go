@@ -51,6 +51,22 @@ func TestStartOpsHTTPListen(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 }
 
+func TestNewOpsHTTPServerOnly(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	cfg := &config.Config{}
+	cfg.Server.Enabled = true
+	cfg.Server.Listen = "127.0.0.1:0"
+	srv, err := newOpsHTTP(cfg, st, nil)
+	if err != nil || srv == nil {
+		t.Fatalf("srv=%v err=%v", srv, err)
+	}
+}
+
 func TestWithProcessMetrics(t *testing.T) {
 	c := &httpserver.Counters{}
 	called := false

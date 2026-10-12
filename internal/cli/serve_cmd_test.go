@@ -15,6 +15,12 @@ import (
 	"github.com/hrodrig/kpm/internal/store"
 )
 
+func TestLiveFnFromClientsNil(t *testing.T) {
+	if liveFnFromClients(nil, nil, config.Scope{}) != nil {
+		t.Fatal("expected nil")
+	}
+}
+
 func TestServeCommandRegistered(t *testing.T) {
 	cmd := NewRootCmd()
 	buf := &bytes.Buffer{}
@@ -50,7 +56,7 @@ func TestServeRequiresMCPEnabled(t *testing.T) {
 	cmd.SetArgs([]string{"serve", "--config", cfgPath})
 	err = cmd.Execute()
 	if err == nil || !strings.Contains(err.Error(), "mcp.enabled") {
-		t.Fatalf("want mcp.enabled error, got %v", err)
+		t.Fatalf("want enabled error, got %v", err)
 	}
 }
 

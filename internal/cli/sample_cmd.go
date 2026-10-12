@@ -67,7 +67,8 @@ Daemon loop when interval_seconds > 0 (SIGINT/SIGTERM clean exit).`,
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
 					"daemon sample interval=%ds client.id=%s cluster=%s store=%s\n",
 					cfg.Sample.IntervalSeconds, clientID, clusterName, st.Path())
-				metrics, err := startOpsHTTP(cmd.Context(), cfg, st, cs, cmd.ErrOrStderr())
+				liveFn := liveFnFromClients(cs, mcs, cfg.Scope)
+				metrics, err := startOpsHTTP(cmd.Context(), cfg, st, liveFn, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
