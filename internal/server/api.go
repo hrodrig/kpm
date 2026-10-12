@@ -13,6 +13,7 @@ import (
 
 	"github.com/hrodrig/kpm/internal/config"
 	"github.com/hrodrig/kpm/internal/httpserver"
+	"github.com/hrodrig/kpm/internal/recommend"
 	"github.com/hrodrig/kpm/internal/store"
 )
 
@@ -50,6 +51,7 @@ func Mount(mux *http.ServeMux, d *Deps, bearerToken string) {
 	mux.Handle("GET "+APIPrefix+"/series", wrap(api.handleSeries))
 	mux.Handle("GET "+APIPrefix+"/recommendations", wrap(api.handleRecommendations))
 	mux.Handle("GET "+APIPrefix+"/live", wrap(api.handleLive))
+	mux.Handle("GET "+APIPrefix+"/export/patch", wrap(api.handleExportPatch))
 }
 
 // ResolveAPIToken picks server.token_env, else mcp.token_env when sharing.
@@ -418,6 +420,58 @@ func (a *api) handleLive(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Available = true
 	writeJSON(w, http.StatusOK, out)
+}
+
+// PatchExportOut is GET /api/v1/export/patch (GitOps copy/download; never applied).
+type PatchExportOut struct {
+	Format   string `json:"format"`
+	Filename string `json:"filename"`
+	Content  string `json:"content"`
+	GrainKey string `json:"grain_key"`
+}
+
+func (a *api) handleExportPatch(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	q := r.URL.Query()
+	grainKey := strings.TrimSpace(q.Get("grain_key"))
+	if grainKey == "" {
+		writeErr(w, http.StatusBadRequest, "grain_key required")
+		return
+	}
+	format := recommend.PatchFormat(strings.TrimSpace(q.Get("format")))
+	if format == "" {
+		format = recommend.PatchStrategic
+	}
+	recs, err := a.deps.Store.LatestRecommendations(r.Context(), "")
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var found *store.Recommendation
+	for i := range recs {
+		if recs[i].GrainKey == grainKey {
+			found = &recs[i]
+			break
+		}
+	}
+	if found == nil {
+		writeErr(w, http.StatusNotFound, "no recommendation for grain_key")
+		return
+	}
+	exp, err := recommend.FormatResourcePatch(*found, format)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, PatchExportOut{
+		Format:   string(exp.Format),
+		Filename: exp.Filename,
+		Content:  exp.Content,
+		GrainKey: exp.GrainKey,
+	})
 }
 
 func filterFromQuery(r *http.Request, now time.Time) (store.ExportFilter, error) {

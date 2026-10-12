@@ -257,6 +257,17 @@
             " B</dd>";
         });
         html += "</dl>";
+        var patchKey = recs[0].grain_key || grain;
+        html +=
+          '<div class="drawer-actions">' +
+          '<button type="button" class="btn primary" data-patch="' +
+          escapeAttr(patchKey) +
+          '" data-format="strategic">Copy strategic patch</button>' +
+          '<button type="button" class="btn" data-patch="' +
+          escapeAttr(patchKey) +
+          '" data-format="kustomize">Download kustomize hint</button>' +
+          "</div>";
+        html += '<pre class="meta" id="patch-preview" hidden></pre>';
       }
       html += "</section><section><h3>Live</h3>";
       if (!live.available) {
@@ -286,6 +297,44 @@
     el.drawer.classList.remove("open");
     el.backdrop.classList.remove("open");
     el.drawer.setAttribute("aria-hidden", "true");
+  }
+
+  function exportPatch(grainKey, format) {
+    fetchJSON("/api/v1/export/patch", { grain_key: grainKey, format: format })
+      .then(function (exp) {
+        var preview = document.getElementById("patch-preview");
+        if (preview) {
+          preview.hidden = false;
+          preview.textContent = exp.content;
+        }
+        if (format === "kustomize") {
+          downloadText(exp.filename || "kpm-patch.md", exp.content);
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(exp.content);
+        }
+        downloadText(exp.filename || "patch.yaml", exp.content);
+      })
+      .catch(function (err) {
+        var preview = document.getElementById("patch-preview");
+        if (preview) {
+          preview.hidden = false;
+          preview.textContent = err.message || String(err);
+        }
+      });
+  }
+
+  function downloadText(filename, text) {
+    var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   function bindWindows() {
@@ -330,6 +379,11 @@
     var btn = e.target.closest(".details");
     if (!btn) return;
     openDrawer(btn.closest(".card"));
+  });
+  el.drawerBody.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-patch]");
+    if (!btn) return;
+    exportPatch(btn.getAttribute("data-patch"), btn.getAttribute("data-format") || "strategic");
   });
   document.getElementById("drawer-close").addEventListener("click", closeDrawer);
   el.backdrop.addEventListener("click", closeDrawer);

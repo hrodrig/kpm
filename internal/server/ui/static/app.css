@@ -352,6 +352,23 @@ main {
   text-align: right;
 }
 
+.drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-top: var(--sp-12);
+}
+
+#patch-preview {
+  margin-top: var(--sp-12);
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
 .hidden {
   display: none !important;
 }

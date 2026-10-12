@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,6 +147,72 @@ func TestAPIWorkloadsLiveRecs(t *testing.T) {
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Fatalf("live nil want 503 got %d", rr.Code)
 	}
+}
+
+func TestAPIExportPatch(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	st := fixtureStore(t, now)
+	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
+		RecordedAt: now, ClientID: "c", ClusterName: "x",
+		Grain: "workload", GrainKey: "app/Deployment/web",
+		Namespace: "app", OwnerKind: "Deployment", OwnerName: "web", Container: "main",
+		Samples: 5, CPUSugMcores: 250, MemSugBytes: 128 * 1024 * 1024,
+		CPUReqMcores: 500, MemReqBytes: 256 * 1024 * 1024, TargetUtilization: 0.7,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{Store: st, Version: "v"}, "")
+
+	rr := authedGet(mux, "/api/v1/export/patch", "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("missing grain_key want 400 got %d", rr.Code)
+	}
+	rr = authedGet(mux, "/api/v1/export/patch?grain_key=missing", "")
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("missing rec want 404 got %d %s", rr.Code, rr.Body.String())
+	}
+	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=strategic", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("patch %d %s", rr.Code, rr.Body.String())
+	}
+	var out server.PatchExportOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Format != "strategic" || out.GrainKey != "app/Deployment/web" || out.Content == "" {
+		t.Fatalf("%+v", out)
+	}
+	if !containsAll(out.Content, "kind: Deployment", `cpu: "250m"`, "do not kubectl apply") {
+		t.Fatalf("content:\n%s", out.Content)
+	}
+	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=kustomize", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("kustomize %d", rr.Code)
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &out)
+	if out.Format != "kustomize" || !containsAll(out.Content, "kustomization.yaml") {
+		t.Fatalf("%+v", out)
+	}
+	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=nope", "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("bad format want 400 got %d", rr.Code)
+	}
+	muxNil := http.NewServeMux()
+	server.Mount(muxNil, &server.Deps{Version: "v"}, "")
+	rr = authedGet(muxNil, "/api/v1/export/patch?grain_key=x", "")
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("nil store want 503 got %d", rr.Code)
+	}
+}
+
+func containsAll(s string, parts ...string) bool {
+	for _, p := range parts {
+		if !strings.Contains(s, p) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestResolveAPITokenAndBadMetric(t *testing.T) {
