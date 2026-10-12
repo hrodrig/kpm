@@ -129,10 +129,12 @@ tui:
 #     period: 1m
 #     burst: 20
 
-# OPTIONAL — JSON API (+ later charts). Shares listen with mcp when listen empty.
+# OPTIONAL — JSON API + embedded charts UI. Shares listen with mcp when empty.
+# GET /  → analyze-local charts (workload cards + drawers)
 # GET /api/v1/status|workloads|series|recommendations|live (read-only).
 # Bearer: server.token_env, or mcp.token_env when shared; required off-loopback
-# (or when auth: true). /api/v1/live → 503 JSON if kube unavailable.
+# (or when auth: true). UI unlock form stores token for API fetch.
+# /api/v1/live → 503 JSON if kube unavailable.
 # server:
 #   enabled: true
 #   listen: "127.0.0.1:9740"   # omit → mcp.listen / default loopback

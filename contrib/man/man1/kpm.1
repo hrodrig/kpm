@@ -171,13 +171,17 @@ if set, else
 with ops probes, optional MCP
 .RB ( /sse ,
 .BR /mcp ),
-and optional JSON
+optional JSON
 .B /api/v1/*
 .RB ( status ,
 .BR workloads ,
 .BR series ,
 .BR recommendations ,
 .BR live ),
+and optional charts UI at
+.B /
+(static assets under
+.BR /static/ ),
 .B without
 a Metrics scrape or sample loop
 .RB ( sample.interval_seconds
