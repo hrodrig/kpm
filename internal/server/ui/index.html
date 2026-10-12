@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kpm — analyze-local</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <section id="auth" class="auth hidden" aria-labelledby="auth-title">
+      <h1 id="auth-title">kpm</h1>
+      <p>Enter the API bearer token to load charts from this store.</p>
+      <form id="auth-form">
+        <label for="token">Bearer token</label>
+        <input id="token" name="token" type="password" autocomplete="current-password" required />
+        <p id="auth-err" class="error" role="alert"></p>
+        <button class="btn primary" type="submit">Unlock</button>
+      </form>
+    </section>
+
+    <div id="app" class="hidden">
+      <header class="top">
+        <h1 class="brand">kpm <span>analyze-local</span></h1>
+        <div class="toolbar">
+          <div class="windows" role="group" aria-label="Time window">
+            <button type="button" data-window="1h">1h</button>
+            <button type="button" data-window="24h" class="active">24h</button>
+            <button type="button" data-window="48h">48h</button>
+            <button type="button" data-window="7d">7d</button>
+            <button type="button" data-window="15d">15d</button>
+          </div>
+          <div class="custom">
+            <label class="hidden" for="since">Since</label>
+            <input id="since" type="datetime-local" />
+            <label class="hidden" for="until">Until</label>
+            <input id="until" type="datetime-local" />
+            <button type="button" class="btn" id="apply-custom">Apply</button>
+          </div>
+          <label class="hidden" for="metric">Metric</label>
+          <select id="metric" class="metric" aria-label="Metric">
+            <option value="cpu_util_mcores">CPU util (mcores)</option>
+            <option value="mem_util_bytes">Mem util (bytes)</option>
+            <option value="cpu_util_ratio">CPU util / request</option>
+            <option value="mem_util_ratio">Mem util / request</option>
+          </select>
+        </div>
+      </header>
+
+      <main id="main">
+        <p id="status" class="status" aria-live="polite"></p>
+        <div id="grid" class="grid" aria-live="polite"></div>
+      </main>
+    </div>
+
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+    <aside id="drawer" class="drawer" aria-hidden="true" aria-labelledby="drawer-title">
+      <header>
+        <h2 id="drawer-title">Details</h2>
+        <button type="button" class="btn" id="drawer-close" aria-label="Close details">Close</button>
+      </header>
+      <div id="drawer-body"></div>
+    </aside>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

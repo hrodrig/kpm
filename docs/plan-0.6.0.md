@@ -121,18 +121,18 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 ### `#18` Embedded charts UI
 
-- [ ] Boring UI: Go `html/template` + minimal JS (HTMX **or** small `fetch` —
-      no npm/SPA)
-- [ ] Pages: overview (workload cards) + optional detail
-- [ ] Each card: chart from `/api/v1/series` + collapsible drawer
+- [x] Boring UI: Go `html/template` + minimal JS (HTMX **or** small `fetch` —
+      no npm/SPA) — embedded HTML + `fetch`
+- [x] Pages: overview (workload cards) + optional detail
+- [x] Each card: chart from `/api/v1/series` + collapsible drawer
       (recommendations; live req/limit when `/api/v1/live` ok)
-- [ ] Window controls: presets **1h / 24h / 48h / 7d / 15d** + custom range
-- [ ] Static assets embedded (`embed`); no external CDN requirement
-- [ ] Chart lib: pick one embeddable approach in implement PR (canvas/SVG or
-      single vendored file) — keep binary lean
-- [ ] Apply **Visual guidance** below (tokens / states / motion); not landing
+- [x] Window controls: presets **1h / 24h / 48h / 7d / 15d** + custom range
+- [x] Static assets embedded (`embed`); no external CDN requirement
+- [x] Chart lib: pick one embeddable approach in implement PR (canvas/SVG or
+      single vendored file) — keep binary lean — vanilla canvas
+- [x] Apply **Visual guidance** below (tokens / states / motion); not landing
       page structure
-- [ ] Core / `internal/sample` must **not** import server UI packages
+- [x] Core / `internal/sample` must **not** import server UI packages
 
 ### `#18b` Recommend GitOps export in UI
 
@@ -296,7 +296,7 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | 1 | docs | This plan + ROADMAP + SPEC §8 draft expand | [x] |
 | 2 | `#19a` | Listen / `kpm serve` without sample loop | [x] (this PR) |
 | 3 | `#19` | JSON `/api/v1/*` + auth | [x] (this branch) |
-| 4 | `#18` | Charts UI + drawers + windows | [ ] |
+| 4 | `#18` | Charts UI + drawers + windows | [x] (this branch) |
 | 5 | `#18b` | Kustomize/patch export in drawer | [ ] |
 | 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
 

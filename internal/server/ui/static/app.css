@@ -1,0 +1,357 @@
+/* kpm analyze-local ops UI — flat, data-first (Elaya Part B + anti-slop). */
+:root {
+  --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --sp-2: 2px;
+  --sp-4: 4px;
+  --sp-8: 8px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+  --r-4: 4px;
+  --r-8: 8px;
+  --bg: #f4f5f4;
+  --surface: #ffffff;
+  --ink: #1a1c1a;
+  --muted: #5c645c;
+  --line: #c8cec8;
+  --accent: #1f6b4a;
+  --accent-ink: #ffffff;
+  --danger: #8b2e2e;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --drawer-w: 360px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: var(--sp-8);
+  top: var(--sp-8);
+  z-index: 100;
+  background: var(--surface);
+  padding: var(--sp-8) var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-12) var(--sp-16);
+  padding: var(--sp-16) var(--sp-24);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.brand {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.brand span {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: var(--fs-12);
+  margin-left: var(--sp-8);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-left: auto;
+}
+
+.windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.windows button,
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-4);
+  padding: var(--sp-4) var(--sp-12);
+  cursor: pointer;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.windows button:hover,
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.windows button.active,
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.windows button:focus-visible,
+.btn:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.custom {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: center;
+}
+
+.custom input {
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  padding: var(--sp-4) var(--sp-8);
+  background: var(--surface);
+}
+
+.metric {
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  padding: var(--sp-4) var(--sp-8);
+  background: var(--surface);
+}
+
+main {
+  padding: var(--sp-24);
+}
+
+.status {
+  margin: 0 0 var(--sp-16);
+  color: var(--muted);
+  font-size: var(--fs-12);
+  font-family: var(--font-mono);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--sp-16);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-8);
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  min-height: 220px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.card .meta {
+  color: var(--muted);
+  font-size: var(--fs-12);
+  font-family: var(--font-mono);
+}
+
+.card canvas {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
+.card .actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: auto;
+}
+
+.empty,
+.error,
+.loading {
+  padding: var(--sp-32);
+  border: 1px solid var(--line);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  border-color: #e0b4b4;
+}
+
+.skeleton {
+  height: 160px;
+  border-radius: var(--r-8);
+  background: linear-gradient(90deg, #e8ebe8 0%, #f4f5f4 50%, #e8ebe8 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s var(--ease) infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.auth {
+  max-width: 420px;
+  margin: var(--sp-32) auto;
+  padding: var(--sp-24);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-8);
+}
+
+.auth h1 {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-20);
+}
+
+.auth p {
+  margin: 0 0 var(--sp-16);
+  color: var(--muted);
+}
+
+.auth label {
+  display: block;
+  font-size: var(--fs-12);
+  margin-bottom: var(--sp-4);
+}
+
+.auth input[type="password"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  padding: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-12);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 28, 26, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease);
+  z-index: 40;
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(var(--drawer-w), 100%);
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  transform: translateX(100%);
+  transition: transform 220ms var(--ease);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-24);
+  gap: var(--sp-16);
+  overflow: auto;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-12);
+}
+
+.drawer h2 {
+  margin: 0;
+  font-size: var(--fs-16);
+}
+
+.drawer section h3 {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.drawer dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-4) var(--sp-12);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+.drawer dt {
+  color: var(--muted);
+}
+
+.drawer dd {
+  margin: 0;
+  text-align: right;
+}
+
+.hidden {
+  display: none !important;
+}

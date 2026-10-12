@@ -744,6 +744,10 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   Bearer via `server.token_env` or shared `mcp.token_env`; required
   off-loopback (or `server.auth: true`). One listen: prefer `server.listen`,
   else `mcp.listen`.
+- **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
+  (no SPA/npm). Workload cards fetch `/api/v1/series`; drawers show
+  recommendations + optional live. Window presets 1h/24h/48h/7d/15d + custom
+  range. Browser unlock form stores bearer for API calls when required.
 
 ### 8.2 Relationship to capacity / TUI (decided)
 

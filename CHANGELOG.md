@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON read API `GET /api/v1/{status,workloads,series,recommendations,live}`
   when `server.enabled` on the shared mux; bearer via `server.token_env`
   (or shared `mcp.token_env`); live 503 without kube `(0.6.x #19)`.
+- Embedded analyze-local charts UI at `GET /` (+ `/static/*`) when
+  `server.enabled`: workload cards, canvas series, window presets, detail
+  drawer (recommendations + live) `(0.6.x #18)`.
 
 ### Changed
 
