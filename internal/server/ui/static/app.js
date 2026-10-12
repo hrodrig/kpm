@@ -17,6 +17,7 @@
     app: document.getElementById("app"),
     grid: document.getElementById("grid"),
     status: document.getElementById("status"),
+    modeLabel: document.getElementById("mode-label"),
     clusterTarget: document.getElementById("cluster-target"),
     recSummary: document.getElementById("recommend-summary"),
     tokenInput: document.getElementById("token"),
@@ -435,6 +436,16 @@
     return parts.join(" · ") + " · ctx " + ctx;
   }
 
+  function updateModeLabel(st) {
+    if (!el.modeLabel) return;
+    var live = !!st.kube_live;
+    el.modeLabel.textContent = live ? "live" : "analyze-local";
+    el.modeLabel.classList.toggle("live", live);
+    el.modeLabel.title = live
+      ? "Kube Metrics API reachable — live drawer enrichment on"
+      : "SQLite store only — no live kube (charts/recommend still work)";
+  }
+
   function setLoading() {
     el.grid.innerHTML =
       '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
@@ -445,6 +456,7 @@
     var wp = windowParams();
     return fetchJSON("/api/v1/status")
       .then(function (st) {
+        updateModeLabel(st);
         if (el.clusterTarget) {
           el.clusterTarget.textContent = formatClusterTarget(st);
           el.clusterTarget.title = formatClusterTarget(st);
@@ -454,6 +466,8 @@
           (st.store_path || "?") +
           " · samples " +
           (st.sample_count || 0) +
+          " · " +
+          (st.kube_live ? "kube live" : "store only") +
           " · " +
           formatVersion(st.version);
         return Promise.all([

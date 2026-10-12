@@ -26,14 +26,23 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	if !strings.Contains(body, "analyze-local") || !strings.Contains(body, "/static/app.js") {
 		t.Fatalf("index missing assets: %s", body[:min(200, len(body))])
 	}
-	if !strings.Contains(body, "https://github.com/hrodrig/kpm") || !strings.Contains(body, "theme-toggle") {
-		t.Fatalf("body missing markers: %s", body[:min(200, len(body))])
+	if !strings.Contains(body, "theme-toggle") {
+		t.Fatal("index missing theme-toggle")
 	}
 	if !strings.Contains(body, "cluster-target") {
 		t.Fatal("index missing cluster-target")
 	}
 	if !strings.Contains(body, "recommend-summary") {
 		t.Fatal("index missing recommend-summary")
+	}
+	if !strings.Contains(body, "mode-label") {
+		t.Fatal("index missing mode-label")
+	}
+	if !strings.Contains(body, "site-footer") ||
+		!strings.Contains(body, "https://github.com/hrodrig/kpm") ||
+		!strings.Contains(body, "MIT License") ||
+		!strings.Contains(body, "advisory only") {
+		t.Fatal("index missing footer / repo / license / disclaimer")
 	}
 
 	rr = httptest.NewRecorder()
@@ -57,6 +66,9 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	}
 	if !strings.Contains(js, "/api/v1/recommendations") || !strings.Contains(js, "cpu_verdict") {
 		t.Fatal("js missing recommendations / verdicts")
+	}
+	if !strings.Contains(js, "kube_live") || !strings.Contains(js, "updateModeLabel") {
+		t.Fatal("js missing kube_live mode label")
 	}
 }
 

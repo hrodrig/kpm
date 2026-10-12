@@ -95,12 +95,13 @@ type StatusOut struct {
 	ClusterName          string `json:"cluster_name,omitempty"`
 	ClusterEnvironment   string `json:"cluster_environment,omitempty"`
 	KubeContext          string `json:"kube_context,omitempty"`
+	KubeLive             bool   `json:"kube_live"` // true when /api/v1/live client is wired
 	SampleCount          int64  `json:"sample_count,omitempty"`
 }
 
 func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 	d := a.deps
-	out := StatusOut{Version: d.Version}
+	out := StatusOut{Version: d.Version, KubeLive: d.Live != nil}
 	if d.Store != nil {
 		out.StorePath = d.Store.Path()
 		if n, err := d.Store.Count(r.Context()); err == nil {

@@ -90,6 +90,9 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	if stOut.ClusterName != "demo-cluster" || stOut.ClusterEnvironment != "dev" || stOut.KubeContext != "demo-ctx" {
 		t.Fatalf("cluster fields %+v", stOut)
 	}
+	if stOut.KubeLive {
+		t.Fatal("kube_live want false without Live fn")
+	}
 
 	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
 	if rr.Code != http.StatusOK {
@@ -135,7 +138,17 @@ func TestAPIWorkloadsLiveRecs(t *testing.T) {
 		},
 	}, "")
 
-	rr := authedGet(mux, "/api/v1/workloads?window=24h", "")
+	rr := authedGet(mux, "/api/v1/status", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d", rr.Code)
+	}
+	var stLive server.StatusOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &stLive)
+	if !stLive.KubeLive {
+		t.Fatal("kube_live want true when Live fn set")
+	}
+
+	rr = authedGet(mux, "/api/v1/workloads?window=24h", "")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("workloads %d", rr.Code)
 	}
