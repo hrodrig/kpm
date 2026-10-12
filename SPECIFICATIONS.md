@@ -740,14 +740,15 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
   `server.enabled`); `/readyz` is store-only (kube optional).
 - **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
-  `/series`, `/recommendations`, `/live` (503 JSON if kube unavailable).
-  Bearer via `server.token_env` or shared `mcp.token_env`; required
-  off-loopback (or `server.auth: true`). One listen: prefer `server.listen`,
-  else `mcp.listen`.
+  `/series`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
+  or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
+  One listen: prefer `server.listen`, else `mcp.listen`.
 - **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
   (no SPA/npm). Workload cards fetch `/api/v1/series`; drawers show
-  recommendations + optional live. Window presets 1h/24h/48h/7d/15d + custom
-  range. Browser unlock form stores bearer for API calls when required.
+  recommendations + optional live + copy/download patch. Window presets
+  1h/24h/48h/7d/15d + custom range. Browser unlock form stores bearer for API
+  calls when required.
 
 ### 8.2 Relationship to capacity / TUI (decided)
 
@@ -756,14 +757,20 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - Server JSON endpoints power charts and non-MCP clients; TUI talks to cluster
   (and optionally store) directly — no hard dependency on server process.
 
-### 8.3 Recommend export in UI (planned)
+### 8.3 Recommend export in UI (0.6.x `#18b`)
 
 - Server **must not** apply resource patches to Deployments/StatefulSets/etc.
-- When recommend data is shown, UI exposes **copy/download** of suggested changes
-  as **Kustomize patch/diff** (and/or strategic-merge / JSON patch) per workload
-  (and optionally bulk). Operator pastes into Git / opens a PR — GitOps remains
-  source of truth.
-- Reuses the same formatters as CLI recommend export when those land.
+- `GET /api/v1/export/patch?grain_key=…&format=strategic|kustomize` returns JSON
+  `{format,filename,content,grain_key}` from the latest stored recommendation.
+  Strategic-merge YAML sets **requests** only (suggested CPU/memory). ReplicaSet
+  owners map to Deployment. Kustomize format wraps the same YAML with overlay
+  hints (markdown). Comments state copy/download only — never `kubectl apply`
+  from kpm.
+- Charts drawer: **Copy strategic patch** / **Download kustomize hint** when a
+  recommendation exists for the card grain. Operator pastes into Git / opens a
+  PR — GitOps remains source of truth.
+- Formatter lives in `internal/recommend` (`FormatResourcePatch`); CLI recommend
+  export may reuse the same helpers later.
 
 ### 8.4 Analyze-local UX (draft)
 

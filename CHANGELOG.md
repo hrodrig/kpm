@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Embedded analyze-local charts UI at `GET /` (+ `/static/*`) when
   `server.enabled`: workload cards, canvas series, window presets, detail
   drawer (recommendations + live) `(0.6.x #18)`.
+- GitOps patch export: `GET /api/v1/export/patch` + drawer copy/download
+  (strategic-merge YAML / kustomize hint; never applied) `(0.6.x #18b)`.
 
 ### Changed
 

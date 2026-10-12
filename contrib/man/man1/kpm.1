@@ -177,7 +177,8 @@ optional JSON
 .BR workloads ,
 .BR series ,
 .BR recommendations ,
-.BR live ),
+.BR live ,
+.BR export/patch ),
 and optional charts UI at
 .B /
 (static assets under
@@ -191,6 +192,9 @@ may be
 checks the store only; kube is optional
 .RB ( /api/v1/live
 returns 503 JSON when unavailable).
+Drawer
+.B export/patch
+is GitOps copy/download only (never applied by kpm).
 .SH SEE ALSO
 .BR kubectl-kpm (1),
 .I https://github.com/hrodrig/kpm

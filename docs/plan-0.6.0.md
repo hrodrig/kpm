@@ -136,11 +136,12 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 ### `#18b` Recommend GitOps export in UI
 
-- [ ] Drawer actions: copy/download **Kustomize patch/diff** (and/or
+- [x] Drawer actions: copy/download **Kustomize patch/diff** (and/or
       strategic-merge / JSON patch) per workload; optional bulk later
-- [ ] **Never** apply to cluster
-- [ ] Reuse CLI recommend formatters when present; otherwise minimal formatter
+- [x] **Never** apply to cluster
+- [x] Reuse CLI recommend formatters when present; otherwise minimal formatter
       in `internal/recommend` or `internal/server`
+      (`FormatResourcePatch` + `GET /api/v1/export/patch`)
 
 ### Gates / band exit
 
@@ -297,7 +298,7 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | 2 | `#19a` | Listen / `kpm serve` without sample loop | [x] (this PR) |
 | 3 | `#19` | JSON `/api/v1/*` + auth | [x] (this branch) |
 | 4 | `#18` | Charts UI + drawers + windows | [x] (this branch) |
-| 5 | `#18b` | Kustomize/patch export in drawer | [ ] |
+| 5 | `#18b` | Kustomize/patch export in drawer | [x] |
 | 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
 
 **Suggested PRs:** docs-first (done `#36`), `feat/0.6-serve` (`#19a`), then
