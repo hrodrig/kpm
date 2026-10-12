@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-Band plan for **0.6.x Server** (SPEC §8 / P5). Roadmap IDs: `#18`, `#18b`,
+Band plan for **0.6.x Server** (SPEC §8 / P5). Roadmap IDs: `#18`, `#18b`, `#18c`,
 `#19` (+ facade listen decoupling). Parent: [ROADMAP.md](./ROADMAP.md).
 Contract: [SPECIFICATIONS.md](../SPECIFICATIONS.md).
 
@@ -142,6 +142,15 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 - [x] Reuse CLI recommend formatters when present; otherwise minimal formatter
       in `internal/recommend` or `internal/server`
       (`FormatResourcePatch` + `GET /api/v1/export/patch`)
+
+### `#18c` Recommend verdicts on cards + summary
+
+- [x] `GET /api/v1/recommendations` returns `cpu_verdict` / `mem_verdict`
+      (`oversized|undersized|ok|n/a`) via `SnapshotVerdicts` (p-util vs request)
+      plus `cpu_delta_mcores` / `mem_delta_bytes` (sug − req)
+- [x] Cards: CPU/Mem badges joined on `grain_key` (fallback ns/owner)
+- [x] Summary strip: counts oversized / undersized / ok / no-req / no recommend
+- [ ] Node capacity snapshots stay **0.7.x** (under-demand SQLite; offline-first)
 
 ### Gates / band exit
 
@@ -299,10 +308,11 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | 3 | `#19` | JSON `/api/v1/*` + auth | [x] (this branch) |
 | 4 | `#18` | Charts UI + drawers + windows | [x] (this branch) |
 | 5 | `#18b` | Kustomize/patch export in drawer | [x] |
-| 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
+| 6 | `#18c` | Card badges + summary strip from recommend store | [x] |
+| 7 | cut | `chore/release-0.6.0` → main + tag | [ ] |
 
 **Suggested PRs:** docs-first (done `#36`), `feat/0.6-serve` (`#19a`), then
-`#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b` (can ride charts PR).
+`#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b`/`#18c` (same train OK).
 
 [↑ Back to top](#top)
 

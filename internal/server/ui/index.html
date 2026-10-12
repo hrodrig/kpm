@@ -4,6 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>kpm — analyze-local</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("kpm_theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="/static/app.css" />
   </head>
   <body>
@@ -22,7 +35,22 @@
 
     <div id="app" class="hidden">
       <header class="top">
-        <h1 class="brand">kpm <span>analyze-local</span></h1>
+        <div class="brand-block">
+          <h1 class="brand">kpm <span>analyze-local</span></h1>
+          <p id="cluster-target" class="cluster-target" aria-live="polite">cluster …</p>
+          <nav class="chrome" aria-label="Project">
+            <a
+              class="repo-link"
+              href="https://github.com/hrodrig/kpm"
+              target="_blank"
+              rel="noopener noreferrer"
+              >hrodrig/kpm</a
+            >
+            <button type="button" class="btn" id="theme-toggle" aria-pressed="false">
+              Dark
+            </button>
+          </nav>
+        </div>
         <div class="toolbar">
           <div class="windows" role="group" aria-label="Time window">
             <button type="button" data-window="1h">1h</button>
@@ -50,6 +78,7 @@
 
       <main id="main">
         <p id="status" class="status" aria-live="polite"></p>
+        <p id="recommend-summary" class="recommend-summary" aria-live="polite"></p>
         <div id="grid" class="grid" aria-live="polite"></div>
       </main>
     </div>

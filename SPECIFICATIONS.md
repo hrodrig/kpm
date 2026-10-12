@@ -745,10 +745,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
 - **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
-  (no SPA/npm). Workload cards fetch `/api/v1/series`; drawers show
-  recommendations + optional live + copy/download patch. Window presets
-  1h/24h/48h/7d/15d + custom range. Browser unlock form stores bearer for API
-  calls when required.
+  (no SPA/npm). Workload cards fetch `/api/v1/series` and join latest
+  recommendations for verdict badges; drawers show recommendations + optional
+  live + copy/download patch. Summary strip counts oversized / undersized /
+  ok / no-req. Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock
+  form stores bearer for API calls when required.
 
 ### 8.2 Relationship to capacity / TUI (decided)
 
@@ -778,6 +779,18 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   7d / 15d) + custom range.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
+
+### 8.5 Recommend verdicts on cards (`#18c`)
+
+- `GET /api/v1/recommendations` includes `cpu_verdict` / `mem_verdict`
+  (`oversized|undersized|ok|n/a`) from p-util vs current request
+  (`SnapshotVerdicts` / `Classify` with config oversize/undersize ratios),
+  plus `cpu_delta_mcores` / `mem_delta_bytes` (suggested − request).
+- Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
+  (undersized beats oversized beats ok; `n/a` = no request; missing row =
+  no recommend).
+- Node / capacity under-demand snapshots are **out of band** for 0.6.x
+  (planned 0.7.x).
 
 ---
 

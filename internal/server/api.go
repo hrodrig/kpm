@@ -93,6 +93,8 @@ type StatusOut struct {
 	MCPEnabled           bool   `json:"mcp_enabled"`
 	ServerEnabled        bool   `json:"server_enabled"`
 	ClusterName          string `json:"cluster_name,omitempty"`
+	ClusterEnvironment   string `json:"cluster_environment,omitempty"`
+	KubeContext          string `json:"kube_context,omitempty"`
 	SampleCount          int64  `json:"sample_count,omitempty"`
 }
 
@@ -110,7 +112,9 @@ func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 		out.NotificationsEnabled = cfg.Notifications.Enabled
 		out.MCPEnabled = cfg.MCP.Enabled
 		out.ServerEnabled = cfg.Server.Enabled
-		out.ClusterName = cfg.Cluster.Name
+		out.ClusterName = strings.TrimSpace(cfg.Cluster.Name)
+		out.ClusterEnvironment = strings.TrimSpace(cfg.Cluster.Environment)
+		out.KubeContext = strings.TrimSpace(cfg.Kube.Context)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -224,6 +228,10 @@ type SeriesOut struct {
 	Count       int           `json:"count"`
 	Downsampled bool          `json:"downsampled"`
 	Points      []SeriesPoint `json:"points"`
+	// Request / Limit are reference levels in the same units as Points
+	// (absolute mcores/bytes, or ratio of request for *_ratio metrics).
+	Request *float64 `json:"request,omitempty"`
+	Limit   *float64 `json:"limit,omitempty"`
 }
 
 func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +273,7 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		raw = append(raw, SeriesPoint{T: rec.SampledAt.UTC().Format(time.RFC3339), V: v})
 	}
 	pts, down := downsample(raw, maxPts)
+	req, lim := seriesRefs(recs, metric)
 	writeJSON(w, http.StatusOK, SeriesOut{
 		Metric:      metric,
 		Namespace:   f.Namespace,
@@ -272,7 +281,60 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		Count:       len(pts),
 		Downsampled: down,
 		Points:      pts,
+		Request:     req,
+		Limit:       lim,
 	})
+}
+
+// seriesRefs returns request/limit guides from the newest record that has them.
+func seriesRefs(recs []store.Record, metric string) (req, lim *float64) {
+	for i := len(recs) - 1; i >= 0; i-- {
+		r := recs[i]
+		switch metric {
+		case "cpu_util_mcores":
+			if r.CPURequestMcores > 0 {
+				v := r.CPURequestMcores
+				req = &v
+			}
+			if r.CPULimitMcores > 0 {
+				v := r.CPULimitMcores
+				lim = &v
+			}
+		case "mem_util_bytes":
+			if r.MemRequestBytes > 0 {
+				v := float64(r.MemRequestBytes)
+				req = &v
+			}
+			if r.MemLimitBytes > 0 {
+				v := float64(r.MemLimitBytes)
+				lim = &v
+			}
+		case "cpu_util_ratio":
+			if r.CPURequestMcores <= 0 {
+				continue
+			}
+			one := 1.0
+			req = &one
+			if r.CPULimitMcores > 0 {
+				v := r.CPULimitMcores / r.CPURequestMcores
+				lim = &v
+			}
+		case "mem_util_ratio":
+			if r.MemRequestBytes <= 0 {
+				continue
+			}
+			one := 1.0
+			req = &one
+			if r.MemLimitBytes > 0 {
+				v := float64(r.MemLimitBytes) / float64(r.MemRequestBytes)
+				lim = &v
+			}
+		}
+		if req != nil || lim != nil {
+			return req, lim
+		}
+	}
+	return nil, nil
 }
 
 func metricValue(r store.Record, metric string) (float64, bool) {
@@ -330,10 +392,16 @@ type RecOut struct {
 	OwnerKind    string  `json:"owner_kind,omitempty"`
 	OwnerName    string  `json:"owner_name,omitempty"`
 	Samples      int     `json:"samples"`
+	CPUPMcores   float64 `json:"cpu_p_mcores"`
+	MemPBytes    int64   `json:"mem_p_bytes"`
 	CPUSugMcores float64 `json:"cpu_sug_mcores"`
 	MemSugBytes  int64   `json:"mem_sug_bytes"`
 	CPUReqMcores float64 `json:"cpu_req_mcores"`
 	MemReqBytes  int64   `json:"mem_req_bytes"`
+	CPUDeltaM    float64 `json:"cpu_delta_mcores"` // sug − req (negative ⇒ can shrink)
+	MemDeltaB    int64   `json:"mem_delta_bytes"`
+	CPUVerdict   string  `json:"cpu_verdict"` // oversized|undersized|ok|n/a
+	MemVerdict   string  `json:"mem_verdict"`
 	TargetUtil   float64 `json:"target_utilization"`
 }
 
@@ -354,8 +422,18 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	over, under := recommend.DefaultOversizeRatio, recommend.DefaultUndersizeRatio
+	if cfg := a.deps.Config; cfg != nil {
+		if cfg.Recommend.CPUOversizeRatio > 0 {
+			over = cfg.Recommend.CPUOversizeRatio
+		}
+		if cfg.Recommend.CPUUndersizeRatio > 0 {
+			under = cfg.Recommend.CPUUndersizeRatio
+		}
+	}
 	out := RecsOut{Rows: make([]RecOut, 0, len(recs))}
 	for _, rec := range recs {
+		cpuV, memV := recommend.SnapshotVerdicts(rec.CPUPMcores, rec.CPUReqMcores, rec.MemPBytes, rec.MemReqBytes, over, under)
 		out.Rows = append(out.Rows, RecOut{
 			RecordedAt:   rec.RecordedAt.UTC().Format(time.RFC3339),
 			Grain:        rec.Grain,
@@ -364,10 +442,16 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 			OwnerKind:    rec.OwnerKind,
 			OwnerName:    rec.OwnerName,
 			Samples:      rec.Samples,
+			CPUPMcores:   rec.CPUPMcores,
+			MemPBytes:    rec.MemPBytes,
 			CPUSugMcores: rec.CPUSugMcores,
 			MemSugBytes:  rec.MemSugBytes,
 			CPUReqMcores: rec.CPUReqMcores,
 			MemReqBytes:  rec.MemReqBytes,
+			CPUDeltaM:    rec.CPUSugMcores - rec.CPUReqMcores,
+			MemDeltaB:    rec.MemSugBytes - rec.MemReqBytes,
+			CPUVerdict:   string(cpuV),
+			MemVerdict:   string(memV),
 			TargetUtil:   rec.TargetUtilization,
 		})
 	}

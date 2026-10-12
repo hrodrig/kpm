@@ -67,6 +67,9 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	st := fixtureStore(t, now)
 	cfg := &config.Config{}
 	cfg.Server.Enabled = true
+	cfg.Cluster.Name = "demo-cluster"
+	cfg.Cluster.Environment = "dev"
+	cfg.Kube.Context = "demo-ctx"
 	mux := http.NewServeMux()
 	server.Mount(mux, &server.Deps{
 		Store: st, Config: cfg, Version: "v-test",
@@ -84,6 +87,9 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	if stOut.Version != "v-test" || stOut.SampleCount != 2 || !stOut.ServerEnabled {
 		t.Fatalf("%+v", stOut)
 	}
+	if stOut.ClusterName != "demo-cluster" || stOut.ClusterEnvironment != "dev" || stOut.KubeContext != "demo-ctx" {
+		t.Fatalf("cluster fields %+v", stOut)
+	}
 
 	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
 	if rr.Code != http.StatusOK {
@@ -96,6 +102,13 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	if series.Count != 2 {
 		t.Fatalf("series count %d", series.Count)
 	}
+	if series.Request == nil || *series.Request != 200 {
+		t.Fatalf("request %+v", series.Request)
+	}
+	// fixture records have no limits set
+	if series.Limit != nil {
+		t.Fatalf("limit unexpected %+v", series.Limit)
+	}
 }
 
 func TestAPIWorkloadsLiveRecs(t *testing.T) {
@@ -105,7 +118,8 @@ func TestAPIWorkloadsLiveRecs(t *testing.T) {
 		RecordedAt: now, ClientID: "c", ClusterName: "x",
 		Grain: "workload", GrainKey: "app/StatefulSet/api",
 		Namespace: "app", OwnerKind: "StatefulSet", OwnerName: "api",
-		Samples: 10, CPUSugMcores: 100, MemSugBytes: 1000,
+		Samples: 10, CPUPMcores: 40, MemPBytes: 400,
+		CPUSugMcores: 100, MemSugBytes: 1000,
 		CPUReqMcores: 200, MemReqBytes: 2000, TargetUtilization: 0.7,
 	}}); err != nil {
 		t.Fatal(err)
@@ -134,6 +148,20 @@ func TestAPIWorkloadsLiveRecs(t *testing.T) {
 	rr = authedGet(mux, "/api/v1/recommendations", "")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("recs %d", rr.Code)
+	}
+	var recs server.RecsOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &recs); err != nil {
+		t.Fatal(err)
+	}
+	if recs.Count != 1 || len(recs.Rows) != 1 {
+		t.Fatalf("recs %+v", recs)
+	}
+	row := recs.Rows[0]
+	if row.CPUVerdict != "oversized" || row.MemVerdict != "oversized" {
+		t.Fatalf("verdicts cpu=%q mem=%q", row.CPUVerdict, row.MemVerdict)
+	}
+	if row.CPUDeltaM != -100 || row.MemDeltaB != -1000 {
+		t.Fatalf("deltas cpu=%v mem=%v", row.CPUDeltaM, row.MemDeltaB)
 	}
 
 	rr = authedGet(mux, "/api/v1/live", "")

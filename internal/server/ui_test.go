@@ -24,7 +24,16 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	}
 	body := rr.Body.String()
 	if !strings.Contains(body, "analyze-local") || !strings.Contains(body, "/static/app.js") {
+		t.Fatalf("index missing assets: %s", body[:min(200, len(body))])
+	}
+	if !strings.Contains(body, "https://github.com/hrodrig/kpm") || !strings.Contains(body, "theme-toggle") {
 		t.Fatalf("body missing markers: %s", body[:min(200, len(body))])
+	}
+	if !strings.Contains(body, "cluster-target") {
+		t.Fatal("index missing cluster-target")
+	}
+	if !strings.Contains(body, "recommend-summary") {
+		t.Fatal("index missing recommend-summary")
 	}
 
 	rr = httptest.NewRecorder()
@@ -32,8 +41,9 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("css %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "--accent") {
-		t.Fatal("css missing tokens")
+	css := rr.Body.String()
+	if !strings.Contains(css, "--accent") || !strings.Contains(css, `data-theme="dark"`) {
+		t.Fatal("css missing tokens/theme")
 	}
 
 	rr = httptest.NewRecorder()
@@ -41,8 +51,12 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("js %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "/api/v1/series") {
+	js := rr.Body.String()
+	if !strings.Contains(js, "/api/v1/series") {
 		t.Fatal("js missing series fetch")
+	}
+	if !strings.Contains(js, "/api/v1/recommendations") || !strings.Contains(js, "cpu_verdict") {
+		t.Fatal("js missing recommendations / verdicts")
 	}
 }
 

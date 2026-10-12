@@ -134,8 +134,9 @@ Checklist detail: [plan-0.6.0.md](./plan-0.6.0.md) (`[x]`/`[ ]` — keep history
 | `#19` | JSON `/api/v1/*` + bearer; shared read model; optional live | **Done** (PR) |
 | `#18` | Embedded charts UI (history + drawers + time windows) on shared mux | **Done** (PR) |
 | `#18b` | Recommend UI: **Kustomize patch/diff** copy/download (no cluster apply) | **Done** (PR) |
+| `#18c` | Cards + summary: oversized / undersized / ok / no-req from recommend store | **Done** (PR) |
 
-**Success:** SPEC §8 normative (incl. analyze-local + §8.3); **no** SPA/npm app.
+**Success:** SPEC §8 normative (incl. analyze-local + §8.3/§8.4); **no** SPA/npm app.
 **Note:** Primary story = copy SQLite to laptop → charts/MCP/HTTP with collection off; kube live is optional enrichment.
 **Non-goal:** server/CLI applying CPU/mem patches live (GitOps overwrites) — SPEC §15.9.
 Visual guidance for templates: [ai-design-skills](https://github.com/elayadesign/ai-design-skills)
@@ -148,6 +149,7 @@ no landing funnel. Marketing sites (`kpm-webs`) stay a separate repo.
 | ID | Item | Status |
 |----|------|--------|
 | `#20` | Integration/E2E matrix (one-shot, daemon, recommend, tui, notify, mcp, server) | Planned |
+| `#20b` | Node / capacity under-demand SQLite snapshots + analyze-local panel | Planned |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | Planned |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |
 | `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
