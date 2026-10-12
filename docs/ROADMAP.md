@@ -46,7 +46,7 @@ flowchart LR
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | **Shipped** `v0.3.0` |
 | **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
-| **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Band exit** (cut `v0.6.0` pending) |
+| **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
 | **0.7.x** Harden (P6) | nodes snap + UI search/filter + E2E/docs/security | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 

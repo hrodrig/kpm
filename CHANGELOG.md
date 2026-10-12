@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
 ### Added
 
 - [docs/plan-0.6.0.md](docs/plan-0.6.0.md) — Server band plan (analyze-local,
@@ -178,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/hrodrig/kpm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hrodrig/kpm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hrodrig/kpm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hrodrig/kpm/compare/v0.2.0...v0.3.0

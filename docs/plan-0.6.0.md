@@ -156,10 +156,10 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 - [x] SPEC §8 → Normative in status banner + CLI map (`serve` / server)
 - [x] SPEC anonymized API examples (§8.6)
-- [ ] `make lint` + `make cover-check` ≥ 80% (CI on PR)
-- [ ] PR feat → `develop` merged (`#41` + follow-ups)
-- [ ] Version-cut artifacts (`chore/release-0.6.0`) when shipping
-- [ ] VHS re-record if help/version strings change
+- [x] `make lint` + `make cover-check` ≥ 80% (CI on PR `#41`)
+- [x] PR feat → `develop` merged (`#41`)
+- [x] Version-cut artifacts (`chore/release-0.6.0`)
+- [ ] VHS re-record if help/version strings change (`docs/demo.gif` not in tree)
 - [ ] PR develop → main + tag `v0.6.0` (operator OK)
 - [ ] Sync main → develop via PR
 
@@ -309,7 +309,8 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | 4 | `#18` | Charts UI + drawers + windows | [x] (this branch) |
 | 5 | `#18b` | Kustomize/patch export in drawer | [x] |
 | 6 | `#18c` | Card badges + summary strip from recommend store | [x] |
-| 7 | cut | `chore/release-0.6.0` → main + tag | [ ] |
+| 7 | cut | `chore/release-0.6.0` → develop | [x] |
+| 8 | ship | develop → main + tag `v0.6.0` | [ ] |
 
 **Suggested PRs:** docs-first (done `#36`), `feat/0.6-serve` (`#19a`), then
 `#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b`/`#18c` (same train OK).
