@@ -290,52 +290,45 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 // seriesRefs returns request/limit guides from the newest record that has them.
 func seriesRefs(recs []store.Record, metric string) (req, lim *float64) {
 	for i := len(recs) - 1; i >= 0; i-- {
-		r := recs[i]
-		switch metric {
-		case "cpu_util_mcores":
-			if r.CPURequestMcores > 0 {
-				v := r.CPURequestMcores
-				req = &v
-			}
-			if r.CPULimitMcores > 0 {
-				v := r.CPULimitMcores
-				lim = &v
-			}
-		case "mem_util_bytes":
-			if r.MemRequestBytes > 0 {
-				v := float64(r.MemRequestBytes)
-				req = &v
-			}
-			if r.MemLimitBytes > 0 {
-				v := float64(r.MemLimitBytes)
-				lim = &v
-			}
-		case "cpu_util_ratio":
-			if r.CPURequestMcores <= 0 {
-				continue
-			}
-			one := 1.0
-			req = &one
-			if r.CPULimitMcores > 0 {
-				v := r.CPULimitMcores / r.CPURequestMcores
-				lim = &v
-			}
-		case "mem_util_ratio":
-			if r.MemRequestBytes <= 0 {
-				continue
-			}
-			one := 1.0
-			req = &one
-			if r.MemLimitBytes > 0 {
-				v := float64(r.MemLimitBytes) / float64(r.MemRequestBytes)
-				lim = &v
-			}
-		}
+		req, lim = recordRefs(recs[i], metric)
 		if req != nil || lim != nil {
 			return req, lim
 		}
 	}
 	return nil, nil
+}
+
+func recordRefs(r store.Record, metric string) (req, lim *float64) {
+	switch metric {
+	case "cpu_util_mcores":
+		return floatPtrIf(r.CPURequestMcores > 0, r.CPURequestMcores),
+			floatPtrIf(r.CPULimitMcores > 0, r.CPULimitMcores)
+	case "mem_util_bytes":
+		return floatPtrIf(r.MemRequestBytes > 0, float64(r.MemRequestBytes)),
+			floatPtrIf(r.MemLimitBytes > 0, float64(r.MemLimitBytes))
+	case "cpu_util_ratio":
+		if r.CPURequestMcores <= 0 {
+			return nil, nil
+		}
+		return floatPtr(1), floatPtrIf(r.CPULimitMcores > 0, r.CPULimitMcores/r.CPURequestMcores)
+	case "mem_util_ratio":
+		if r.MemRequestBytes <= 0 {
+			return nil, nil
+		}
+		return floatPtr(1), floatPtrIf(r.MemLimitBytes > 0,
+			float64(r.MemLimitBytes)/float64(r.MemRequestBytes))
+	default:
+		return nil, nil
+	}
+}
+
+func floatPtr(v float64) *float64 { return &v }
+
+func floatPtrIf(ok bool, v float64) *float64 {
+	if !ok {
+		return nil
+	}
+	return &v
 }
 
 func metricValue(r store.Record, metric string) (float64, bool) {

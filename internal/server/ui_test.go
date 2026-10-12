@@ -13,86 +13,60 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	mux := http.NewServeMux()
 	server.MountUI(mux)
 
-	rr := httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("index %d", rr.Code)
-	}
-	ct := rr.Header().Get("Content-Type")
-	if !strings.Contains(ct, "text/html") {
-		t.Fatalf("content-type %q", ct)
-	}
-	body := rr.Body.String()
-	if !strings.Contains(body, "analyze-local") || !strings.Contains(body, "/static/app.js") {
-		t.Fatalf("index missing assets: %s", body[:min(200, len(body))])
-	}
-	if !strings.Contains(body, "theme-toggle") {
-		t.Fatal("index missing theme-toggle")
-	}
-	if !strings.Contains(body, "cluster-target") {
-		t.Fatal("index missing cluster-target")
-	}
-	if !strings.Contains(body, "recommend-summary") {
-		t.Fatal("index missing recommend-summary")
-	}
-	if !strings.Contains(body, "mode-label") {
-		t.Fatal("index missing mode-label")
-	}
-	if !strings.Contains(body, "site-footer") ||
-		!strings.Contains(body, "https://github.com/hrodrig/kpm") ||
-		!strings.Contains(body, "MIT License") ||
-		!strings.Contains(body, "advisory only") {
-		t.Fatal("index missing footer / repo / license / disclaimer")
-	}
+	body := mustGetBody(t, mux, "/", "text/html")
+	mustContain(t, body, "analyze-local", "/static/app.js", "theme-toggle",
+		"cluster-target", "recommend-summary", "mode-label", "site-footer",
+		"https://github.com/hrodrig/kpm", "MIT License", "advisory only")
 
-	rr = httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/static/app.css", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("css %d", rr.Code)
-	}
-	css := rr.Body.String()
-	if !strings.Contains(css, "--accent") || !strings.Contains(css, `data-theme="dark"`) {
-		t.Fatal("css missing tokens/theme")
-	}
+	css := mustGetBody(t, mux, "/static/app.css", "")
+	mustContain(t, css, "--accent", `data-theme="dark"`)
 
-	rr = httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/static/app.js", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("js %d", rr.Code)
-	}
-	js := rr.Body.String()
-	if !strings.Contains(js, "/api/v1/series") {
-		t.Fatal("js missing series fetch")
-	}
-	if !strings.Contains(js, "/api/v1/recommendations") || !strings.Contains(js, "cpu_verdict") {
-		t.Fatal("js missing recommendations / verdicts")
-	}
-	if !strings.Contains(js, "kube_live") || !strings.Contains(js, "updateModeLabel") {
-		t.Fatal("js missing kube_live mode label")
-	}
+	js := mustGetBody(t, mux, "/static/app.js", "")
+	mustContain(t, js, "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
+		"kube_live", "updateModeLabel")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {
 	mux := http.NewServeMux()
 	server.MountAll(mux, &server.Deps{Version: "v-test"}, "")
-	rr := httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("ui %d", rr.Code)
-	}
-	rr = httptest.NewRecorder()
-	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/status", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("api %d", rr.Code)
-	}
+	mustStatus(t, mux, "/", http.StatusOK)
+	mustStatus(t, mux, "/api/v1/status", http.StatusOK)
 	if !server.UIPaths("/") || !server.UIPaths("/static/x") || server.UIPaths("/api/v1/status") {
 		t.Fatal("UIPaths")
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+func mustGetBody(t *testing.T, h http.Handler, path, wantCT string) string {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%s status %d", path, rr.Code)
 	}
-	return b
+	if wantCT != "" && !strings.Contains(rr.Header().Get("Content-Type"), wantCT) {
+		t.Fatalf("%s content-type %q", path, rr.Header().Get("Content-Type"))
+	}
+	return rr.Body.String()
+}
+
+func mustStatus(t *testing.T, h http.Handler, path string, code int) {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+	if rr.Code != code {
+		t.Fatalf("%s want %d got %d", path, code, rr.Code)
+	}
+}
+
+func mustContain(t *testing.T, hay string, needles ...string) {
+	t.Helper()
+	for _, n := range needles {
+		if !strings.Contains(hay, n) {
+			snip := hay
+			if len(snip) > 200 {
+				snip = snip[:200]
+			}
+			t.Fatalf("missing %q in: %s", n, snip)
+		}
+	}
 }

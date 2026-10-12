@@ -62,9 +62,8 @@ func TestAPIUnauthorized(t *testing.T) {
 	}
 }
 
-func TestAPIStatusAndSeries(t *testing.T) {
+func TestAPIStatus(t *testing.T) {
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
-	st := fixtureStore(t, now)
 	cfg := &config.Config{}
 	cfg.Server.Enabled = true
 	cfg.Cluster.Name = "demo-cluster"
@@ -72,7 +71,7 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	cfg.Kube.Context = "demo-ctx"
 	mux := http.NewServeMux()
 	server.Mount(mux, &server.Deps{
-		Store: st, Config: cfg, Version: "v-test",
+		Store: fixtureStore(t, now), Config: cfg, Version: "v-test",
 		Now: func() time.Time { return now },
 	}, "secret")
 
@@ -93,8 +92,16 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	if stOut.KubeLive {
 		t.Fatal("kube_live want false without Live fn")
 	}
+}
 
-	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
+func TestAPISeriesRefs(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{
+		Store: fixtureStore(t, now), Version: "v-test",
+		Now: func() time.Time { return now },
+	}, "secret")
+	rr := authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("series %d %s", rr.Code, rr.Body.String())
 	}
@@ -108,66 +115,38 @@ func TestAPIStatusAndSeries(t *testing.T) {
 	if series.Request == nil || *series.Request != 200 {
 		t.Fatalf("request %+v", series.Request)
 	}
-	// fixture records have no limits set
 	if series.Limit != nil {
 		t.Fatalf("limit unexpected %+v", series.Limit)
 	}
 }
 
-func TestAPIWorkloadsLiveRecs(t *testing.T) {
+func TestAPIRecommendationsVerdicts(t *testing.T) {
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	st := fixtureStore(t, now)
-	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
-		RecordedAt: now, ClientID: "c", ClusterName: "x",
-		Grain: "workload", GrainKey: "app/StatefulSet/api",
-		Namespace: "app", OwnerKind: "StatefulSet", OwnerName: "api",
-		Samples: 10, CPUPMcores: 40, MemPBytes: 400,
-		CPUSugMcores: 100, MemSugBytes: 1000,
-		CPUReqMcores: 200, MemReqBytes: 2000, TargetUtilization: 0.7,
-	}}); err != nil {
-		t.Fatal(err)
-	}
-	mux := http.NewServeMux()
-	server.Mount(mux, &server.Deps{
-		Store: st, Version: "v",
-		Now: func() time.Time { return now },
-		Live: func(context.Context) (server.LiveOut, error) {
-			return server.LiveOut{CapturedAt: now.Format(time.RFC3339), Count: 1, Rows: []server.LiveRow{{
-				Namespace: "app", Pod: "api-0", Container: "main", HasUtil: true,
-			}}}, nil
-		},
-	}, "")
+	insertRec(t, st, now)
+	mux := liveMux(t, st, now)
 
 	rr := authedGet(mux, "/api/v1/status", "")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status %d", rr.Code)
-	}
 	var stLive server.StatusOut
 	_ = json.Unmarshal(rr.Body.Bytes(), &stLive)
-	if !stLive.KubeLive {
-		t.Fatal("kube_live want true when Live fn set")
+	if rr.Code != http.StatusOK || !stLive.KubeLive {
+		t.Fatalf("kube_live status %d %+v", rr.Code, stLive)
 	}
 
 	rr = authedGet(mux, "/api/v1/workloads?window=24h", "")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("workloads %d", rr.Code)
-	}
 	var wl server.WorkloadsOut
 	_ = json.Unmarshal(rr.Body.Bytes(), &wl)
-	if wl.Count != 1 {
-		t.Fatalf("workloads %+v", wl)
+	if rr.Code != http.StatusOK || wl.Count != 1 {
+		t.Fatalf("workloads %d %+v", rr.Code, wl)
 	}
 
 	rr = authedGet(mux, "/api/v1/recommendations", "")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("recs %d", rr.Code)
-	}
 	var recs server.RecsOut
 	if err := json.Unmarshal(rr.Body.Bytes(), &recs); err != nil {
 		t.Fatal(err)
 	}
-	if recs.Count != 1 || len(recs.Rows) != 1 {
-		t.Fatalf("recs %+v", recs)
+	if rr.Code != http.StatusOK || recs.Count != 1 || len(recs.Rows) != 1 {
+		t.Fatalf("recs %d %+v", rr.Code, recs)
 	}
 	row := recs.Rows[0]
 	if row.CPUVerdict != "oversized" || row.MemVerdict != "oversized" {
@@ -176,12 +155,16 @@ func TestAPIWorkloadsLiveRecs(t *testing.T) {
 	if row.CPUDeltaM != -100 || row.MemDeltaB != -1000 {
 		t.Fatalf("deltas cpu=%v mem=%v", row.CPUDeltaM, row.MemDeltaB)
 	}
+}
 
-	rr = authedGet(mux, "/api/v1/live", "")
+func TestAPILiveAvailableAndMissing(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	st := fixtureStore(t, now)
+	mux := liveMux(t, st, now)
+	rr := authedGet(mux, "/api/v1/live", "")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("live %d", rr.Code)
 	}
-
 	mux2 := http.NewServeMux()
 	server.Mount(mux2, &server.Deps{Store: st, Version: "v"}, "")
 	rr = authedGet(mux2, "/api/v1/live", "")
@@ -205,18 +188,11 @@ func TestAPIExportPatch(t *testing.T) {
 	mux := http.NewServeMux()
 	server.Mount(mux, &server.Deps{Store: st, Version: "v"}, "")
 
-	rr := authedGet(mux, "/api/v1/export/patch", "")
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("missing grain_key want 400 got %d", rr.Code)
-	}
-	rr = authedGet(mux, "/api/v1/export/patch?grain_key=missing", "")
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("missing rec want 404 got %d %s", rr.Code, rr.Body.String())
-	}
-	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=strategic", "")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("patch %d %s", rr.Code, rr.Body.String())
-	}
+	assertCode(t, authedGet(mux, "/api/v1/export/patch", ""), http.StatusBadRequest)
+	assertCode(t, authedGet(mux, "/api/v1/export/patch?grain_key=missing", ""), http.StatusNotFound)
+
+	rr := authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=strategic", "")
+	assertCode(t, rr, http.StatusOK)
 	var out server.PatchExportOut
 	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
@@ -227,23 +203,53 @@ func TestAPIExportPatch(t *testing.T) {
 	if !containsAll(out.Content, "kind: Deployment", `cpu: "250m"`, "do not kubectl apply") {
 		t.Fatalf("content:\n%s", out.Content)
 	}
+
 	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=kustomize", "")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("kustomize %d", rr.Code)
-	}
+	assertCode(t, rr, http.StatusOK)
 	_ = json.Unmarshal(rr.Body.Bytes(), &out)
 	if out.Format != "kustomize" || !containsAll(out.Content, "kustomization.yaml") {
 		t.Fatalf("%+v", out)
 	}
-	rr = authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=nope", "")
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("bad format want 400 got %d", rr.Code)
-	}
+	assertCode(t, authedGet(mux, "/api/v1/export/patch?grain_key=app/Deployment/web&format=nope", ""), http.StatusBadRequest)
+
 	muxNil := http.NewServeMux()
 	server.Mount(muxNil, &server.Deps{Version: "v"}, "")
-	rr = authedGet(muxNil, "/api/v1/export/patch?grain_key=x", "")
-	if rr.Code != http.StatusServiceUnavailable {
-		t.Fatalf("nil store want 503 got %d", rr.Code)
+	assertCode(t, authedGet(muxNil, "/api/v1/export/patch?grain_key=x", ""), http.StatusServiceUnavailable)
+}
+
+func insertRec(t *testing.T, st *store.Store, now time.Time) {
+	t.Helper()
+	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
+		RecordedAt: now, ClientID: "c", ClusterName: "x",
+		Grain: "workload", GrainKey: "app/StatefulSet/api",
+		Namespace: "app", OwnerKind: "StatefulSet", OwnerName: "api",
+		Samples: 10, CPUPMcores: 40, MemPBytes: 400,
+		CPUSugMcores: 100, MemSugBytes: 1000,
+		CPUReqMcores: 200, MemReqBytes: 2000, TargetUtilization: 0.7,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func liveMux(t *testing.T, st *store.Store, now time.Time) *http.ServeMux {
+	t.Helper()
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{
+		Store: st, Version: "v",
+		Now: func() time.Time { return now },
+		Live: func(context.Context) (server.LiveOut, error) {
+			return server.LiveOut{CapturedAt: now.Format(time.RFC3339), Count: 1, Rows: []server.LiveRow{{
+				Namespace: "app", Pod: "api-0", Container: "main", HasUtil: true,
+			}}}, nil
+		},
+	}, "")
+	return mux
+}
+
+func assertCode(t *testing.T, rr *httptest.ResponseRecorder, want int) {
+	t.Helper()
+	if rr.Code != want {
+		t.Fatalf("want %d got %d %s", want, rr.Code, rr.Body.String())
 	}
 }
 
