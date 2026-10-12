@@ -1,10 +1,11 @@
-# kpm sample configuration (SPEC draft v0.4 — Core normative; see SPECIFICATIONS.md).
+# kpm sample configuration (SPEC draft v0.4 — Core + Insights + Notify + MCP +
+# Server normative; see SPECIFICATIONS.md).
 # One process ↔ one cluster. Default config path: ./kpm.yaml (--config, kwd-style).
 #
 # Layers:
 #   CORE     — sample → SQLite; backup / export (csv|tsv)  [implemented]
-#   ADJACENT — recommend, capacity, tui                   [draft]
-#   OPTIONAL — notifications, mcp (daemon), server charts [draft]
+#   ADJACENT — recommend, capacity, tui                   [implemented]
+#   OPTIONAL — notifications, mcp (daemon), server charts [implemented]
 
 cluster:
   name: "example-cluster"
@@ -106,10 +107,14 @@ tui:
 #       to_env: KPM_SMTP_TO
 #       # use_tls: true   # 465 implicit TLS; omit/false → STARTTLS (587)
 
-# OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP when enabled in daemon).
-# Daemon listen also serves:
+# OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP via daemon or `kpm serve`).
+# `kpm serve` opens store.path and binds mcp.listen without a sample loop
+# (analyze-local; interval_seconds may be 0). Daemon path unchanged when
+# interval_seconds > 0 and mcp.enabled.
+# Listen also serves:
 #   ops:  /healthz /readyz /metrics  (no auth; exempt from allowlist/rate limit)
 #   MCP:  /sse (SSE) and /mcp (streamable HTTP); bearer if token_env set
+# /readyz checks store only; kube is optional for serve.
 # Default bind is loopback (same idea as gghstats). Use 0.0.0.0 only behind a
 # reverse proxy / in-cluster Service — then token_env is required.
 # mcp:
@@ -125,9 +130,16 @@ tui:
 #     period: 1m
 #     burst: 20
 
-# OPTIONAL — embedded HTTP charts (no SPA).
+# OPTIONAL — JSON API + embedded charts UI. Shares listen with mcp when empty.
+# GET /  → analyze-local charts (workload cards + drawers)
+# GET /api/v1/status|workloads|series|recommendations|live|export/patch (read-only).
+# Bearer: server.token_env, or mcp.token_env when shared; required off-loopback
+# (or when auth: true). UI unlock form stores token for API fetch.
+# /api/v1/live → 503 JSON if kube unavailable.
+# /api/v1/export/patch → GitOps YAML copy/download only (never applied).
 # server:
-#   enabled: false
-#   listen: "127.0.0.1:9741"
-#   auth: false
-#   # token_env: KPM_SERVER_TOKEN
+#   enabled: true
+#   listen: "127.0.0.1:9740"   # omit → mcp.listen / default loopback
+#   # auth: true              # force bearer even on loopback
+#   token_env: KPM_SERVER_TOKEN
+#   # generate: export KPM_SERVER_TOKEN="$(openssl rand -hex 32)"

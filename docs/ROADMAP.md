@@ -22,7 +22,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 | **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
 | **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
 | **0.4.x Notify** | P3 shipped `v0.4.0` (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
-| **Current** | **0.5.x MCP** shipped → next **0.6.x Server** | [plan-0.5.0.md](./plan-0.5.0.md) |
+| **Current** | **0.6.x Server** (analyze-local · charts · JSON) | [plan-0.6.0.md](./plan-0.6.0.md) |
 
 ---
 
@@ -35,7 +35,7 @@ flowchart LR
   insights --> notify["0.4.x Notify"]
   notify --> mcp["0.5.x MCP"]
   mcp --> server["0.6.x Server"]
-  server --> harden["0.7.x Harden"]
+  server --> harden["0.7.x Harden P6"]
   harden --> v1["1.0.0 Stable"]
 ```
 
@@ -46,8 +46,8 @@ flowchart LR
 | **0.3.x** Insights (P2) | §3–5 recommend, capacity, tui | **Shipped** `v0.3.0` |
 | **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
-| **0.6.x** Server (P5) | §8 embedded charts + JSON API (no SPA) | Planned |
-| **0.7.x** Harden | E2E, docs freeze, security, Homebrew | Planned |
+| **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
+| **0.7.x** Harden (P6) | nodes snap + UI search/filter + E2E/docs/security | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
 [↑ Back to top](#top)
@@ -126,29 +126,36 @@ Checklist detail: [plan-0.5.0.md](./plan-0.5.0.md) (`[x]`/`[ ]` — keep history
 
 ### 0.6.x — Server (P5)
 
+Checklist detail: [plan-0.6.0.md](./plan-0.6.0.md) (`[x]`/`[ ]` — keep history).
+
 | ID | Item | Status |
 |----|------|--------|
-| `#18` | Embedded `net/http` + templates/HTMX charts on shared mux | Planned |
-| `#18b` | Recommend UI: **Kustomize patch/diff** copy/download (no cluster apply) | Planned |
-| `#19` | Optional bearer auth; shared read model with capacity; JSON read API for non-MCP clients | Planned |
+| `#19a` | Facade listen / `kpm serve` **without** sample loop (analyze-local) | **Done** (PR) |
+| `#19` | JSON `/api/v1/*` + bearer; shared read model; optional live | **Done** (PR) |
+| `#18` | Embedded charts UI (history + drawers + time windows) on shared mux | **Done** (PR) |
+| `#18b` | Recommend UI: **Kustomize patch/diff** copy/download (no cluster apply) | **Done** (PR) |
+| `#18c` | Cards + summary: oversized / undersized / ok / no-req from recommend store | **Done** (PR) |
 
-**Success:** SPEC §8 normative (incl. §8.3); **no** SPA/npm app in this repo.
-**Note:** Operator-facing **JSON API** (scripts/dashboards without MCP) lands here with charts — not in P4.
+**Success:** SPEC §8 normative (incl. analyze-local + §8.3/§8.4); **no** SPA/npm app.
+**Note:** Primary story = copy SQLite to laptop → charts/MCP/HTTP with collection off; kube live is optional enrichment.
 **Non-goal:** server/CLI applying CPU/mem patches live (GitOps overwrites) — SPEC §15.9.
-Visual guidance for templates may borrow values from external design skills
-(e.g. [ai-design-skills](https://github.com/elayadesign/ai-design-skills));
-marketing sites (`kpm-webs`) are a separate repo.
+Visual guidance for templates: [ai-design-skills](https://github.com/elayadesign/ai-design-skills)
+(Part B tokens) + [Hallmark](https://github.com/nutlope/hallmark) (anti-slop audit) —
+see [plan-0.6.0 Visual guidance](./plan-0.6.0.md#visual-guidance); no SPA/npm;
+no landing funnel. Marketing sites (`kpm-webs`) stay a separate repo.
 
-### 0.7.x — Harden toward 1.0
+### 0.7.x — Harden (P6) toward 1.0
 
 | ID | Item | Status |
 |----|------|--------|
 | `#20` | Integration/E2E matrix (one-shot, daemon, recommend, tui, notify, mcp, server) | Planned |
+| `#20b` | Node / capacity under-demand SQLite snapshots + analyze-local panel | Planned |
+| `#20c` | Serve UI **search/filter** (ns / owner / grain / verdict) for large grids (hundreds of pods) | Planned |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | Planned |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |
 | `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
 
-**Success:** no open draft on shipped surface; `make release-check` + Security green.
+**Success:** no open draft on shipped surface; `make release-check` + Security green; UI usable at scale (`#20c`).
 
 ### 1.0.0 — Stable
 

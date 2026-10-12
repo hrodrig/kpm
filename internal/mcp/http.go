@@ -3,8 +3,6 @@ package mcp
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -21,31 +19,13 @@ const PathMCP = "/mcp"
 // ResolveBearerToken reads token_env. Empty token_env means no auth (loopback only).
 // If token_env is set, the env value must be non-empty (fail closed).
 func ResolveBearerToken(tokenEnv string) (string, error) {
-	name := strings.TrimSpace(tokenEnv)
-	if name == "" {
-		return "", nil
-	}
-	v := strings.TrimSpace(os.Getenv(name))
-	if v == "" {
-		return "", fmt.Errorf("mcp.token_env %q is set but empty or unset", name)
-	}
-	return v, nil
+	return httpserver.ResolveTokenEnv(tokenEnv)
 }
 
 // BearerAuth wraps next and requires Authorization: Bearer <token> when token
 // is non-empty. Ops probes must not use this wrapper.
 func BearerAuth(token string, next http.Handler) http.Handler {
-	if strings.TrimSpace(token) == "" {
-		return next
-	}
-	want := "Bearer " + token
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != want {
-			http.Error(w, "unauthorized\n", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return httpserver.BearerAuth(token, next)
 }
 
 // MountHTTP registers SSE (/sse) and streamable HTTP (/mcp) on mux, optionally

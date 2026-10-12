@@ -94,3 +94,22 @@ func Classify(utilP, current, oversizeRatio, undersizeRatio float64) Verdict {
 	}
 	return VerdictOK
 }
+
+// DefaultOversizeRatio / DefaultUndersizeRatio match configs/kpm.sample.yml recommend:.
+const (
+	DefaultOversizeRatio  = 0.35
+	DefaultUndersizeRatio = 0.85
+)
+
+// SnapshotVerdicts classifies CPU/mem request sizing from a persisted recommend row
+// (p-util vs current request). Empty ratios use defaults.
+func SnapshotVerdicts(cpuP, cpuReq float64, memP, memReq int64, oversizeRatio, undersizeRatio float64) (cpu, mem Verdict) {
+	if oversizeRatio <= 0 {
+		oversizeRatio = DefaultOversizeRatio
+	}
+	if undersizeRatio <= 0 {
+		undersizeRatio = DefaultUndersizeRatio
+	}
+	return Classify(cpuP, cpuReq, oversizeRatio, undersizeRatio),
+		Classify(float64(memP), float64(memReq), oversizeRatio, undersizeRatio)
+}

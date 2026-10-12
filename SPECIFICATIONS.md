@@ -1,9 +1,9 @@
 # SPECIFICATIONS — kpm
 
 > **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
-> adjacent Insights (§3–5), notifications (§6), MCP (§7), `client.id`
-> (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Optional server (§8) remains
-> **draft** until the 0.6.x band ships.
+> adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
+> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
+> as **`v0.6.0`**.
 
 | Term | Meaning |
 |------|---------|
@@ -721,35 +721,123 @@ Result:
 
 ---
 
-## 8. OPTIONAL — server mode (charts)
+## 8. OPTIONAL — server mode (charts) (Normative — 0.6.x)
 
-Off unless `server.enabled: true`. Intended to run inside the sample daemon
-(`interval_seconds > 0`) so charts see a live scrape path; does not replace
-core sampling.
+Off unless `server.enabled: true` (or `kpm serve`). **Analyze-local** is a
+first-class mode: open an existing SQLite store with
+`sample.interval_seconds: 0` (no collection), serve charts + JSON (+ MCP HTTP
+on the shared mux) without kube. Live Metrics enrichment is optional when
+kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
-### 8.1 Stack (decided)
+### 8.1 Stack (Normative)
 
 - **Boring embedded UI**: Go `net/http` + small templates + minimal JS (or HTMX).
   **No** SPA framework / npm app in-repo for v1.
-- Data: last scrape cache and/or SQLite recent window.
+- Data: SQLite history (required); optional live snapshot from Metrics API.
 - Optional **bearer** auth (`token_env`); fail closed if `auth: true` and unset.
-- Default listen `127.0.0.1`.
+- Default listen loopback; may share `mcp.listen` when `server.listen` empty.
+- HTTP facade must **not** require a running sample loop (decouple from
+  `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
+  `server.enabled`); `/readyz` is store-only (kube optional).
+- **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
+  `/series`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
+  or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
+  One listen: prefer `server.listen`, else `mcp.listen`.
+- **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
+  (no SPA/npm). Workload cards fetch `/api/v1/series` and join latest
+  recommendations for verdict badges; drawers show recommendations + optional
+  live + copy/download patch. Summary strip counts oversized / undersized /
+  ok / no-req. Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock
+  form stores bearer for API calls when required.
 
-### 8.2 Relationship to capacity / TUI (decided)
+### 8.2 Relationship to capacity / TUI (Normative)
 
 - Shared **read model** (usage snapshots) behind `capacity`, `tui`, and server API.
 - `capacity` remains a **CLI** command; server is not required to use it.
-- Server JSON endpoints may power charts; TUI talks to cluster (and optionally
-  store) directly — no hard dependency on server process.
+- Server JSON endpoints power charts and non-MCP clients; TUI talks to cluster
+  (and optionally store) directly — no hard dependency on server process.
 
-### 8.3 Recommend export in UI (planned)
+### 8.3 Recommend export in UI (0.6.x `#18b`)
 
 - Server **must not** apply resource patches to Deployments/StatefulSets/etc.
-- When recommend data is shown, UI exposes **copy/download** of suggested changes
-  as **Kustomize patch/diff** (and/or strategic-merge / JSON patch) per workload
-  (and optionally bulk). Operator pastes into Git / opens a PR — GitOps remains
-  source of truth.
-- Reuses the same formatters as CLI recommend export when those land.
+- `GET /api/v1/export/patch?grain_key=…&format=strategic|kustomize` returns JSON
+  `{format,filename,content,grain_key}` from the latest stored recommendation.
+  Strategic-merge YAML sets **requests** only (suggested CPU/memory). ReplicaSet
+  owners map to Deployment. Kustomize format wraps the same YAML with overlay
+  hints (markdown). Comments state copy/download only — never `kubectl apply`
+  from kpm.
+- Charts drawer: **Copy strategic patch** / **Download kustomize hint** when a
+  recommendation exists for the card grain. Operator pastes into Git / opens a
+  PR — GitOps remains source of truth.
+- Formatter lives in `internal/recommend` (`FormatResourcePatch`); CLI recommend
+  export may reuse the same helpers later.
+
+### 8.4 Analyze-local UX (Normative)
+
+- Per-workload chart cards from store series; window presets (1h / 24h / 48h /
+  7d / 15d) + custom range.
+- Collapsible drawer: store recommendations; if kube available, current
+  request/limit (+ delta vs suggest when both exist).
+- Mode chip from `status.kube_live`: **`live`** when the Metrics client was
+  wired at process start; **`analyze-local`** when store-only (`/live` 503).
+- Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
+  applies patches; operator owns production changes).
+- UI search/filter for large grids is **P6** (`#20c`, 0.7.x).
+
+### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
+
+- `GET /api/v1/recommendations` includes `cpu_verdict` / `mem_verdict`
+  (`oversized|undersized|ok|n/a`) from p-util vs current request
+  (`SnapshotVerdicts` / `Classify` with config oversize/undersize ratios),
+  plus `cpu_delta_mcores` / `mem_delta_bytes` (suggested − request).
+- Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
+  (undersized beats oversized beats ok; `n/a` = no request; missing row =
+  no recommend).
+- Node / capacity under-demand snapshots are **out of band** for 0.6.x
+  (planned 0.7.x P6 `#20b`).
+
+### 8.6 Status / recommendations examples (anonymized)
+
+`GET /api/v1/status` (no secrets):
+
+```json
+{
+  "version": "v0.6.0",
+  "store_path": "/var/lib/kpm/example.db",
+  "sample_interval_seconds": 0,
+  "server_enabled": true,
+  "cluster_name": "example-east",
+  "cluster_environment": "stg",
+  "kube_context": "example-east-admin",
+  "kube_live": false,
+  "sample_count": 4200
+}
+```
+
+`GET /api/v1/recommendations?grain=workload` (one row):
+
+```json
+{
+  "count": 1,
+  "rows": [
+    {
+      "grain": "workload",
+      "grain_key": "app/Deployment/api",
+      "namespace": "app",
+      "owner_kind": "Deployment",
+      "owner_name": "api",
+      "cpu_p_mcores": 40,
+      "cpu_req_mcores": 200,
+      "cpu_sug_mcores": 100,
+      "cpu_delta_mcores": -100,
+      "cpu_verdict": "oversized",
+      "mem_verdict": "ok",
+      "target_utilization": 0.7
+    }
+  ]
+}
+```
 
 ---
 
@@ -758,6 +846,20 @@ core sampling.
 ### 9.1 Discovery (kwd-style)
 
 `--config` default **`kpm.yaml`**.
+
+### 9.1.1 Precedence (decided — Viper / family mold)
+
+Lowest → highest (later wins):
+
+1. Built-in **defaults**
+2. **YAML** file (`--config`)
+3. Environment **`KPM_*`** (`AutomaticEnv` / `BindEnv`; `.` → `_`)
+4. **CLI flags** (only when the flag is explicitly set / `Changed`)
+
+Every YAML knob that operators need at runtime must be overridable via ENV and
+CLI (band implementation rule for 0.6.x+). Secrets use `*_env` **names** in
+YAML; values come only from the environment (fail closed if missing when
+required).
 
 ### 9.2 Top-level keys
 
@@ -820,11 +922,13 @@ tui:
 | `capacity` | Adjacent | **Normative** | Yes | No |
 | `tui` / `capacity --tui` | Adjacent | **Normative** | Yes | Read* |
 | `mcp` | Optional | **Normative** | No** | Read |
+| `serve` | Optional | **Normative** | No*** | Read |
 | `notify-test` | Optional | **Normative** | No | No |
 | daemon `sample` loop | Core | **Normative** (notify / MCP HTTP when enabled) | Yes | Write |
 
 \*TUI is live Metrics; optionally **reads** existing `recommendations` for Δ (`n/a` if none). Never writes store.  
-\*\*MCP store-only tools; live-cluster MCP tools deferred.
+\*\*MCP store-only tools; live-cluster MCP tools deferred.  
+\*\*\*`kpm serve`: ops (+ MCP and/or `/api/v1/*`) without sample loop; kube optional; `/readyz` = store only.
 
 ---
 
@@ -854,7 +958,8 @@ tui:
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
-| **P5 — Server** | embedded charts UI + optional auth | Planned |
+| **P5 — Server** | analyze-local + charts + JSON API | **Shipped** `v0.6.0` (`docs/plan-0.6.0.md`) |
+| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 
@@ -934,8 +1039,16 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Topic | Decision |
 |-------|----------|
 | §7 MCP | **Normative** when band code is on `develop` + docs exit (stdio, HTTP/SSE, ops mux, access control) |
-| §8 Server | Stays **draft** until 0.6.x |
+| §8 Server | **Normative** when 0.6.x band code + docs exit on `develop` (analyze-local, `/api/v1/*`, charts, `#18b`/`#18c`) |
 | Tools | Store-only MVP (`get_status`, `list_samples`, `summarize_window`, `list_recommendations`); live-cluster tools deferred |
+
+### 15.12 SPEC normative after Server (0.6.x / P5)
+
+| Topic | Decision |
+|-------|----------|
+| §8 Server | **Normative** on band-exit docs + code (serve, API, UI, GitOps export, verdicts) |
+| Cut | `chore/release-0.6.0` then develop → main + tag `v0.6.0` (operator OK) |
+| Deferred | Node snapshots `#20b`, UI search `#20c` → **P6** 0.7.x |
 
 ### 15.8 Recommendation outcomes (`#9b`, **P2 required**)
 
@@ -964,6 +1077,6 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 - [README.md](README.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/plan-0.2.0.md](docs/plan-0.2.0.md)
   · [docs/plan-0.3.0.md](docs/plan-0.3.0.md) · [docs/plan-0.4.0.md](docs/plan-0.4.0.md)
-  · [docs/plan-0.5.0.md](docs/plan-0.5.0.md)
+  · [docs/plan-0.5.0.md](docs/plan-0.5.0.md) · [docs/plan-0.6.0.md](docs/plan-0.6.0.md)
 - [docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)
 - [configs/kpm.sample.yml](configs/kpm.sample.yml)

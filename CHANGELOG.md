@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
+### Added
+
+- [docs/plan-0.6.0.md](docs/plan-0.6.0.md) — Server band plan (analyze-local,
+  charts, JSON API; `#19a` / `#19` / `#18` / `#18b` / `#18c`; Elaya tokens +
+  Hallmark anti-slop for `#18` UI).
+- `kpm serve` — ops + MCP HTTP against an existing store without a sample loop
+  (`mcp.enabled`; `/readyz` store-only; kube optional) `(0.6.x #19a)`.
+- JSON read API `GET /api/v1/{status,workloads,series,recommendations,live}`
+  when `server.enabled` on the shared mux; bearer via `server.token_env`
+  (or shared `mcp.token_env`); live 503 without kube `(0.6.x #19)`.
+- Embedded analyze-local charts UI at `GET /` (+ `/static/*`) when
+  `server.enabled`: workload cards, canvas series, window presets, detail
+  drawer (recommendations + live) `(0.6.x #18)`.
+- GitOps patch export: `GET /api/v1/export/patch` + drawer copy/download
+  (strategic-merge YAML / kustomize hint; never applied) `(0.6.x #18b)`.
+- Recommend verdicts on cards + summary strip (oversized / undersized / ok /
+  no-req) from stored p-util vs request; API fields `cpu_verdict` /
+  `mem_verdict` + deltas `(0.6.x #18c)`.
+- Status `kube_live` + UI mode chip (`live` / `analyze-local`); sticky footer
+  with repo, MIT license, and advisory-only disclaimer.
+- SPEC §8 → **Normative** (P5 band exit); ROADMAP **P6** 0.7.x adds `#20c`
+  search/filter (large grids) beside `#20b` nodes.
+
+### Changed
+
+- Daemon ops `/readyz`: store open required; kube Discovery no longer gates ready
+  `(0.6.x #19a)`.
+- `kpm serve` accepts `mcp.enabled` and/or `server.enabled`; shared listen prefers
+  `server.listen` when set `(0.6.x #19)`.
+- Charts UI polish: chart req/limit overlays, local TZ patch stamp, light/dark
+  theme, cluster/context badge, version display fix.
+
 ## [0.5.0] - 2026-10-11
 
 ### Added
@@ -146,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/hrodrig/kpm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hrodrig/kpm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hrodrig/kpm/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hrodrig/kpm/compare/v0.2.0...v0.3.0
