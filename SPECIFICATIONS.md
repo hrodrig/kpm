@@ -2,8 +2,8 @@
 
 > **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
 > adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
-> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Cut `v0.6.0` when
-> band code is on `main` (version-cut PR separate).
+> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
+> as **`v0.6.0`**.
 
 | Term | Meaning |
 |------|---------|
@@ -958,7 +958,7 @@ tui:
 | **P2 — Insights CLI** | recommend; capacity table; **tui** heatmap list | **Shipped** `v0.3.0` |
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
-| **P5 — Server** | analyze-local + charts + JSON API | **Band exit** (`docs/plan-0.6.0.md`; cut `v0.6.0` pending) |
+| **P5 — Server** | analyze-local + charts + JSON API | **Shipped** `v0.6.0` (`docs/plan-0.6.0.md`) |
 | **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.

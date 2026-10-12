@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -19,23 +19,35 @@
 
 > **Early development (pre-1.0).** kpm is under active development.
 > [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core, Insights,
-> notifications, and MCP (§1–7) are **normative in-tree**; server charts (§8)
-> remain draft until **0.6.x** / **v1.0.0**. **Do not** treat this as a
-> production rightsizing gate before then. **Use at your own risk.**
-> The software is provided under the [MIT License](./LICENSE) **“AS IS”**,
-> without warranty of any kind (see [LICENSE](./LICENSE)).
+> notifications, MCP (§1–7), and server charts (§8) are **normative in-tree**.
+> Recommendations are **advisory** — you own production resource changes.
+> **Use at your own risk.** The software is provided under the
+> [MIT License](./LICENSE) **“AS IS”**, without warranty of any kind
+> (see [LICENSE](./LICENSE)).
 
 **The problem:** Cluster CPU/memory **requests** often dwarf real utilization
 (oversizing). Snapshots (`kubectl top`, kube-capacity) lack history. Full
 Prometheus + VPA/Goldilocks stacks are heavy for a laptop/bastion workflow.
 
-**How kpm will solve it:** a single-binary CLI (**client-go**, no `kubectl`
+**How kpm solves it:** a single-binary CLI (**client-go**, no `kubectl`
 subprocess) that samples pod CPU/memory into **local SQLite** and surfaces
 **rightsizing recommendations** (rules over historical p95 vs requests/limits),
-plus capacity/TUI and optional notify/MCP/server layers — see the SPEC.
+plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 0.6 — analyze-local charts
+
+Copy the SQLite store to a laptop, run **`kpm serve`**, open charts —
+**no sample loop required**. Optional live Metrics when kubeconfig works.
+
+- Workload cards + time windows; oversized / undersized badges from stored recommend
+- JSON `GET /api/v1/*` · GitOps patch copy/download (**never** applied)
+- Mode chip `live` / `analyze-local` · advisory footer (you own production changes)
+
+Contract: **[SPEC §8](SPECIFICATIONS.md)** · band notes: **[plan-0.6.0](docs/plan-0.6.0.md)** ·
+shipped list: **[CHANGELOG](CHANGELOG.md)**
 
 ![kpm — Kubernetes Pods Metrics](docs/kpm-hero-oss.jpg)
 
@@ -54,6 +66,7 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
 - [How it works](#how-it-works)
 - [Status](#status)
 - [Roadmap](#roadmap)
@@ -102,7 +115,7 @@ Details (bands, defaults, more diagrams):
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
-| Server charts / JSON API | Planned (`0.6.x` — [plan-0.6.0](docs/plan-0.6.0.md)) |
+| Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)
@@ -125,6 +138,8 @@ make build
 ./bin/kpm version
 ./bin/kpm --print-sample-config > kpm.yml
 ./bin/kpm --help
+# After samples (or a copied store): analyze-local charts — see SPEC §8
+# ./bin/kpm serve --config ./kpm.yml
 ```
 
 ### kubectl plugin
