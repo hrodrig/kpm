@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-Band plan for **0.6.x Server** (SPEC §8 / P5). Roadmap IDs: `#18`, `#18b`,
+Band plan for **0.6.x Server** (SPEC §8 / P5). Roadmap IDs: `#18`, `#18b`, `#18c`,
 `#19` (+ facade listen decoupling). Parent: [ROADMAP.md](./ROADMAP.md).
 Contract: [SPECIFICATIONS.md](../SPECIFICATIONS.md).
 
@@ -136,18 +136,28 @@ Decouple HTTP mux from daemon sample loop (today: MCP listen requires
 
 ### `#18b` Recommend GitOps export in UI
 
-- [ ] Drawer actions: copy/download **Kustomize patch/diff** (and/or
+- [x] Drawer actions: copy/download **Kustomize patch/diff** (and/or
       strategic-merge / JSON patch) per workload; optional bulk later
-- [ ] **Never** apply to cluster
-- [ ] Reuse CLI recommend formatters when present; otherwise minimal formatter
+- [x] **Never** apply to cluster
+- [x] Reuse CLI recommend formatters when present; otherwise minimal formatter
       in `internal/recommend` or `internal/server`
+      (`FormatResourcePatch` + `GET /api/v1/export/patch`)
+
+### `#18c` Recommend verdicts on cards + summary
+
+- [x] `GET /api/v1/recommendations` returns `cpu_verdict` / `mem_verdict`
+      (`oversized|undersized|ok|n/a`) via `SnapshotVerdicts` (p-util vs request)
+      plus `cpu_delta_mcores` / `mem_delta_bytes` (sug − req)
+- [x] Cards: CPU/Mem badges joined on `grain_key` (fallback ns/owner)
+- [x] Summary strip: counts oversized / undersized / ok / no-req / no recommend
+- [ ] Node capacity snapshots stay **0.7.x** (under-demand SQLite; offline-first)
 
 ### Gates / band exit
 
-- [ ] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC §8 → Normative in status banner + CLI map (`serve` / server)
-- [ ] SPEC anonymized API + UI examples
-- [ ] PR feat → `develop` merged
+- [x] SPEC §8 → Normative in status banner + CLI map (`serve` / server)
+- [x] SPEC anonymized API examples (§8.6)
+- [ ] `make lint` + `make cover-check` ≥ 80% (CI on PR)
+- [ ] PR feat → `develop` merged (`#41` + follow-ups)
 - [ ] Version-cut artifacts (`chore/release-0.6.0`) when shipping
 - [ ] VHS re-record if help/version strings change
 - [ ] PR develop → main + tag `v0.6.0` (operator OK)
@@ -297,11 +307,12 @@ Exact flag names locked in implement PR; must cover sample/mcp/server/store/kube
 | 2 | `#19a` | Listen / `kpm serve` without sample loop | [x] (this PR) |
 | 3 | `#19` | JSON `/api/v1/*` + auth | [x] (this branch) |
 | 4 | `#18` | Charts UI + drawers + windows | [x] (this branch) |
-| 5 | `#18b` | Kustomize/patch export in drawer | [ ] |
-| 6 | cut | `chore/release-0.6.0` → main + tag | [ ] |
+| 5 | `#18b` | Kustomize/patch export in drawer | [x] |
+| 6 | `#18c` | Card badges + summary strip from recommend store | [x] |
+| 7 | cut | `chore/release-0.6.0` → main + tag | [ ] |
 
 **Suggested PRs:** docs-first (done `#36`), `feat/0.6-serve` (`#19a`), then
-`#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b` (can ride charts PR).
+`#19` JSON, then `feat/0.6-charts` (`#18`), then `#18b`/`#18c` (same train OK).
 
 [↑ Back to top](#top)
 
