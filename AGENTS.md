@@ -24,8 +24,9 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - **This repo (`kpm`):** Go CLI, config, tests, CI, **`make release-check`**,
   binaries, `.deb`/`.rpm`, **`ghcr.io/hrodrig/kpm`**, cosign + SBOM — same split
   as **kwd** / **kzero** / **groot** / **pgwd**.
-- **Not here:** cron/systemd, Helm CronJob, operator runbooks → future
-  **kpm-selfhosted**. Do not add `run/` deployment trees here.
+- **Not here:** cron/systemd, Helm CronJob, operator runbooks →
+  **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)**. Do not add
+  `run/` deployment trees here.
 - **Not kwd:** readiness watchdog stays in [kwd](https://github.com/hrodrig/kwd).
 
 ## Setup and build
@@ -91,7 +92,8 @@ checks VHS + SPEC banner so docs never lag the binary.
 
 ## Deferrals (do not invent in code yet)
 
-- MCP / server (`0.5`–`0.6`)
 - Homebrew tap (`homebrew-kpm`)
 - Official FreeBSD/OpenBSD ports submission (skeletons live under `contrib/`)
-- `kpm-selfhosted`
+- Marketing / webs pins (`kpm-webs`) until those sites exist
+
+Operator deploy docs live in **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (not this tree).
