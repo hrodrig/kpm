@@ -94,6 +94,6 @@ checks VHS + SPEC banner so docs never lag the binary.
 
 - Homebrew tap (`homebrew-kpm`)
 - Official FreeBSD/OpenBSD ports submission (skeletons live under `contrib/`)
-- Marketing / webs pins (`kpm-webs`) until those sites exist
+- Marketing / webs pins (`kpm-webs` / skill **`kpm-webs-release`**) — landing `kpm.hermesrodriguez.com` + get host (GitLab); pin after published tags when shipping webs
 
 Operator deploy docs live in **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (not this tree).
