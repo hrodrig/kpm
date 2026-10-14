@@ -49,7 +49,21 @@ Copy the SQLite store to a laptop, run **`kpm serve`**, open charts —
 Contract: **[SPEC §8](SPECIFICATIONS.md)** · band notes: **[plan-0.6.0](docs/plan-0.6.0.md)** ·
 shipped list: **[CHANGELOG](CHANGELOG.md)**
 
+**Walkthrough (DEV.to):** [kpm — Kubernetes rightsizing without Prometheus, history on your laptop](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272)
+
 ![kpm — Kubernetes Pods Metrics](docs/kpm-hero-oss.jpg)
+
+![kpm serve — analyze-local charts with oversized / undersized badges](docs/kpm-serve-analyze-local-dark.png)
+
+*`kpm serve` (dark): summary strip and per-workload CPU/Mem verdicts. Advisory only — never applied to the cluster.*
+
+![kpm tui — CPU vs request spectrum across pods](docs/kpm-tui-cpu-request-13pods.png)
+
+*Live TUI (`kpm tui`): graded util vs request with Δ vs last recommend when recorded.*
+
+![kpm flow — sample to SQLite to recommend, serve, MCP](docs/kpm-flow-diagram.png)
+
+*History first: `kpm sample` → local SQLite; recommend / serve / MCP read the store; `capacity` / `tui` stay live one-shots.*
 
 **Related tools (same maintainer):**
 - **[kpm](https://github.com/hrodrig/kpm)** — Kubernetes Pods Metrics (this repo; deploy: [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted))
