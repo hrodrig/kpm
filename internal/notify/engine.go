@@ -88,6 +88,10 @@ func (e *Engine) Evaluate(ctx context.Context, records []store.Record, now time.
 		if err := e.tickFalse(ctx, k, st, now); err != nil {
 			errs = append(errs, err)
 		}
+		// Drop idle keys so pod churn cannot grow the map unbounded.
+		if st2 := e.states[k]; st2 != nil && !st2.firing && st2.trueSince.IsZero() && st2.falseSince.IsZero() {
+			delete(e.states, k)
+		}
 	}
 	return joinErrs(errs)
 }

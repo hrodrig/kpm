@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -91,6 +92,48 @@ func TestEffectiveRulesBuiltins(t *testing.T) {
 	}
 	if FormatBuiltinLog() == "" {
 		t.Fatal("empty log")
+	}
+}
+
+func TestEnginePrunesIdleKeys(t *testing.T) {
+	rules, _ := EffectiveRules(config.Notifications{Rules: []config.NotifyRule{testRule(10, 10, 30)}})
+	eng := NewEngine(rules, "bastion-a", "prod", nil)
+	base := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < 40; i++ {
+		rec := store.Record{
+			Namespace: "app", Pod: fmt.Sprintf("pod-%d", i),
+			Container: "c1", CPUUtilMcores: 90, CPURequestMcores: 100,
+		}
+		_ = eng.Evaluate(context.Background(), []store.Record{rec}, base.Add(time.Duration(i)*time.Second))
+	}
+	if n := len(eng.states); n != 1 {
+		t.Fatalf("want single live key after churn prune, got %d", n)
+	}
+	// Empty tick: non-firing keys clear and prune.
+	_ = eng.Evaluate(context.Background(), nil, base.Add(60*time.Second))
+	if len(eng.states) != 0 {
+		t.Fatalf("want pruned map, got %d keys", len(eng.states))
+	}
+}
+
+func TestEngineKeepsFiringUntilResolve(t *testing.T) {
+	rules, _ := EffectiveRules(config.Notifications{Rules: []config.NotifyRule{testRule(1, 5, 0)}})
+	eng := NewEngine(rules, "bastion-a", "prod", nil)
+	base := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	hot := hotCPU()
+	_ = eng.Evaluate(context.Background(), []store.Record{hot}, base)
+	_ = eng.Evaluate(context.Background(), []store.Record{hot}, base.Add(time.Second))
+	if len(eng.states) != 1 {
+		t.Fatalf("firing key: %d", len(eng.states))
+	}
+	cool := coolCPU()
+	_ = eng.Evaluate(context.Background(), []store.Record{cool}, base.Add(2*time.Second))
+	if len(eng.states) != 1 {
+		t.Fatalf("still clearing: %d", len(eng.states))
+	}
+	_ = eng.Evaluate(context.Background(), []store.Record{cool}, base.Add(8*time.Second))
+	if len(eng.states) != 0 {
+		t.Fatalf("after resolve prune: %d", len(eng.states))
 	}
 }
 
