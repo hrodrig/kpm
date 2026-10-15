@@ -23,6 +23,15 @@ const APIPrefix = "/api/v1"
 // DefaultMaxSeriesPoints caps series response length before downsample.
 const DefaultMaxSeriesPoints = 300
 
+// MaxWindow caps analyze-local ?window= / free Go durations (15d UI preset).
+const MaxWindow = 15 * 24 * time.Hour
+
+// MaxWorkloadsScanRows fail-closes GET /workloads when the window is too large.
+const MaxWorkloadsScanRows = store.MaxScanRows
+
+// MaxSeriesScanRows clamps GET /series to the newest N rows before downsample.
+const MaxSeriesScanRows = 50_000
+
 // Deps is the read-only API backend.
 type Deps struct {
 	Store   *store.Store
@@ -150,6 +159,10 @@ func (a *api) handleWorkloads(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := listWorkloads(r.Context(), a.deps.Store, f)
 	if err != nil {
+		if strings.Contains(err.Error(), "exceeds") {
+			writeErr(w, http.StatusRequestEntityTooLarge, err.Error())
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -157,9 +170,13 @@ func (a *api) handleWorkloads(w http.ResponseWriter, r *http.Request) {
 }
 
 func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) ([]WorkloadOut, error) {
+	f.Limit = MaxWorkloadsScanRows + 1
 	recs, err := st.ListRecords(ctx, f)
 	if err != nil {
 		return nil, err
+	}
+	if len(recs) > MaxWorkloadsScanRows {
+		return nil, fmt.Errorf("sample window exceeds %d rows; narrow namespace, workload, or window", MaxWorkloadsScanRows)
 	}
 	type agg struct {
 		ns, kind, name string
@@ -229,6 +246,7 @@ type SeriesOut struct {
 	Workload    string        `json:"workload,omitempty"`
 	Count       int           `json:"count"`
 	Downsampled bool          `json:"downsampled"`
+	Truncated   bool          `json:"truncated,omitempty"`
 	Points      []SeriesPoint `json:"points"`
 	// Request / Limit are reference levels in the same units as Points
 	// (absolute mcores/bytes, or ratio of request for *_ratio metrics).
@@ -359,9 +377,15 @@ func seriesQuery(r *http.Request, now time.Time) (metric string, maxPts int, f s
 }
 
 func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f store.ExportFilter) (*SeriesOut, error) {
+	f.Limit = MaxSeriesScanRows + 1
+	f.Newest = true
 	recs, err := a.deps.Store.ListRecords(ctx, f)
 	if err != nil {
 		return nil, err
+	}
+	truncated := len(recs) > MaxSeriesScanRows
+	if truncated {
+		recs = recs[len(recs)-MaxSeriesScanRows:]
 	}
 	raw := make([]SeriesPoint, 0, len(recs))
 	for _, rec := range recs {
@@ -379,6 +403,7 @@ func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f stor
 		Workload:    f.Workload,
 		Count:       len(pts),
 		Downsampled: down,
+		Truncated:   truncated,
 		Points:      pts,
 		Request:     req,
 		Limit:       lim,
@@ -682,26 +707,34 @@ func filterFromQuery(r *http.Request, now time.Time) (store.ExportFilter, error)
 			return f, fmt.Errorf("until: %w", err)
 		}
 	}
+	if !f.Since.IsZero() && !f.Until.IsZero() && f.Until.Sub(f.Since) > MaxWindow {
+		return f, fmt.Errorf("window: max %s between since and until", MaxWindow)
+	}
 	return f, nil
 }
 
 func parseWindow(w string) (time.Duration, error) {
+	var d time.Duration
 	switch strings.ToLower(strings.TrimSpace(w)) {
 	case "1h":
-		return time.Hour, nil
+		d = time.Hour
 	case "24h", "1d":
-		return 24 * time.Hour, nil
+		d = 24 * time.Hour
 	case "48h", "2d":
-		return 48 * time.Hour, nil
+		d = 48 * time.Hour
 	case "7d":
-		return 7 * 24 * time.Hour, nil
+		d = 7 * 24 * time.Hour
 	case "15d":
-		return 15 * 24 * time.Hour, nil
+		d = 15 * 24 * time.Hour
 	default:
-		d, err := time.ParseDuration(w)
-		if err != nil || d <= 0 {
+		parsed, err := time.ParseDuration(w)
+		if err != nil || parsed <= 0 {
 			return 0, fmt.Errorf("window: want 1h|24h|48h|7d|15d or Go duration")
 		}
-		return d, nil
+		d = parsed
 	}
+	if d > MaxWindow {
+		return 0, fmt.Errorf("window: max %s", MaxWindow)
+	}
+	return d, nil
 }
