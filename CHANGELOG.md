@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/kpm-tui-cpu-request-13pods.png`, `docs/kpm-flow-diagram.png`) plus link to the
   [DEV.to walkthrough](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272).
 
+### Fixed
+
+- `make govulncheck` no longer treats tool/network failures as a clean PASS
+  (`|| true` fail-open); exit `3` still means vulnerabilities to filter via
+  `.govulncheck-ignore.yaml` ([#54](https://github.com/hrodrig/kpm/issues/54)).
+
 ## [0.6.0] - 2026-10-12
 
 ### Added
