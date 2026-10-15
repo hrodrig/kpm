@@ -1,6 +1,11 @@
-# Known false-positive advisories, ignored by `make security` (govulncheck).
+# Known false-positive advisories, ignored by `make govulncheck` / `make security`.
 # Each entry MUST carry a documented rationale; do not add entries blindly.
 #
-# Format is advisory IDs, one per line under `vulns`. Empty by default for kpm
-# scaffold — add entries only when govulncheck reports a genuine false positive.
+# Parsed by GNUmakefile: lines with id: "GO-…" (quoted). Example:
+#
+#   vulns:
+#     - id: "GO-2024-0000"
+#       rationale: "not reachable; see contrib/scripts/dependency-pins.txt"
+#
+# Empty by default — add entries only when govulncheck reports a genuine false positive.
 vulns: []

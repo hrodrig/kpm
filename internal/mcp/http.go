@@ -3,6 +3,7 @@ package mcp
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -52,6 +53,9 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 		return fmt.Errorf("mcp HTTP: bearer token required for non-loopback listen %q", ops.Addr())
 	}
 	ac := BuildAccessControl(mcpCfg, tok)
+	if ac.Listen == "" {
+		ac.Listen = ops.Addr()
+	}
 	ops.SetAccessControl(ac)
 	rlOn, alOn := ac.Active()
 	httpserver.WarnTrustedProxiesIfNeeded(ac.Trusted, rlOn, alOn)
@@ -60,9 +64,14 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 }
 
 // BuildAccessControl builds allowlist + rate-limit middleware from MCP config.
+// Listen is taken from mcpCfg.Listen for Host/Origin browser guard; callers may
+// override with the shared HTTP bind address.
 func BuildAccessControl(mcpCfg config.MCP, bearer string) httpserver.AccessControl {
 	trusted := httpserver.ParseTrustedProxies(mcpCfg.TrustedProxies...)
-	ac := httpserver.AccessControl{Trusted: trusted}
+	ac := httpserver.AccessControl{
+		Trusted: trusted,
+		Listen:  strings.TrimSpace(mcpCfg.Listen),
+	}
 	ac.Allowlist = httpserver.NewAllowlist(mcpCfg.AllowlistCIDRs, bearer, trusted)
 	if mcpCfg.MCPRateLimitEnabled() {
 		req, period, burst := mcpCfg.MCPRateLimitResolved()

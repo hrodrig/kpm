@@ -13,6 +13,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/kpm-tui-cpu-request-13pods.png`, `docs/kpm-flow-diagram.png`) plus link to the
   [DEV.to walkthrough](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272).
 
+### Fixed
+
+- `make govulncheck` no longer treats tool/network failures as a clean PASS
+  (`|| true` fail-open); exit `3` still means vulnerabilities to filter via
+  `.govulncheck-ignore.yaml` ([#54](https://github.com/hrodrig/kpm/issues/54)).
+- Notify Slack/webhook use a 15s HTTP client timeout; SMTP respects context and
+  TLS dial timeout so a hung sink cannot stall the sample loop
+  ([#55](https://github.com/hrodrig/kpm/issues/55)).
+- Allowlist / rate-limit / trusted_proxies apply whenever any HTTP facade is
+  active (including `server.enabled` without MCP)
+  ([#56](https://github.com/hrodrig/kpm/issues/56)).
+- `ClientIP` walks `X-Forwarded-For` right-to-left, skipping trusted hops
+  ([#57](https://github.com/hrodrig/kpm/issues/57)).
+- Bearer and allowlist bearer bypass use constant-time compare
+  ([#61](https://github.com/hrodrig/kpm/issues/61)).
+- Rate-limiter `lastSeen` updates are mutex-protected against the idle cleanup
+  ([#62](https://github.com/hrodrig/kpm/issues/62)).
+- SQLite opens with WAL + `busy_timeout`; store dir `0700` and DB file `0600`
+  ([#59](https://github.com/hrodrig/kpm/issues/59)).
+- Loopback HTTP facades reject unexpected `Host` / non-loopback `Origin`
+  (DNS-rebinding mitigation) ([#58](https://github.com/hrodrig/kpm/issues/58)).
+- Store timestamps use fixed-width UTC so lexicographic order matches nanos
+  ([#60](https://github.com/hrodrig/kpm/issues/60)).
+- GitOps patch export validates DNS-1123 names and allowlists owner kinds
+  ([#63](https://github.com/hrodrig/kpm/issues/63)).
+- Sample daemon retries transient API errors (up to 5) before fail-closed
+  ([#64](https://github.com/hrodrig/kpm/issues/64)).
+- Notify engine prunes idle non-firing keys so pod churn cannot grow state
+  unboundedly ([#65](https://github.com/hrodrig/kpm/issues/65)).
+
+### Changed
+
+- README release blurb and `AGENTS.md` overview match shipped 0.6.x surface
+  ([#66](https://github.com/hrodrig/kpm/issues/66)).
+- CI unit-test job also runs `./configs/`
+  ([#67](https://github.com/hrodrig/kpm/issues/67)).
+
 ## [0.6.0] - 2026-10-12
 
 ### Added

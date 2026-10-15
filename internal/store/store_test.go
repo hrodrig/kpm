@@ -119,3 +119,41 @@ func TestListRecords(t *testing.T) {
 		t.Fatalf("workload: %v %#v", err, got)
 	}
 }
+
+func TestFixedWidthTimestampOrder(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	base := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
+	early := base.Add(100 * time.Nanosecond)
+	late := base.Add(900 * time.Nanosecond)
+	if err := st.InsertRecords(t.Context(), []Record{
+		{SampledAt: late, Namespace: "app", Pod: "p", Container: "c", CPUUtilMcores: 2},
+		{SampledAt: early, Namespace: "app", Pod: "p", Container: "c", CPUUtilMcores: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.ListRecords(t.Context(), ExportFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len %d", len(got))
+	}
+	if !got[0].SampledAt.Equal(early) || !got[1].SampledAt.Equal(late) {
+		t.Fatalf("order: %v then %v", got[0].SampledAt, got[1].SampledAt)
+	}
+	if FormatUTC(early) >= FormatUTC(late) {
+		t.Fatalf("lexicographic: %q >= %q", FormatUTC(early), FormatUTC(late))
+	}
+	// Window edge: until=late exclusive of late itself when equal? until is exclusive <
+	win, err := st.ListRecords(t.Context(), ExportFilter{Since: early, Until: late})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(win) != 1 || !win[0].SampledAt.Equal(early) {
+		t.Fatalf("window: %+v", win)
+	}
+}

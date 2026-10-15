@@ -57,7 +57,7 @@ func (a *Allowlist) Middleware(next http.Handler, skip PathSkip) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if a.bearer != "" && r.Header.Get("Authorization") == "Bearer "+a.bearer {
+		if a.bearer != "" && constantTimeEqualString(r.Header.Get("Authorization"), "Bearer "+a.bearer) {
 			next.ServeHTTP(w, r)
 			return
 		}

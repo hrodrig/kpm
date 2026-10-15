@@ -74,6 +74,15 @@ func TestTrustedProxiesXFF(t *testing.T) {
 		t.Fatalf("trusted XFF: %q", got)
 	}
 
+	// Append-style XFF: client forges leftmost; rightmost hop is the proxy.
+	// Walk right-to-left skipping trusted → real client 203.0.113.50.
+	reqAppend := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqAppend.RemoteAddr = "192.168.1.10:1"
+	reqAppend.Header.Set("X-Forwarded-For", "198.51.100.1, 203.0.113.50, 192.168.1.10")
+	if got := httpserver.ClientIP(reqAppend, trusted); got != "203.0.113.50" {
+		t.Fatalf("append XFF: %q", got)
+	}
+
 	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
 	req2.RemoteAddr = "203.0.113.9:1"
 	req2.Header.Set("X-Forwarded-For", "10.5.5.5")

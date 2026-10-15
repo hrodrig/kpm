@@ -65,6 +65,33 @@ func TestNewOpsHTTPServerOnly(t *testing.T) {
 	if err != nil || srv == nil {
 		t.Fatalf("srv=%v err=%v", srv, err)
 	}
+	rlOn, _ := srv.Access().Active()
+	if !rlOn {
+		t.Fatal("server-only must attach rate-limit from mcp.* defaults")
+	}
+}
+
+func TestNewOpsHTTPServerOnlyAllowlist(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	cfg := &config.Config{}
+	cfg.Server.Enabled = true
+	cfg.Server.Listen = "127.0.0.1:0"
+	cfg.MCP.AllowlistCIDRs = []string{"10.0.0.0/8"}
+	falseV := false
+	cfg.MCP.RateLimit.Enabled = &falseV
+	srv, err := newOpsHTTP(cfg, st, nil)
+	if err != nil || srv == nil {
+		t.Fatalf("srv=%v err=%v", srv, err)
+	}
+	_, alOn := srv.Access().Active()
+	if !alOn {
+		t.Fatal("server-only must honor mcp.allowlist_cidrs")
+	}
 }
 
 func TestWithProcessMetrics(t *testing.T) {

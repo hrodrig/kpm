@@ -2,6 +2,8 @@ package sample
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -9,8 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
 
 	"github.com/hrodrig/kpm/internal/config"
@@ -88,5 +92,69 @@ func TestRunLoopRejectsZeroInterval(t *testing.T) {
 	err := RunLoop(t.Context(), &config.Config{Sample: config.Sample{IntervalSeconds: 0}}, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestRunLoopRetriesTransientThenSucceeds(t *testing.T) {
+	prev := runOnceFn
+	t.Cleanup(func() { runOnceFn = prev })
+
+	var calls atomic.Int32
+	runOnceFn = func(context.Context, *config.Config, *store.Store, kubernetes.Interface, metricsclientset.Interface) (Result, error) {
+		n := calls.Add(1)
+		if n == 1 {
+			return Result{}, fmt.Errorf("metrics-server blip")
+		}
+		return Result{}, nil
+	}
+
+	cfg := &config.Config{Sample: config.Sample{IntervalSeconds: 1}}
+	ctx, cancel := context.WithCancel(t.Context())
+	var ticks atomic.Int32
+	done := make(chan error, 1)
+	go func() {
+		done <- RunLoop(ctx, cfg, nil, nil, nil, func(Result) { ticks.Add(1) })
+	}()
+
+	deadline := time.After(5 * time.Second)
+	for ticks.Load() < 1 {
+		select {
+		case <-deadline:
+			cancel()
+			t.Fatal("no successful tick after transient error")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("RunLoop: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunLoop did not stop")
+	}
+	if calls.Load() < 2 {
+		t.Fatalf("want retry, calls=%d", calls.Load())
+	}
+}
+
+func TestRunLoopFailsClosedAfterThreshold(t *testing.T) {
+	prev := runOnceFn
+	t.Cleanup(func() { runOnceFn = prev })
+
+	runOnceFn = func(context.Context, *config.Config, *store.Store, kubernetes.Interface, metricsclientset.Interface) (Result, error) {
+		return Result{}, fmt.Errorf("persistent failure")
+	}
+
+	cfg := &config.Config{Sample: config.Sample{IntervalSeconds: 60}}
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	err := RunLoop(ctx, cfg, nil, nil, nil, nil)
+	if err == nil {
+		t.Fatal("expected fail-closed error")
+	}
+	if !strings.Contains(err.Error(), "consecutive failures") {
+		t.Fatalf("got %v", err)
 	}
 }

@@ -85,6 +85,10 @@ without CHANGELOG.
 ### 2.2 Store (SQLite)
 
 - `store.path` (`~` expanded), `retention_days`, schema version, time indexes.
+- Persist `sampled_at` / recommendation `recorded_at` as fixed-width UTC
+  (`2006-01-02T15:04:05.000000000Z`) so TEXT lexicographic order matches wall
+  clock (including same-second nanos). Older RFC3339 / RFC3339Nano rows remain
+  readable.
 - **Guidance:** larger `retention_days` keeps more history for percentiles /
   recommend (closer to real usage patterns). Prefer
   `retention_days` ≥ `recommend.window_days`. Default sample **14**;
@@ -97,6 +101,10 @@ without CHANGELOG.
 |--------------------|----------|
 | `0` | One-shot sample → write SQLite → exit |
 | `> 0` | **Daemon**: forever loop — **always** sample → write SQLite on each tick |
+
+Daemon sample loop retries transient Metrics/API errors with linear backoff
+(1s, 2s, … capped at `interval_seconds`) up to **5** consecutive failures, then
+fails closed. One-shot `sample` (interval `0`) still exits on the first error.
 
 Daemon **always** persists metrics. Optional facades attach only when
 configured (each independently):
@@ -439,6 +447,13 @@ Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** op
 Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
 When rate limit or allowlist is active and `trusted_proxies` is empty, the process
 logs a one-shot warning that forwarded client-IP headers are ignored.
+
+Loopback listen (`127.0.0.1` / `::1` / `localhost`): non-ops routes also reject
+unexpected `Host` and non-loopback `Origin` (DNS-rebinding mitigation). Empty
+`Origin` (curl / non-browser) is allowed. Ops probes stay exempt. These knobs
+apply whenever any HTTP facade is active (`mcp.enabled` and/or `server.enabled`);
+allowlist / rate-limit / trusted_proxies today live under `mcp.*` and bind the
+shared mux.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
