@@ -71,11 +71,21 @@ func mountHTTPFacades(
 	liveFn func(context.Context) (server.LiveOut, error),
 	mcpTok, apiTok string,
 ) {
-	if cfg.MCP.Enabled {
-		ac := mcp.BuildAccessControl(cfg.MCP, mcpTok)
+	// Access control applies whenever any HTTP facade is active. Knobs today
+	// live under mcp.* (allowlist / rate-limit / trusted_proxies) and apply to
+	// the shared mux — including server-only listen.
+	if cfg.MCP.Enabled || cfg.Server.Enabled {
+		bearer := mcpTok
+		if bearer == "" {
+			bearer = apiTok
+		}
+		ac := mcp.BuildAccessControl(cfg.MCP, bearer)
+		ac.Listen = cfg.HTTPListen()
 		srv.SetAccessControl(ac)
 		rlOn, alOn := ac.Active()
 		httpserver.WarnTrustedProxiesIfNeeded(ac.Trusted, rlOn, alOn)
+	}
+	if cfg.MCP.Enabled {
 		mcp.MountHTTP(srv.Mux(), &mcp.Deps{Store: st, Config: cfg, Version: Version}, mcpTok)
 	}
 	if cfg.Server.Enabled {

@@ -137,6 +137,8 @@ tui:
 # (or when auth: true). UI unlock form stores token for API fetch.
 # /api/v1/live → 503 JSON if kube unavailable.
 # /api/v1/export/patch → GitOps YAML copy/download only (never applied).
+# Access control for the shared mux (allowlist / rate_limit / trusted_proxies)
+# is configured under mcp.* even when only server.enabled is true.
 # server:
 #   enabled: true
 #   listen: "127.0.0.1:9740"   # omit → mcp.listen / default loopback
