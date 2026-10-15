@@ -89,7 +89,9 @@ func (rl *RateLimiter) Middleware(next http.Handler, skip PathSkip) http.Handler
 		entry := rl.getOrCreate(ip)
 		if !entry.limiter.Allow() {
 			w.Header().Set("Retry-After", "60")
-			http.Error(w, "rate limit exceeded\n", http.StatusTooManyRequests)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":"rate limit exceeded"}` + "\n"))
 			return
 		}
 		next.ServeHTTP(w, r)

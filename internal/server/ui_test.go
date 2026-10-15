@@ -22,7 +22,7 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	mustContain(t, css, "--accent", `data-theme="dark"`)
 
 	js := mustGetBody(t, mux, "/static/app.js", "")
-	mustContain(t, js, "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
+	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
 		"kube_live", "updateModeLabel")
 }
 

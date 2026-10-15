@@ -11,12 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Roadmap split **0.7 Scale / 0.8 Honesty / 0.9 Freeze → 1.0**; band plan
   [docs/plan-0.7.0.md](docs/plan-0.7.0.md).
+- `GET /api/v1/series/batch` so analyze-local can load many card series in one
+  request ([#72](https://github.com/hrodrig/kpm/issues/72)).
 - README product captures (`docs/kpm-serve-analyze-local-dark.png`,
   `docs/kpm-tui-cpu-request-13pods.png`, `docs/kpm-flow-diagram.png`) plus link to the
   [DEV.to walkthrough](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272).
 
 ### Fixed
 
+- SMTP sends use a per-call timeout and TLS connection deadline
+  ([#73](https://github.com/hrodrig/kpm/issues/73)).
+- Rate-limit skips `/static/*` and returns JSON 429 bodies; UI tolerates non-JSON
+  errors ([#72](https://github.com/hrodrig/kpm/issues/72)).
 - `make govulncheck` no longer treats tool/network failures as a clean PASS
   (`|| true` fail-open); exit `3` still means vulnerabilities to filter via
   `.govulncheck-ignore.yaml` ([#54](https://github.com/hrodrig/kpm/issues/54)).

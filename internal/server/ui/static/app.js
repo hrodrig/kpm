@@ -55,9 +55,15 @@
         err.code = 401;
         throw err;
       }
-      return r.json().then(function (body) {
+      var ct = (r.headers.get("content-type") || "").toLowerCase();
+      var parse = ct.indexOf("application/json") >= 0
+        ? r.json()
+        : r.text().then(function (t) {
+            return { error: (t || r.statusText || "error").trim() };
+          });
+      return parse.then(function (body) {
         if (!r.ok) {
-          var e = new Error((body && body.error) || r.statusText);
+          var e = new Error((body && body.error) || r.statusText || "request failed");
           e.code = r.status;
           throw e;
         }
@@ -487,19 +493,59 @@
         }
         updateRecSummary(wl.items);
         el.grid.innerHTML = wl.items.map(cardHTML).join("");
-        var cards = el.grid.querySelectorAll(".card");
-        var chain = Promise.resolve();
-        cards.forEach(function (card) {
-          chain = chain.then(function () {
-            return loadCardSeries(card);
-          });
-        });
-        return chain;
+        return loadAllCardSeries(el.grid.querySelectorAll(".card"));
       })
       .catch(function (err) {
         if (err.code === 401) return;
         if (el.recSummary) el.recSummary.textContent = "";
         el.grid.innerHTML = '<div class="error">' + escapeHTML(err.message || String(err)) + "</div>";
+      });
+  }
+
+  function loadAllCardSeries(cards) {
+    if (!cards || !cards.length) return Promise.resolve();
+    var keys = [];
+    var byKey = {};
+    Array.prototype.forEach.call(cards, function (card) {
+      var ns = card.getAttribute("data-ns") || "";
+      var wl = card.getAttribute("data-wl") || "";
+      if (!ns || !wl) return;
+      var id = ns + "/" + wl;
+      if (!byKey[id]) {
+        byKey[id] = [];
+        keys.push(id);
+      }
+      byKey[id].push(card);
+    });
+    if (!keys.length) return Promise.resolve();
+    var params = Object.assign(
+      { metric: state.metric, max_points: "120", workloads: keys.join(",") },
+      windowParams()
+    );
+    return fetchJSON("/api/v1/series/batch", params)
+      .then(function (batch) {
+        (batch.items || []).forEach(function (series) {
+          var id = (series.namespace || "") + "/" + (series.workload || "");
+          (byKey[id] || []).forEach(function (card) {
+            drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
+              request: series.request,
+              limit: series.limit,
+            });
+          });
+        });
+      })
+      .catch(function (err) {
+        if (err.code === 429) {
+          // Fall back to sequential single-series if the batch is limited.
+          var chain = Promise.resolve();
+          Array.prototype.forEach.call(cards, function (card) {
+            chain = chain.then(function () {
+              return loadCardSeries(card).catch(function () {});
+            });
+          });
+          return chain;
+        }
+        throw err;
       });
   }
 

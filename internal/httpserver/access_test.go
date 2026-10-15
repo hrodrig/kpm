@@ -130,6 +130,20 @@ func TestRateLimitBlocks(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("healthz still ok: %d", rr.Code)
 	}
+
+	mux.HandleFunc("GET /static/app.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	h = httpserver.AccessControl{Trusted: trusted, RateLimit: rl}.Wrap(mux)
+	for i := 0; i < 5; i++ {
+		req = httptest.NewRequest(http.MethodGet, "/static/app.js", nil)
+		req.RemoteAddr = "203.0.113.1:1"
+		rr = httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("static exempt from rate limit: %d", rr.Code)
+		}
+	}
 }
 
 func TestShouldWarnTrustedProxies(t *testing.T) {
