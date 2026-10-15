@@ -154,6 +154,58 @@ func TestListRecords(t *testing.T) {
 	}
 }
 
+func TestListRecordsLimitNewest(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	base := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	var recs []Record
+	for i := 0; i < 5; i++ {
+		recs = append(recs, Record{
+			SampledAt: base.Add(time.Duration(i) * time.Minute),
+			Namespace: "app", Pod: "p", Container: "c", OwnerName: "web",
+			CPUUtilMcores: float64(i),
+		})
+	}
+	if err := st.InsertRecords(t.Context(), recs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.ListRecords(t.Context(), ExportFilter{Namespace: "app", Limit: 2, Newest: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len %d", len(got))
+	}
+	if got[0].CPUUtilMcores != 3 || got[1].CPUUtilMcores != 4 {
+		t.Fatalf("want newest two ascending: %+v", got)
+	}
+}
+
+func TestOwnerIndexExists(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	var name string
+	err = st.db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_samples_ns_owner_at'`,
+	).Scan(&name)
+	if err != nil || name != "idx_samples_ns_owner_at" {
+		t.Fatalf("index: %v %q", err, name)
+	}
+	var ver int
+	if err := st.db.QueryRow(`SELECT version FROM schema_meta`).Scan(&ver); err != nil {
+		t.Fatal(err)
+	}
+	if ver != SchemaVersion {
+		t.Fatalf("schema version %d want %d", ver, SchemaVersion)
+	}
+}
+
 func TestFixedWidthTimestampOrder(t *testing.T) {
 	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
 	if err != nil {
