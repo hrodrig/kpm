@@ -74,6 +74,33 @@
 
       <main id="main">
         <p id="status" class="status" aria-live="polite"></p>
+        <div class="filters" role="search" aria-label="Filter workloads">
+          <label class="hidden" for="filter-ns">Namespace</label>
+          <input id="filter-ns" type="search" placeholder="Namespace" autocomplete="off" />
+          <label class="hidden" for="filter-owner">Owner</label>
+          <input id="filter-owner" type="search" placeholder="Owner" autocomplete="off" />
+          <label class="hidden" for="filter-grain">Grain</label>
+          <input id="filter-grain" type="search" placeholder="Grain" autocomplete="off" />
+          <label class="hidden" for="filter-cpu">CPU verdict</label>
+          <select id="filter-cpu" aria-label="CPU verdict">
+            <option value="">CPU any</option>
+            <option value="oversized">CPU oversized</option>
+            <option value="undersized">CPU undersized</option>
+            <option value="ok">CPU ok</option>
+            <option value="n/a">CPU no-req</option>
+            <option value="none">CPU no recommend</option>
+          </select>
+          <label class="hidden" for="filter-mem">Mem verdict</label>
+          <select id="filter-mem" aria-label="Mem verdict">
+            <option value="">Mem any</option>
+            <option value="oversized">Mem oversized</option>
+            <option value="undersized">Mem undersized</option>
+            <option value="ok">Mem ok</option>
+            <option value="n/a">Mem no-req</option>
+            <option value="none">Mem no recommend</option>
+          </select>
+          <button type="button" class="btn" id="filter-clear">Clear filters</button>
+        </div>
         <p id="recommend-summary" class="recommend-summary" aria-live="polite"></p>
         <div id="grid" class="grid" aria-live="polite"></div>
       </main>

@@ -151,6 +151,16 @@ func TestAPIRecommendationsVerdicts(t *testing.T) {
 	if rr.Code != http.StatusOK || wl.Count != 1 {
 		t.Fatalf("workloads %d %+v", rr.Code, wl)
 	}
+	rr = authedGet(mux, "/api/v1/workloads?window=24h&namespace=app&workload=api", "")
+	_ = json.Unmarshal(rr.Body.Bytes(), &wl)
+	if rr.Code != http.StatusOK || wl.Count != 1 {
+		t.Fatalf("workloads filtered %d %+v", rr.Code, wl)
+	}
+	rr = authedGet(mux, "/api/v1/workloads?window=24h&namespace=other", "")
+	_ = json.Unmarshal(rr.Body.Bytes(), &wl)
+	if rr.Code != http.StatusOK || wl.Count != 0 {
+		t.Fatalf("workloads miss %d %+v", rr.Code, wl)
+	}
 
 	rr = authedGet(mux, "/api/v1/recommendations", "")
 	var recs server.RecsOut
