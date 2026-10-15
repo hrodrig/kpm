@@ -62,11 +62,11 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 ### Harden leftovers (post `#54`–`#67`)
 
 - [x] SMTP: per-send `context.WithTimeout` + connection `SetDeadline`
-- [ ] Sample daemon: exponential backoff + time budget; log failures; ops counter
-- [ ] `allowed_hosts` (or equivalent) for BrowserGuard behind reverse proxy
-- [ ] Store: `OpenFile` 0600 before open; chmod `-wal`/`-shm`; safe DSN encoding
-- [ ] GitOps patch: CronJob `jobTemplate` path; clean apiVersion switch
-- [ ] Sample path: resolve ReplicaSet → Deployment for stable grain + patch name
+- [x] Sample daemon: exponential backoff + time budget; log failures; ops counter
+- [x] `allowed_hosts` (or equivalent) for BrowserGuard behind reverse proxy
+- [x] Store: `OpenFile` 0600 before open; chmod `-wal`/`-shm`; safe DSN encoding
+- [x] GitOps patch: CronJob `jobTemplate` path; clean apiVersion switch
+- [x] Sample path: resolve ReplicaSet → Deployment for stable grain + patch name
 
 ### Gates / band exit
 

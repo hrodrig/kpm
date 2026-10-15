@@ -102,9 +102,11 @@ without CHANGELOG.
 | `0` | One-shot sample → write SQLite → exit |
 | `> 0` | **Daemon**: forever loop — **always** sample → write SQLite on each tick |
 
-Daemon sample loop retries transient Metrics/API errors with linear backoff
-(1s, 2s, … capped at `interval_seconds`) up to **5** consecutive failures, then
-fails closed. One-shot `sample` (interval `0`) still exits on the first error.
+Daemon sample loop retries transient Metrics/API errors with exponential
+backoff (1s, 2s, 4s, … capped at `interval_seconds`) for up to a **2-minute**
+retry budget (`SampleRetryBudget`), then fails closed. Each failure is logged
+and counted on `kpm_sample_errors_total` when ops HTTP is up. One-shot `sample`
+(interval `0`) still exits on the first error.
 
 Daemon **always** persists metrics. Optional facades attach only when
 configured (each independently):
@@ -450,10 +452,12 @@ logs a one-shot warning that forwarded client-IP headers are ignored.
 
 Loopback listen (`127.0.0.1` / `::1` / `localhost`): non-ops routes also reject
 unexpected `Host` and non-loopback `Origin` (DNS-rebinding mitigation). Empty
-`Origin` (curl / non-browser) is allowed. Ops probes stay exempt. These knobs
-apply whenever any HTTP facade is active (`mcp.enabled` and/or `server.enabled`);
-allowlist / rate-limit / trusted_proxies today live under `mcp.*` and bind the
-shared mux.
+`Origin` (curl / non-browser) is allowed. Ops probes stay exempt. Extra public
+Host/Origin names may be listed in `mcp.allowed_hosts` and/or
+`server.allowed_hosts` (merged) when a reverse proxy preserves a non-loopback
+`Host` toward a loopback bind. These knobs apply whenever any HTTP facade is
+active (`mcp.enabled` and/or `server.enabled`); allowlist / rate-limit /
+trusted_proxies today live under `mcp.*` and bind the shared mux.
 
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
@@ -779,9 +783,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - `GET /api/v1/export/patch?grain_key=…&format=strategic|kustomize` returns JSON
   `{format,filename,content,grain_key}` from the latest stored recommendation.
   Strategic-merge YAML sets **requests** only (suggested CPU/memory). ReplicaSet
-  owners map to Deployment. Kustomize format wraps the same YAML with overlay
-  hints (markdown). Comments state copy/download only — never `kubectl apply`
-  from kpm.
+  owners map to Deployment (sample-time owner walk preferred; offline patches
+  also strip a trailing `pod-template-hash` segment). CronJob patches target
+  `spec.jobTemplate.spec.template.spec.containers`. Kustomize format wraps the
+  same YAML with overlay hints (markdown). Comments state copy/download only —
+  never `kubectl apply` from kpm.
 - Charts drawer: **Copy strategic patch** / **Download kustomize hint** when a
   recommendation exists for the card grain. Operator pastes into Git / opens a
   PR — GitOps remains source of truth.

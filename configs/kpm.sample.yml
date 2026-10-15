@@ -124,6 +124,7 @@ tui:
 #   # generate: export KPM_MCP_TOKEN="$(openssl rand -hex 32)"
 #   trusted_proxies: ["10.0.0.0/8"]   # peers allowed to set XFF / X-Real-IP
 #   allowlist_cidrs: ["10.0.0.0/8"]   # empty = off; bearer still bypasses IP check
+#   # allowed_hosts: ["kpm.example.com"]  # public Host/Origin when proxy→loopback
 #   rate_limit:
 #     enabled: true                  # default true; ops paths exempt
 #     requests: 120
@@ -145,3 +146,4 @@ tui:
 #   # auth: true              # force bearer even on loopback
 #   token_env: KPM_SERVER_TOKEN
 #   # generate: export KPM_SERVER_TOKEN="$(openssl rand -hex 32)"
+#   # allowed_hosts: ["kpm.example.com"]  # merged with mcp.allowed_hosts

@@ -13,12 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [docs/plan-0.7.0.md](docs/plan-0.7.0.md).
 - `GET /api/v1/series/batch` so analyze-local can load many card series in one
   request ([#72](https://github.com/hrodrig/kpm/issues/72)).
+- `mcp.allowed_hosts` / `server.allowed_hosts` for BrowserGuard behind a reverse
+  proxy that preserves a public `Host` to a loopback bind
+  ([#76](https://github.com/hrodrig/kpm/issues/76)).
+- Ops counter `kpm_sample_errors_total` for transient daemon sample failures
+  ([#75](https://github.com/hrodrig/kpm/issues/75)).
 - README product captures (`docs/kpm-serve-analyze-local-dark.png`,
   `docs/kpm-tui-cpu-request-13pods.png`, `docs/kpm-flow-diagram.png`) plus link to the
   [DEV.to walkthrough](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272).
 
 ### Fixed
 
+- Sample daemon retries with exponential backoff and a 2-minute budget (was five
+  short linear attempts); failures are logged
+  ([#75](https://github.com/hrodrig/kpm/issues/75)).
+- SQLite store creates the DB at `0600` before open, chmods `-wal`/`-shm`, and
+  encodes paths with `?`/`#` safely in the DSN
+  ([#77](https://github.com/hrodrig/kpm/issues/77)).
+- GitOps patch for CronJob uses `spec.jobTemplate.spec.template…`; ReplicaSet
+  names strip `pod-template-hash` when mapping to Deployment
+  ([#78](https://github.com/hrodrig/kpm/issues/78)).
+- Sample path resolves ReplicaSet → Deployment for stable recommend grains
+  ([#74](https://github.com/hrodrig/kpm/issues/74)).
 - SMTP sends use a per-call timeout and TLS connection deadline
   ([#73](https://github.com/hrodrig/kpm/issues/73)).
 - Rate-limit skips `/static/*` and returns JSON 429 bodies; UI tolerates non-JSON
