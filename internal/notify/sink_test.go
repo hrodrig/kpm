@@ -114,6 +114,25 @@ func TestSMTPDialOverride(t *testing.T) {
 	}
 }
 
+func TestDefaultHTTPClientTimeout(t *testing.T) {
+	started := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		time.Sleep(3 * time.Second)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	client := defaultHTTPClient()
+	client.Timeout = 200 * time.Millisecond
+	s := &Slack{WebhookURL: srv.URL, Client: client}
+	err := s.Send(context.Background(), Message{Text: "x"})
+	<-started
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+}
+
 func TestBuildSMTP(t *testing.T) {
 	t.Setenv("KPM_SMTP_HOST", "smtp.example")
 	t.Setenv("KPM_SMTP_PORT", "587")

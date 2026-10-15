@@ -28,7 +28,7 @@ func (s *Slack) Send(ctx context.Context, m Message) error {
 	req.Header.Set("Content-Type", "application/json")
 	client := s.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultHTTPClient()
 	}
 	resp, err := client.Do(req)
 	if err != nil {

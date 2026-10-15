@@ -34,7 +34,7 @@ func (w *Webhook) Send(ctx context.Context, m Message) error {
 	}
 	client := w.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultHTTPClient()
 	}
 	resp, err := client.Do(req)
 	if err != nil {

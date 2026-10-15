@@ -27,7 +27,9 @@ type SMTP struct {
 func (s *SMTP) Type() string { return "smtp" }
 
 func (s *SMTP) Send(ctx context.Context, m Message) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(s.To) == 0 {
 		return fmt.Errorf("smtp: no recipients")
 	}
@@ -47,11 +49,7 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 	}
 	send := s.DialAndSend
 	if send == nil {
-		if s.UseTLS {
-			send = s.sendImplicitTLS
-		} else {
-			send = smtp.SendMail
-		}
+		send = s.dialAndSendBounded(ctx)
 	}
 	if err := send(addr, auth, s.From, s.To, msg); err != nil {
 		return fmt.Errorf("smtp: %w", err)
@@ -59,8 +57,32 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 	return nil
 }
 
+// dialAndSendBounded wraps the network send so ctx cancel/deadline is honored
+// and TLS dial uses DefaultHTTPTimeout.
+func (s *SMTP) dialAndSendBounded(ctx context.Context) func(string, smtp.Auth, string, []string, []byte) error {
+	return func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		errCh := make(chan error, 1)
+		go func() {
+			var err error
+			if s.UseTLS {
+				err = s.sendImplicitTLS(addr, a, from, to, msg)
+			} else {
+				err = smtp.SendMail(addr, a, from, to, msg)
+			}
+			errCh <- err
+		}()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-errCh:
+			return err
+		}
+	}
+}
+
 func (s *SMTP) sendImplicitTLS(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12})
+	d := &net.Dialer{Timeout: DefaultHTTPTimeout}
+	conn, err := tls.DialWithDialer(d, "tcp", addr, &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12})
 	if err != nil {
 		return err
 	}
