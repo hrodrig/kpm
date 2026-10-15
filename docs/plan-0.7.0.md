@@ -26,8 +26,8 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 - [x] `docs/plan-0.7.0.md` (this file)
 - [x] ROADMAP Current focus → 0.7.x Scale; mermaid 0.7 / 0.8 / 0.9 → 1.0
-- [ ] SPEC notes for search/filter, node snapshots, `allowed_hosts`, store caps
-- [ ] `configs/kpm.sample.yml` knobs for new surface
+- [ ] SPEC notes for search/filter, node snapshots (store caps + `allowed_hosts` done)
+- [ ] `configs/kpm.sample.yml` knobs for new surface (search/nodes)
 - [ ] man pages when CLI/help strings change
 - [ ] CHANGELOG `[Unreleased]` → `[0.7.0]` on version cut only
 
@@ -48,10 +48,10 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 ### Store scale
 
-- [ ] Index `(namespace, owner_name, sampled_at)` (and related as needed)
-- [ ] SQL `LIMIT` / push aggregation closer to SQL for list/series paths
-- [ ] Hard window / row caps documented (fail closed or clamp + log)
-- [ ] MCP `list_samples` cap applied before full RAM load when possible
+- [x] Index `(namespace, owner_name, sampled_at)` (and related as needed)
+- [x] SQL `LIMIT` / push aggregation closer to SQL for list/series paths
+- [x] Hard window / row caps documented (fail closed or clamp + log)
+- [x] MCP `list_samples` cap applied before full RAM load when possible
 
 ### UI vs rate-limit (serve)
 

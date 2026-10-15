@@ -468,7 +468,7 @@ Live Metrics / `internal/live` tools are **deferred**.
 
 | Tool | Reads | Notes |
 |------|-------|-------|
-| `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap |
+| `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap applied in SQL (`LIMIT`, newest rows) before materialization |
 | `summarize_window` | Store samples | Aggregates (count; util stats when request fields present); **no** second Metrics API call |
 | `list_recommendations` | Store recommendations | Optional grain filter |
 | `get_status` | Config + build meta | Version, store path, sample interval, notify/mcp flags; **never** secret values |
@@ -797,7 +797,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 ### 8.4 Analyze-local UX (Normative)
 
 - Per-workload chart cards from store series; window presets (1h / 24h / 48h /
-  7d / 15d) + custom range.
+  7d / 15d) + custom range. Maximum window span is **15d** (including free Go
+  durations and `since`/`until`). Store queries use index
+  `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
+  50k matching rows (`truncated: true` when clamped); `GET /workloads` fails
+  closed (HTTP 413) above 100k rows in the window.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
 - Mode chip from `status.kube_live`: **`live`** when the Metrics client was

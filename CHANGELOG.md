@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Store scale: index `(namespace, owner_name, sampled_at)`, SQL `LIMIT` on
+  `ListRecords`, MCP `list_samples` caps before full materialization, analyze-local
+  window max 15d and series/workloads scan caps
+  ([#71](https://github.com/hrodrig/kpm/issues/71)).
 - Sample daemon retries with exponential backoff and a 2-minute budget (was five
   short linear attempts); failures are logged
   ([#75](https://github.com/hrodrig/kpm/issues/75)).
