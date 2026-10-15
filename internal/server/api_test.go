@@ -333,6 +333,10 @@ func TestAPIErrorPaths(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("mem bytes / go duration window %d %s", rr.Code, rr.Body.String())
 	}
+	rr = authedGet(mux2, "/api/v1/series?window=720h", "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("oversize window want 400, got %d %s", rr.Code, rr.Body.String())
+	}
 }
 
 func TestSeriesDownsampleAndRatios(t *testing.T) {

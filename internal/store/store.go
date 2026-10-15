@@ -14,7 +14,12 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-const SchemaVersion = 2
+const SchemaVersion = 3
+
+// MaxScanRows is the hard upper bound for a single ListRecords call when
+// callers pass Limit=0 (uncapped APIs must set their own Limit). Documented
+// fail-closed ceiling for analyze-local / recommend safety nets.
+const MaxScanRows = 100_000
 
 // Record is one container sample at a point in time.
 type Record struct {
@@ -130,6 +135,7 @@ func (s *Store) migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_samples_sampled_at ON samples(sampled_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_samples_ns_pod ON samples(namespace, pod)`,
+		`CREATE INDEX IF NOT EXISTS idx_samples_ns_owner_at ON samples(namespace, owner_name, sampled_at)`,
 	}
 	for _, q := range stmts {
 		if _, err := s.db.Exec(q); err != nil {

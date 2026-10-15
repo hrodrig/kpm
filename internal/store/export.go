@@ -9,13 +9,17 @@ import (
 	"time"
 )
 
-// ExportFilter selects rows for export.
+// ExportFilter selects rows for export / ListRecords.
 type ExportFilter struct {
 	Since     time.Time // inclusive; zero = no lower bound
 	Until     time.Time // exclusive; zero = no upper bound
 	Namespace string
 	Pod       string
 	Workload  string // matches owner_name
+	// Limit caps rows returned (0 = unlimited). When Newest is true, the
+	// newest Limit rows are chosen (SQL DESC) then returned in ascending order.
+	Limit  int
+	Newest bool
 }
 
 // ExportFormat is csv or tsv.
