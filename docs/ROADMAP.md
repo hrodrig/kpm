@@ -11,7 +11,7 @@ Product path from scaffold to **v1.0.0**. Behavior contract:
 multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
 normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
-**Last reviewed:** 2026-10-11
+**Last reviewed:** 2026-10-14
 
 ---
 
@@ -19,10 +19,12 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x Core** | P1 shipped `v0.2.0` | [plan-0.2.0.md](./plan-0.2.0.md) |
-| **0.3.x Insights** | P2 shipped `v0.3.0` (`#8`–`#11`, `#9b`) | [plan-0.3.0.md](./plan-0.3.0.md) |
-| **0.4.x Notify** | P3 shipped `v0.4.0` (`#12`–`#15`, multi-sink) | [plan-0.4.0.md](./plan-0.4.0.md) |
-| **Current** | **0.6.x Server** (analyze-local · charts · JSON) | [plan-0.6.0.md](./plan-0.6.0.md) |
+| **0.2.x–0.6.x** | Core → Insights → Notify → MCP → Server | shipped `v0.2.0`–`v0.6.0` |
+| **Current** | **0.7.x Scale** (nodes · search · store · harden leftovers) | [plan-0.7.0.md](./plan-0.7.0.md) |
+| **Next** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | plans when opened |
+
+Audit hardenings `#54`–`#67` are on `develop` (not yet in a tagged release); they
+ship with `v0.7.0` or an earlier patch cut if operators need them sooner.
 
 ---
 
@@ -35,8 +37,10 @@ flowchart LR
   insights --> notify["0.4.x Notify"]
   notify --> mcp["0.5.x MCP"]
   mcp --> server["0.6.x Server"]
-  server --> harden["0.7.x Harden P6"]
-  harden --> v1["1.0.0 Stable"]
+  server --> scale["0.7.x Scale"]
+  scale --> honesty["0.8.x Honesty"]
+  honesty --> freeze["0.9.x Freeze"]
+  freeze --> v1["1.0.0 Stable"]
 ```
 
 | Band | SPEC | Status |
@@ -47,7 +51,9 @@ flowchart LR
 | **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
-| **0.7.x** Harden (P6) | nodes snap + UI search/filter + E2E/docs/security | Planned |
+| **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **In progress** |
+| **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) | Planned (thin) |
+| **0.9.x** Freeze | E2E/docs/security/packaging (`#20`–`#23`, `#29`) | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
 [↑ Back to top](#top)
@@ -144,24 +150,44 @@ Visual guidance for templates: [ai-design-skills](https://github.com/elayadesign
 see [plan-0.6.0 Visual guidance](./plan-0.6.0.md#visual-guidance); no SPA/npm;
 no landing funnel. Marketing sites (`kpm-webs`) stay a separate repo.
 
-### 0.7.x — Harden (P6) toward 1.0
+### 0.7.x — Scale
 
 | ID | Item | Status |
 |----|------|--------|
-| `#20` | Integration/E2E matrix (one-shot, daemon, recommend, tui, notify, mcp, server) | Planned |
 | `#20b` | Node / capacity under-demand SQLite snapshots + analyze-local panel | Planned |
-| `#20c` | Serve UI **search/filter** (ns / owner / grain / verdict) for large grids (hundreds of pods) | Planned |
+| `#20c` | Serve UI **search/filter** (ns / owner / grain / verdict) for large grids | Planned |
+| — | Store SQL LIMIT / indexes; series batch; rate-limit vs static UI | Planned |
+| — | Harden leftovers (SMTP deadline, sample retry budget, `allowed_hosts`, WAL modes, CronJob patch, RS→Deploy) | Planned |
+
+Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Success:** UI usable at scale; nodes offline; `make release-check` green for `v0.7.0`.
+
+### 0.8.x — Honesty (thin)
+
+| ID | Item | Status |
+|----|------|--------|
+| `#24` | Warn if `retention_days` thin vs recommend window | Planned |
+| `#25` | Separate CPU vs memory `target_utilization` | Planned |
+| `#26` | Window coverage by days-with-samples | Planned |
+| `#27` | Percentile / `--score` docs first-class | Planned |
+| `#28` | `kpm doctor` (metrics-server / store / history) | Planned |
+
+### 0.9.x — Freeze toward 1.0
+
+| ID | Item | Status |
+|----|------|--------|
+| `#20` | Integration/E2E smoke (matrix may stay thin) | Planned |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | Planned |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |
 | `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
+| `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | Planned |
 
-**Success:** no open draft on shipped surface; `make release-check` + Security green; UI usable at scale (`#20c`).
+**Success:** no open draft on shipped surface; `make release-check` + Security green.
 
 ### 1.0.0 — Stable
 
-- Version cut + annotated tag on `main`.
+- Version cut + annotated tag on `main` (may skip a public `v0.9.0` tag after freeze lands).
 - Semver promise: no breaking CLI/config without major.
-- **Post-1.0 (not blocking):** Slack sinks, json export, mTLS, `kpm-selfhosted`, history-in-TUI.
+- **Post-1.0 (not blocking):** json export, mTLS, `kpm-selfhosted`, history-in-TUI.
 
 [↑ Back to top](#top)
 
