@@ -42,7 +42,7 @@ func TestFormatResourcePatchStrategic(t *testing.T) {
 
 func TestFormatResourcePatchReplicaSetMapsDeployment(t *testing.T) {
 	rec := store.Recommendation{
-		Namespace: "app", OwnerKind: "ReplicaSet", OwnerName: "web-abc", Container: "c",
+		Namespace: "app", OwnerKind: "ReplicaSet", OwnerName: "web-7d9f8c", Container: "c",
 		CPUSugMcores: 100, MemSugBytes: 64 * 1024 * 1024,
 	}
 	out, err := recommend.FormatResourcePatch(rec, recommend.PatchKustomize)
@@ -52,8 +52,36 @@ func TestFormatResourcePatchReplicaSetMapsDeployment(t *testing.T) {
 	if !strings.Contains(out.Content, "kind: Deployment") {
 		t.Fatalf("want Deployment mapping:\n%s", out.Content)
 	}
+	if !strings.Contains(out.Content, `name: "web"`) {
+		t.Fatalf("want hash stripped to Deployment name:\n%s", out.Content)
+	}
 	if !strings.Contains(out.Content, "kustomization.yaml") {
 		t.Fatalf("want kustomize hint:\n%s", out.Content)
+	}
+}
+
+func TestFormatResourcePatchCronJobJobTemplate(t *testing.T) {
+	rec := store.Recommendation{
+		Namespace: "batch", OwnerKind: "CronJob", OwnerName: "nightly", Container: "job",
+		CPUSugMcores: 50, MemSugBytes: 32 * 1024 * 1024,
+	}
+	out, err := recommend.FormatResourcePatch(rec, recommend.PatchStrategic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"kind: CronJob",
+		"apiVersion: batch/v1",
+		"jobTemplate:",
+		"containers:",
+		`name: "job"`,
+	} {
+		if !strings.Contains(out.Content, want) {
+			t.Fatalf("missing %q in:\n%s", want, out.Content)
+		}
+	}
+	if strings.Contains(out.Content, "spec:\n  template:\n") {
+		t.Fatalf("CronJob must not use Deployment-style template path:\n%s", out.Content)
 	}
 }
 
