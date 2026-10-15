@@ -89,7 +89,9 @@ func TestMountHTTPOpsUnauthenticated(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr = httptest.NewRecorder()
-	ops2.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, mcp.PathSSE, nil))
+	reqSSE := httptest.NewRequest(http.MethodGet, mcp.PathSSE, nil)
+	reqSSE.Host = "127.0.0.1:9740"
+	ops2.Handler().ServeHTTP(rr, reqSSE)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("sse no auth: %d", rr.Code)
 	}
