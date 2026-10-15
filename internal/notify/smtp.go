@@ -8,6 +8,7 @@ import (
 	"net/smtp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SMTP sends plain-text email (gghstats-school).
@@ -33,6 +34,11 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 	if len(s.To) == 0 {
 		return fmt.Errorf("smtp: no recipients")
 	}
+	// Bound every send so a hung MTA cannot stall the sample tick forever,
+	// even when the daemon context has no deadline.
+	ctx, cancel := context.WithTimeout(ctx, DefaultHTTPTimeout)
+	defer cancel()
+
 	subject := m.Title
 	body := m.Text
 	msg := []byte("From: " + s.From + "\r\n" +
@@ -47,36 +53,34 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 	if s.Username != "" {
 		auth = smtp.PlainAuth("", s.Username, s.Password, s.Host)
 	}
-	send := s.DialAndSend
-	if send == nil {
-		send = s.dialAndSendBounded(ctx)
+	inner := s.DialAndSend
+	if inner == nil {
+		inner = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			if s.UseTLS {
+				return s.sendImplicitTLS(addr, a, from, to, msg)
+			}
+			return smtp.SendMail(addr, a, from, to, msg)
+		}
 	}
-	if err := send(addr, auth, s.From, s.To, msg); err != nil {
+	if err := runSMTPBounded(ctx, inner, addr, auth, s.From, s.To, msg); err != nil {
 		return fmt.Errorf("smtp: %w", err)
 	}
 	return nil
 }
 
-// dialAndSendBounded wraps the network send so ctx cancel/deadline is honored
-// and TLS dial uses DefaultHTTPTimeout.
-func (s *SMTP) dialAndSendBounded(ctx context.Context) func(string, smtp.Auth, string, []string, []byte) error {
-	return func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-		errCh := make(chan error, 1)
-		go func() {
-			var err error
-			if s.UseTLS {
-				err = s.sendImplicitTLS(addr, a, from, to, msg)
-			} else {
-				err = smtp.SendMail(addr, a, from, to, msg)
-			}
-			errCh <- err
-		}()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-errCh:
-			return err
-		}
+// runSMTPBounded runs send in a goroutine so ctx cancel/deadline is honored.
+func runSMTPBounded(
+	ctx context.Context,
+	send func(string, smtp.Auth, string, []string, []byte) error,
+	addr string, a smtp.Auth, from string, to []string, msg []byte,
+) error {
+	errCh := make(chan error, 1)
+	go func() { errCh <- send(addr, a, from, to, msg) }()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
 	}
 }
 
@@ -87,6 +91,7 @@ func (s *SMTP) sendImplicitTLS(addr string, a smtp.Auth, from string, to []strin
 		return err
 	}
 	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(DefaultHTTPTimeout))
 	c, err := smtp.NewClient(conn, s.Host)
 	if err != nil {
 		return err
