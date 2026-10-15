@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,10 +31,20 @@ func BearerAuth(token string, next http.Handler) http.Handler {
 	}
 	want := "Bearer " + token
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != want {
+		got := r.Header.Get("Authorization")
+		if !constantTimeEqualString(got, want) {
 			http.Error(w, "unauthorized\n", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// constantTimeEqualString compares a and b in constant time when lengths match.
+// Different lengths are unequal without leaking which bytes differed.
+func constantTimeEqualString(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
