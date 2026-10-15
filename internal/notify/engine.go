@@ -52,17 +52,28 @@ func (e *Engine) Evaluate(ctx context.Context, records []store.Record, now time.
 	} else {
 		now = now.UTC()
 	}
+	active := collectActiveBreaches(e.rules, records)
+	var errs []error
+	seen := make(map[dedupeKey]bool, len(active))
+	for k, val := range active {
+		seen[k] = true
+		if err := e.tickTrue(ctx, k, val, now); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	errs = append(errs, e.tickAbsent(ctx, seen, now)...)
+	return joinErrs(errs)
+}
+
+func collectActiveBreaches(rules []config.NotifyRule, records []store.Record) map[dedupeKey]float64 {
 	active := make(map[dedupeKey]float64)
-	for _, rule := range e.rules {
+	for _, rule := range rules {
 		for _, rec := range records {
 			if !nsMatch(rule.Namespaces, rec.Namespace) {
 				continue
 			}
 			val, ok := MetricValue(rule.Metric, rec)
-			if !ok {
-				continue
-			}
-			if !Breach(rule.Metric, rule.ThresholdRatio, rule.Threshold, val) {
+			if !ok || !Breach(rule.Metric, rule.ThresholdRatio, rule.Threshold, val) {
 				continue
 			}
 			k := dedupeKey{
@@ -72,15 +83,12 @@ func (e *Engine) Evaluate(ctx context.Context, records []store.Record, now time.
 			active[k] = val
 		}
 	}
+	return active
+}
 
+// tickAbsent clears / resolves keys not present in this tick and prunes idle state.
+func (e *Engine) tickAbsent(ctx context.Context, seen map[dedupeKey]bool, now time.Time) []error {
 	var errs []error
-	seen := make(map[dedupeKey]bool, len(active))
-	for k, val := range active {
-		seen[k] = true
-		if err := e.tickTrue(ctx, k, val, now); err != nil {
-			errs = append(errs, err)
-		}
-	}
 	for k, st := range e.states {
 		if seen[k] {
 			continue
@@ -88,12 +96,16 @@ func (e *Engine) Evaluate(ctx context.Context, records []store.Record, now time.
 		if err := e.tickFalse(ctx, k, st, now); err != nil {
 			errs = append(errs, err)
 		}
-		// Drop idle keys so pod churn cannot grow the map unbounded.
-		if st2 := e.states[k]; st2 != nil && !st2.firing && st2.trueSince.IsZero() && st2.falseSince.IsZero() {
-			delete(e.states, k)
-		}
+		e.pruneIdle(k)
 	}
-	return joinErrs(errs)
+	return errs
+}
+
+func (e *Engine) pruneIdle(k dedupeKey) {
+	st := e.states[k]
+	if st != nil && !st.firing && st.trueSince.IsZero() && st.falseSince.IsZero() {
+		delete(e.states, k)
+	}
 }
 
 func (e *Engine) tickTrue(ctx context.Context, k dedupeKey, val float64, now time.Time) error {
