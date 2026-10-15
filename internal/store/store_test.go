@@ -1,10 +1,44 @@
 package store
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestSqliteDSNEncodesSpecialPathChars(t *testing.T) {
+	dsn := sqliteDSN("/tmp/weird?#name.db")
+	if !strings.HasPrefix(dsn, "file:") {
+		t.Fatalf("want file: URL, got %q", dsn)
+	}
+	if !strings.Contains(dsn, "_pragma=busy_timeout") {
+		t.Fatalf("missing pragma: %q", dsn)
+	}
+	if !strings.Contains(dsn, "%3F") || !strings.Contains(dsn, "%23") {
+		t.Fatalf("want ?/# escaped in path: %q", dsn)
+	}
+	if strings.Count(dsn, "?") != 1 {
+		t.Fatalf("want single query separator: %q", dsn)
+	}
+}
+
+func TestOpenModeOwnerOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mode.db")
+	st, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("store file mode %o wants owner-only", fi.Mode().Perm())
+	}
+}
 
 func TestCloseNilAndPath(t *testing.T) {
 	var s *Store
