@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-12" "kpm v0.6.0" "User Commands"
+.TH KPM 1 "2026-10-14" "kpm v0.7.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -64,11 +64,16 @@ or
 .BR \-\-workload ).
 .TP
 .B capacity
-Live pod CPU/memory table from the Metrics API (no SQLite).
+Live pod CPU/memory table from the Metrics API.
 .RB ( \-\-config ,
 .BR \-\-kubeconfig ,
-.BR \-\-sort ).
+.BR \-\-sort ,
+.BR \-\-record\-nodes ).
 Default grain: one row per pod (sum util / sum request).
+.B \-\-record\-nodes
+writes node allocatable/request/util into
+.B node_snapshots
+(schema v4) for offline analyze-local.
 .TP
 .B recommend
 Offline rightsizing from SQLite history (no cluster).

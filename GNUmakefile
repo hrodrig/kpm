@@ -191,13 +191,24 @@ tools:
 	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
 	fi
 
+# govulncheck exit codes: 0 = clean, 3 = vulnerabilities reported, other = tool error.
+# Never treat tool errors as a clean PASS (fixes fail-open from `|| true`).
 govulncheck:
 	@echo "Running govulncheck..."
 	@tmp=$$(mktemp); \
-	go run golang.org/x/vuln/cmd/govulncheck@latest ./... >"$$tmp" 2>&1 || true; \
+	set +e; \
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./... >"$$tmp" 2>&1; \
+	ec=$$?; \
+	set -e; \
 	output=$$(grep -v '^exit status [0-9]*$$' "$$tmp" || true); \
 	rm -f "$$tmp"; \
-	ignored_ids=$$(grep 'id:' .govulncheck-ignore.yaml 2>/dev/null | cut -d'"' -f2); \
+	if [ $$ec -ne 0 ] && [ $$ec -ne 3 ]; then \
+		echo "$$output"; \
+		echo ""; \
+		echo "ERROR: govulncheck failed (exit $$ec) — tool/network/module error, not a clean scan."; \
+		exit 1; \
+	fi; \
+	ignored_ids=$$(grep -E 'id:[[:space:]]*"' .govulncheck-ignore.yaml 2>/dev/null | cut -d'"' -f2); \
 	total_vulns=$$(echo "$$output" | grep -c 'Vulnerability #' || true); \
 	matching=0; \
 	for id in $$ignored_ids; do \

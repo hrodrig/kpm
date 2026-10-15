@@ -3,7 +3,8 @@
 > **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
 > adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
 > `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
-> as **`v0.6.0`**.
+> as **`v0.6.0`**; Scale (search/filter, node snapshots, store caps) as
+> **`v0.7.0`**.
 
 | Term | Meaning |
 |------|---------|
@@ -85,6 +86,10 @@ without CHANGELOG.
 ### 2.2 Store (SQLite)
 
 - `store.path` (`~` expanded), `retention_days`, schema version, time indexes.
+- Persist `sampled_at` / recommendation `recorded_at` as fixed-width UTC
+  (`2006-01-02T15:04:05.000000000Z`) so TEXT lexicographic order matches wall
+  clock (including same-second nanos). Older RFC3339 / RFC3339Nano rows remain
+  readable.
 - **Guidance:** larger `retention_days` keeps more history for percentiles /
   recommend (closer to real usage patterns). Prefer
   `retention_days` ≥ `recommend.window_days`. Default sample **14**;
@@ -97,6 +102,12 @@ without CHANGELOG.
 |--------------------|----------|
 | `0` | One-shot sample → write SQLite → exit |
 | `> 0` | **Daemon**: forever loop — **always** sample → write SQLite on each tick |
+
+Daemon sample loop retries transient Metrics/API errors with exponential
+backoff (1s, 2s, 4s, … capped at `interval_seconds`) for up to a **2-minute**
+retry budget (`SampleRetryBudget`), then fails closed. Each failure is logged
+and counted on `kpm_sample_errors_total` when ops HTTP is up. One-shot `sample`
+(interval `0`) still exits on the first error.
 
 Daemon **always** persists metrics. Optional facades attach only when
 configured (each independently):
@@ -134,7 +145,8 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ## 4. ADJACENT — capacity (non-interactive, normative today)
 
-- `kpm capacity` — one-shot **live** table (kube-capacity-like); **no SQLite**.
+- `kpm capacity` — one-shot **live** table (kube-capacity-like). Optional
+  `--record-nodes` writes under-demand `node_snapshots` for offline analyze-local.
 - Shared read model: `internal/live` (also for TUI/server).
 - Default grain: **one row per pod** — sum util / sum request / sum limit.
 - Pods without Metrics: still listed; util and ratios shown as `n/a`.
@@ -440,6 +452,15 @@ Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
 When rate limit or allowlist is active and `trusted_proxies` is empty, the process
 logs a one-shot warning that forwarded client-IP headers are ignored.
 
+Loopback listen (`127.0.0.1` / `::1` / `localhost`): non-ops routes also reject
+unexpected `Host` and non-loopback `Origin` (DNS-rebinding mitigation). Empty
+`Origin` (curl / non-browser) is allowed. Ops probes stay exempt. Extra public
+Host/Origin names may be listed in `mcp.allowed_hosts` and/or
+`server.allowed_hosts` (merged) when a reverse proxy preserves a non-loopback
+`Host` toward a loopback bind. These knobs apply whenever any HTTP facade is
+active (`mcp.enabled` and/or `server.enabled`); allowlist / rate-limit /
+trusted_proxies today live under `mcp.*` and bind the shared mux.
+
 Tools: read-only query/summarize only; no cluster or SQLite mutations.
 
 ### 7.3 Tools (normative — store-only MVP)
@@ -449,7 +470,7 @@ Live Metrics / `internal/live` tools are **deferred**.
 
 | Tool | Reads | Notes |
 |------|-------|-------|
-| `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap |
+| `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap applied in SQL (`LIMIT`, newest rows) before materialization |
 | `summarize_window` | Store samples | Aggregates (count; util stats when request fields present); **no** second Metrics API call |
 | `list_recommendations` | Store recommendations | Optional grain filter |
 | `get_status` | Config + build meta | Version, store path, sample interval, notify/mcp flags; **never** secret values |
@@ -764,9 +785,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - `GET /api/v1/export/patch?grain_key=…&format=strategic|kustomize` returns JSON
   `{format,filename,content,grain_key}` from the latest stored recommendation.
   Strategic-merge YAML sets **requests** only (suggested CPU/memory). ReplicaSet
-  owners map to Deployment. Kustomize format wraps the same YAML with overlay
-  hints (markdown). Comments state copy/download only — never `kubectl apply`
-  from kpm.
+  owners map to Deployment (sample-time owner walk preferred; offline patches
+  also strip a trailing `pod-template-hash` segment). CronJob patches target
+  `spec.jobTemplate.spec.template.spec.containers`. Kustomize format wraps the
+  same YAML with overlay hints (markdown). Comments state copy/download only —
+  never `kubectl apply` from kpm.
 - Charts drawer: **Copy strategic patch** / **Download kustomize hint** when a
   recommendation exists for the card grain. Operator pastes into Git / opens a
   PR — GitOps remains source of truth.
@@ -776,14 +799,22 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 ### 8.4 Analyze-local UX (Normative)
 
 - Per-workload chart cards from store series; window presets (1h / 24h / 48h /
-  7d / 15d) + custom range.
+  7d / 15d) + custom range. Maximum window span is **15d** (including free Go
+  durations and `since`/`until`). Store queries use index
+  `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
+  50k matching rows (`truncated: true` when clamped); `GET /workloads` fails
+  closed (HTTP 413) above 100k rows in the window.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
 - Mode chip from `status.kube_live`: **`live`** when the Metrics client was
   wired at process start; **`analyze-local`** when store-only (`/live` 503).
 - Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
   applies patches; operator owns production changes).
-- UI search/filter for large grids is **P6** (`#20c`, 0.7.x).
+- UI search/filter (`#20c`): namespace and owner are sent as
+  `/api/v1/workloads?namespace=&workload=` (narrows the sample scan); grain
+  substring and CPU/Mem verdict filters apply client-side after joining
+  recommendations. Empty grid distinguishes “no samples in window” vs “no
+  matches”.
 
 ### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
 
@@ -794,8 +825,9 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
   (undersized beats oversized beats ok; `n/a` = no request; missing row =
   no recommend).
-- Node / capacity under-demand snapshots are **out of band** for 0.6.x
-  (planned 0.7.x P6 `#20b`).
+- Node capacity snapshots (`#20b`): `kpm capacity --record-nodes` writes
+  `node_snapshots` (under-demand; not every sample tick). Analyze-local
+  `GET /api/v1/nodes` reads the latest batch offline (no kube).
 
 ### 8.6 Status / recommendations examples (anonymized)
 

@@ -49,6 +49,7 @@ func TestReadyz(t *testing.T) {
 func TestMetrics(t *testing.T) {
 	c := &httpserver.Counters{}
 	c.SampleTicks.Store(2)
+	c.SampleErrors.Store(3)
 	c.NotifyErrors.Store(1)
 	c.ObserveSampleWrite(100 * time.Millisecond)
 	s := httpserver.New(httpserver.DefaultListen, nil, c)
@@ -65,6 +66,7 @@ func TestMetrics(t *testing.T) {
 	text := string(body)
 	for _, want := range []string{
 		"kpm_sample_ticks_total 2",
+		"kpm_sample_errors_total 3",
 		"kpm_notify_errors_total 1",
 		"kpm_sample_writes_total 1",
 		"# TYPE kpm_sample_ticks_total counter",

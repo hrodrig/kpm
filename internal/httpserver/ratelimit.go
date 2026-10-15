@@ -39,6 +39,7 @@ type RateLimiter struct {
 
 type rateLimiterEntry struct {
 	limiter  *rate.Limiter
+	mu       sync.Mutex
 	lastSeen time.Time
 }
 
@@ -88,7 +89,9 @@ func (rl *RateLimiter) Middleware(next http.Handler, skip PathSkip) http.Handler
 		entry := rl.getOrCreate(ip)
 		if !entry.limiter.Allow() {
 			w.Header().Set("Retry-After", "60")
-			http.Error(w, "rate limit exceeded\n", http.StatusTooManyRequests)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":"rate limit exceeded"}` + "\n"))
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -98,7 +101,9 @@ func (rl *RateLimiter) Middleware(next http.Handler, skip PathSkip) http.Handler
 func (rl *RateLimiter) getOrCreate(ip string) *rateLimiterEntry {
 	if v, ok := rl.limiters.Load(ip); ok {
 		e := v.(*rateLimiterEntry)
+		e.mu.Lock()
 		e.lastSeen = time.Now()
+		e.mu.Unlock()
 		return e
 	}
 	e := &rateLimiterEntry{
@@ -106,7 +111,13 @@ func (rl *RateLimiter) getOrCreate(ip string) *rateLimiterEntry {
 		lastSeen: time.Now(),
 	}
 	actual, _ := rl.limiters.LoadOrStore(ip, e)
-	return actual.(*rateLimiterEntry)
+	got := actual.(*rateLimiterEntry)
+	if got != e {
+		got.mu.Lock()
+		got.lastSeen = time.Now()
+		got.mu.Unlock()
+	}
+	return got
 }
 
 func (rl *RateLimiter) cleanupLoop() {
@@ -126,7 +137,10 @@ func (rl *RateLimiter) evictIdle() {
 	cutoff := time.Now().Add(-rl.maxIdle)
 	rl.limiters.Range(func(key, value any) bool {
 		e := value.(*rateLimiterEntry)
-		if e.lastSeen.Before(cutoff) {
+		e.mu.Lock()
+		idle := e.lastSeen.Before(cutoff)
+		e.mu.Unlock()
+		if idle {
 			rl.limiters.Delete(key)
 		}
 		return true

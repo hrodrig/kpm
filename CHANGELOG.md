@@ -7,11 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-14
+
 ### Added
 
+- Node capacity snapshots: `kpm capacity --record-nodes` → `node_snapshots`
+  (schema v4); analyze-local `GET /api/v1/nodes` + Nodes panel offline
+  ([#70](https://github.com/hrodrig/kpm/issues/70) / `#20b`).
+- Analyze-local search/filter: namespace, owner, grain, CPU/Mem verdict
+  ([#69](https://github.com/hrodrig/kpm/issues/69) / `#20c`).
+- Roadmap split **0.7 Scale / 0.8 Honesty / 0.9 Freeze → 1.0**; band plan
+  [docs/plan-0.7.0.md](docs/plan-0.7.0.md).
+- `GET /api/v1/series/batch` so analyze-local can load many card series in one
+  request ([#72](https://github.com/hrodrig/kpm/issues/72)).
+- `mcp.allowed_hosts` / `server.allowed_hosts` for BrowserGuard behind a reverse
+  proxy that preserves a public `Host` to a loopback bind
+  ([#76](https://github.com/hrodrig/kpm/issues/76)).
+- Ops counter `kpm_sample_errors_total` for transient daemon sample failures
+  ([#75](https://github.com/hrodrig/kpm/issues/75)).
 - README product captures (`docs/kpm-serve-analyze-local-dark.png`,
   `docs/kpm-tui-cpu-request-13pods.png`, `docs/kpm-flow-diagram.png`) plus link to the
   [DEV.to walkthrough](https://dev.to/hrodrig/kpm-kubernetes-rightsizing-without-prometheus-history-on-your-laptop-4272).
+
+### Fixed
+
+- Store scale: index `(namespace, owner_name, sampled_at)`, SQL `LIMIT` on
+  `ListRecords`, MCP `list_samples` caps before full materialization, analyze-local
+  window max 15d and series/workloads scan caps
+  ([#71](https://github.com/hrodrig/kpm/issues/71)).
+- Sample daemon retries with exponential backoff and a 2-minute budget (was five
+  short linear attempts); failures are logged
+  ([#75](https://github.com/hrodrig/kpm/issues/75)).
+- SQLite store creates the DB at `0600` before open, chmods `-wal`/`-shm`, and
+  encodes paths with `?`/`#` safely in the DSN
+  ([#77](https://github.com/hrodrig/kpm/issues/77)).
+- GitOps patch for CronJob uses `spec.jobTemplate.spec.template…`; ReplicaSet
+  names strip `pod-template-hash` when mapping to Deployment
+  ([#78](https://github.com/hrodrig/kpm/issues/78)).
+- Sample path resolves ReplicaSet → Deployment for stable recommend grains
+  ([#74](https://github.com/hrodrig/kpm/issues/74)).
+- SMTP sends use a per-call timeout and TLS connection deadline
+  ([#73](https://github.com/hrodrig/kpm/issues/73)).
+- Rate-limit skips `/static/*` and returns JSON 429 bodies; UI tolerates non-JSON
+  errors ([#72](https://github.com/hrodrig/kpm/issues/72)).
+- `make govulncheck` no longer treats tool/network failures as a clean PASS
+  (`|| true` fail-open); exit `3` still means vulnerabilities to filter via
+  `.govulncheck-ignore.yaml` ([#54](https://github.com/hrodrig/kpm/issues/54)).
+- Notify Slack/webhook use a 15s HTTP client timeout; SMTP respects context and
+  TLS dial timeout so a hung sink cannot stall the sample loop
+  ([#55](https://github.com/hrodrig/kpm/issues/55)).
+- Allowlist / rate-limit / trusted_proxies apply whenever any HTTP facade is
+  active (including `server.enabled` without MCP)
+  ([#56](https://github.com/hrodrig/kpm/issues/56)).
+- `ClientIP` walks `X-Forwarded-For` right-to-left, skipping trusted hops
+  ([#57](https://github.com/hrodrig/kpm/issues/57)).
+- Bearer and allowlist bearer bypass use constant-time compare
+  ([#61](https://github.com/hrodrig/kpm/issues/61)).
+- Rate-limiter `lastSeen` updates are mutex-protected against the idle cleanup
+  ([#62](https://github.com/hrodrig/kpm/issues/62)).
+- SQLite opens with WAL + `busy_timeout`; store dir `0700` and DB file `0600`
+  ([#59](https://github.com/hrodrig/kpm/issues/59)).
+- Loopback HTTP facades reject unexpected `Host` / non-loopback `Origin`
+  (DNS-rebinding mitigation) ([#58](https://github.com/hrodrig/kpm/issues/58)).
+- Store timestamps use fixed-width UTC so lexicographic order matches nanos
+  ([#60](https://github.com/hrodrig/kpm/issues/60)).
+- GitOps patch export validates DNS-1123 names and allowlists owner kinds
+  ([#63](https://github.com/hrodrig/kpm/issues/63)).
+- Sample daemon retries transient API errors (up to 5) before fail-closed
+  ([#64](https://github.com/hrodrig/kpm/issues/64)).
+- Notify engine prunes idle non-firing keys so pod churn cannot grow state
+  unboundedly ([#65](https://github.com/hrodrig/kpm/issues/65)).
+
+### Changed
+
+- README release blurb and `AGENTS.md` overview match shipped 0.6.x surface
+  ([#66](https://github.com/hrodrig/kpm/issues/66)).
+- CI unit-test job also runs `./configs/`
+  ([#67](https://github.com/hrodrig/kpm/issues/67)).
 
 ## [0.6.0] - 2026-10-12
 
@@ -186,7 +258,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/hrodrig/kpm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hrodrig/kpm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hrodrig/kpm/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/hrodrig/kpm/compare/v0.3.0...v0.4.0

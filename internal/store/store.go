@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,7 +14,12 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-const SchemaVersion = 2
+const SchemaVersion = 4
+
+// MaxScanRows is the hard upper bound for a single ListRecords call when
+// callers pass Limit=0 (uncapped APIs must set their own Limit). Documented
+// fail-closed ceiling for analyze-local / recommend safety nets.
+const MaxScanRows = 100_000
 
 // Record is one container sample at a point in time.
 type Record struct {
@@ -41,11 +47,26 @@ type Store struct {
 }
 
 // Open creates parent dirs, opens the DB, and migrates schema.
+// Directory mode is 0700; the DB file is created at 0600 before sql.Open so
+// WAL sidecars inherit owner-only mode. WAL + busy_timeout reduce
+// "database is locked" when sample and serve share a file.
 func Open(path string) (*Store, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create store dir: %w", err)
 	}
-	db, err := sql.Open("sqlite", path)
+	_ = os.Chmod(dir, 0o700)
+
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create store file: %w", err)
+	}
+	_ = f.Close()
+	if err := os.Chmod(path, 0o600); err != nil {
+		return nil, fmt.Errorf("chmod store: %w", err)
+	}
+
+	db, err := sql.Open("sqlite", sqliteDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -55,7 +76,27 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := chmodStoreFiles(path); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return s, nil
+}
+
+func sqliteDSN(path string) string {
+	// file: URL so paths containing ? or # do not break pragma query parsing.
+	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	return u.String()
+}
+
+func chmodStoreFiles(path string) error {
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		if err := os.Chmod(p, 0o600); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("chmod store %s: %w", filepath.Base(p), err)
+		}
+	}
+	return nil
 }
 
 // Close closes the database.
@@ -94,6 +135,7 @@ func (s *Store) migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_samples_sampled_at ON samples(sampled_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_samples_ns_pod ON samples(namespace, pod)`,
+		`CREATE INDEX IF NOT EXISTS idx_samples_ns_owner_at ON samples(namespace, owner_name, sampled_at)`,
 	}
 	for _, q := range stmts {
 		if _, err := s.db.Exec(q); err != nil {
@@ -101,6 +143,9 @@ func (s *Store) migrate() error {
 		}
 	}
 	if err := migrateRecommendations(s.db); err != nil {
+		return err
+	}
+	if err := migrateNodeSnapshots(s.db); err != nil {
 		return err
 	}
 	var n int
@@ -151,7 +196,7 @@ func (s *Store) InsertRecords(ctx context.Context, records []Record) error {
 	defer stmt.Close()
 
 	for _, r := range records {
-		at := r.SampledAt.UTC().Format(time.RFC3339Nano)
+		at := FormatUTC(r.SampledAt)
 		if _, err := stmt.ExecContext(ctx,
 			at, r.ClientID, r.ClusterName,
 			r.Namespace, r.Pod, r.Container,
@@ -177,7 +222,7 @@ func (s *Store) Count(ctx context.Context) (int64, error) {
 func (s *Store) PruneOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx,
 		`DELETE FROM samples WHERE sampled_at < ?`,
-		cutoff.UTC().Format(time.RFC3339Nano),
+		FormatUTC(cutoff),
 	)
 	if err != nil {
 		return 0, err

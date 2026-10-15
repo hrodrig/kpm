@@ -10,7 +10,9 @@
     since: "",
     until: "",
     token: sessionStorage.getItem(TOKEN_KEY) || "",
+    filters: { namespace: "", owner: "", grain: "", cpu: "", mem: "" },
   };
+  var filterTimer = null;
 
   var el = {
     auth: document.getElementById("auth"),
@@ -20,6 +22,9 @@
     modeLabel: document.getElementById("mode-label"),
     clusterTarget: document.getElementById("cluster-target"),
     recSummary: document.getElementById("recommend-summary"),
+    nodesPanel: document.getElementById("nodes-panel"),
+    nodesMeta: document.getElementById("nodes-meta"),
+    nodesBody: document.getElementById("nodes-body"),
     tokenInput: document.getElementById("token"),
     authErr: document.getElementById("auth-err"),
     drawer: document.getElementById("drawer"),
@@ -55,9 +60,15 @@
         err.code = 401;
         throw err;
       }
-      return r.json().then(function (body) {
+      var ct = (r.headers.get("content-type") || "").toLowerCase();
+      var parse = ct.indexOf("application/json") >= 0
+        ? r.json()
+        : r.text().then(function (t) {
+            return { error: (t || r.statusText || "error").trim() };
+          });
+      return parse.then(function (body) {
         if (!r.ok) {
-          var e = new Error((body && body.error) || r.statusText);
+          var e = new Error((body && body.error) || r.statusText || "request failed");
           e.code = r.status;
           throw e;
         }
@@ -82,6 +93,42 @@
       return { since: state.since, until: state.until };
     }
     return { window: state.window };
+  }
+
+  function workloadQueryParams() {
+    var p = windowParams();
+    if (state.filters.namespace) p.namespace = state.filters.namespace;
+    if (state.filters.owner) p.workload = state.filters.owner;
+    return p;
+  }
+
+  function filtersActive() {
+    var f = state.filters;
+    return !!(f.namespace || f.owner || f.grain || f.cpu || f.mem);
+  }
+
+  function filterItems(items) {
+    var grain = (state.filters.grain || "").toLowerCase();
+    var cpu = state.filters.cpu;
+    var mem = state.filters.mem;
+    if (!grain && !cpu && !mem) return items || [];
+    return (items || []).filter(function (item) {
+      if (grain && String(item.grain_key || "").toLowerCase().indexOf(grain) < 0) {
+        return false;
+      }
+      if (cpu || mem) {
+        var rec = lookupRec(item);
+        if (cpu) {
+          var cv = rec ? rec.cpu_verdict || "n/a" : "none";
+          if (cv !== cpu) return false;
+        }
+        if (mem) {
+          var mv = rec ? rec.mem_verdict || "n/a" : "none";
+          if (mv !== mem) return false;
+        }
+      }
+      return true;
+    });
   }
 
   var METRICS = {
@@ -453,7 +500,7 @@
 
   function loadOverview() {
     setLoading();
-    var wp = windowParams();
+    var wp = workloadQueryParams();
     return fetchJSON("/api/v1/status")
       .then(function (st) {
         updateModeLabel(st);
@@ -475,31 +522,147 @@
           fetchJSON("/api/v1/recommendations", { grain: "workload" }).catch(function () {
             return { rows: [] };
           }),
+          fetchJSON("/api/v1/nodes").catch(function () {
+            return { items: [] };
+          }),
         ]);
       })
-      .then(function (pair) {
-        var wl = pair[0];
-        indexRecommendations(pair[1].rows || []);
+      .then(function (triple) {
+        var wl = triple[0];
+        indexRecommendations(triple[1].rows || []);
+        renderNodesPanel(triple[2]);
         if (!wl.items || !wl.items.length) {
           if (el.recSummary) el.recSummary.textContent = "";
-          el.grid.innerHTML = '<div class="empty">No workloads with samples in this window.</div>';
+          el.grid.innerHTML =
+            '<div class="empty">' +
+            (filtersActive()
+              ? "No workloads match these filters."
+              : "No workloads with samples in this window.") +
+            "</div>";
           return;
         }
-        updateRecSummary(wl.items);
-        el.grid.innerHTML = wl.items.map(cardHTML).join("");
-        var cards = el.grid.querySelectorAll(".card");
-        var chain = Promise.resolve();
-        cards.forEach(function (card) {
-          chain = chain.then(function () {
-            return loadCardSeries(card);
-          });
-        });
-        return chain;
+        var items = filterItems(wl.items);
+        if (!items.length) {
+          if (el.recSummary) el.recSummary.textContent = "";
+          el.grid.innerHTML = '<div class="empty">No workloads match these filters.</div>';
+          return;
+        }
+        updateRecSummary(items);
+        el.grid.innerHTML = items.map(cardHTML).join("");
+        return loadAllCardSeries(el.grid.querySelectorAll(".card"));
       })
       .catch(function (err) {
         if (err.code === 401) return;
         if (el.recSummary) el.recSummary.textContent = "";
         el.grid.innerHTML = '<div class="error">' + escapeHTML(err.message || String(err)) + "</div>";
+      });
+  }
+
+  function renderNodesPanel(nodes) {
+    if (!el.nodesPanel || !el.nodesBody) return;
+    el.nodesPanel.hidden = false;
+    var items = (nodes && nodes.items) || [];
+    if (!items.length) {
+      if (el.nodesMeta) el.nodesMeta.textContent = "";
+      el.nodesBody.innerHTML =
+        '<div class="empty">No node snapshots. Run <code>kpm capacity --record-nodes</code>.</div>';
+      return;
+    }
+    var cpuAlloc = 0;
+    var cpuReq = 0;
+    var cpuUtil = 0;
+    items.forEach(function (n) {
+      cpuAlloc += n.cpu_alloc_mcores || 0;
+      cpuReq += n.cpu_req_mcores || 0;
+      cpuUtil += n.cpu_util_mcores || 0;
+    });
+    if (el.nodesMeta) {
+      el.nodesMeta.textContent =
+        items.length +
+        " nodes · recorded " +
+        (nodes.recorded_at || "?") +
+        " · CPU alloc " +
+        Math.round(cpuAlloc) +
+        "m · req " +
+        Math.round(cpuReq) +
+        "m · util " +
+        Math.round(cpuUtil) +
+        "m";
+    }
+    var rows = items
+      .map(function (n) {
+        return (
+          "<tr><td>" +
+          escapeHTML(n.node) +
+          "</td><td>" +
+          Math.round(n.cpu_alloc_mcores || 0) +
+          "m</td><td>" +
+          Math.round(n.cpu_req_mcores || 0) +
+          "m</td><td>" +
+          Math.round(n.cpu_util_mcores || 0) +
+          "m</td><td>" +
+          formatBytes(n.mem_alloc_bytes || 0) +
+          "</td><td>" +
+          formatBytes(n.mem_req_bytes || 0) +
+          "</td><td>" +
+          (n.pods || 0) +
+          "</td></tr>"
+        );
+      })
+      .join("");
+    el.nodesBody.innerHTML =
+      '<table class="nodes-table"><thead><tr>' +
+      "<th>Node</th><th>CPU alloc</th><th>CPU req</th><th>CPU util</th>" +
+      "<th>Mem alloc</th><th>Mem req</th><th>Pods</th>" +
+      "</tr></thead><tbody>" +
+      rows +
+      "</tbody></table>";
+  }
+
+  function loadAllCardSeries(cards) {
+    if (!cards || !cards.length) return Promise.resolve();
+    var keys = [];
+    var byKey = {};
+    Array.prototype.forEach.call(cards, function (card) {
+      var ns = card.getAttribute("data-ns") || "";
+      var wl = card.getAttribute("data-wl") || "";
+      if (!ns || !wl) return;
+      var id = ns + "/" + wl;
+      if (!byKey[id]) {
+        byKey[id] = [];
+        keys.push(id);
+      }
+      byKey[id].push(card);
+    });
+    if (!keys.length) return Promise.resolve();
+    var params = Object.assign(
+      { metric: state.metric, max_points: "120", workloads: keys.join(",") },
+      windowParams()
+    );
+    return fetchJSON("/api/v1/series/batch", params)
+      .then(function (batch) {
+        (batch.items || []).forEach(function (series) {
+          var id = (series.namespace || "") + "/" + (series.workload || "");
+          (byKey[id] || []).forEach(function (card) {
+            drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
+              request: series.request,
+              limit: series.limit,
+            });
+          });
+        });
+      })
+      .catch(function (err) {
+        if (err.code === 429) {
+          // Fall back to sequential single-series if the batch is limited.
+          var chain = Promise.resolve();
+          Array.prototype.forEach.call(cards, function (card) {
+            chain = chain.then(function () {
+              return loadCardSeries(card).catch(function () {});
+            });
+          });
+          return chain;
+        }
+        throw err;
       });
   }
 
@@ -685,6 +848,51 @@
     });
   }
 
+  function readFiltersFromDOM() {
+    state.filters.namespace = (document.getElementById("filter-ns").value || "").trim();
+    state.filters.owner = (document.getElementById("filter-owner").value || "").trim();
+    state.filters.grain = (document.getElementById("filter-grain").value || "").trim();
+    state.filters.cpu = document.getElementById("filter-cpu").value || "";
+    state.filters.mem = document.getElementById("filter-mem").value || "";
+  }
+
+  function scheduleFilterReload() {
+    if (filterTimer) clearTimeout(filterTimer);
+    filterTimer = setTimeout(function () {
+      filterTimer = null;
+      readFiltersFromDOM();
+      loadOverview();
+    }, 200);
+  }
+
+  function bindFilters() {
+    ["filter-ns", "filter-owner", "filter-grain"].forEach(function (id) {
+      var node = document.getElementById(id);
+      if (!node) return;
+      node.addEventListener("input", scheduleFilterReload);
+    });
+    ["filter-cpu", "filter-mem"].forEach(function (id) {
+      var node = document.getElementById(id);
+      if (!node) return;
+      node.addEventListener("change", function () {
+        readFiltersFromDOM();
+        loadOverview();
+      });
+    });
+    var clear = document.getElementById("filter-clear");
+    if (clear) {
+      clear.addEventListener("click", function () {
+        ["filter-ns", "filter-owner", "filter-grain"].forEach(function (id) {
+          document.getElementById(id).value = "";
+        });
+        document.getElementById("filter-cpu").value = "";
+        document.getElementById("filter-mem").value = "";
+        state.filters = { namespace: "", owner: "", grain: "", cpu: "", mem: "" };
+        loadOverview();
+      });
+    }
+  }
+
   function bindWindows() {
     document.querySelectorAll("[data-window]").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -741,6 +949,7 @@
 
   bindTheme();
   bindWindows();
+  bindFilters();
   // Probe status; 401 → auth form.
   fetchJSON("/api/v1/status")
     .then(function () {

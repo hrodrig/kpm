@@ -94,7 +94,7 @@ func (s *Store) InsertRecommendations(ctx context.Context, rows []Recommendation
 	defer stmt.Close()
 
 	for _, r := range rows {
-		at := r.RecordedAt.UTC().Format(time.RFC3339Nano)
+		at := FormatUTC(r.RecordedAt)
 		if _, err := stmt.ExecContext(ctx,
 			at, r.ClientID, r.ClusterName,
 			r.Grain, r.GrainKey,
@@ -185,13 +185,10 @@ func scanRecommendation(row scannable) (*Recommendation, error) {
 	if err != nil {
 		return nil, err
 	}
-	t, err := time.Parse(time.RFC3339Nano, at)
+	t, err := ParseUTC(at)
 	if err != nil {
-		t, err = time.Parse(time.RFC3339, at)
-		if err != nil {
-			return nil, fmt.Errorf("parse recorded_at %q: %w", at, err)
-		}
+		return nil, fmt.Errorf("parse recorded_at %q: %w", at, err)
 	}
-	r.RecordedAt = t.UTC()
+	r.RecordedAt = t
 	return &r, nil
 }

@@ -17,7 +17,7 @@ func (s *Store) Backup(ctx context.Context, destPath string) error {
 	if dest == "" || dest == "." {
 		return fmt.Errorf("backup destination must be non-empty")
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 		return fmt.Errorf("create backup dir: %w", err)
 	}
 	if _, err := os.Stat(dest); err == nil {
@@ -25,6 +25,9 @@ func (s *Store) Backup(ctx context.Context, destPath string) error {
 	}
 	if _, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, dest); err != nil {
 		return fmt.Errorf("vacuum into: %w", err)
+	}
+	if err := os.Chmod(dest, 0o600); err != nil {
+		return fmt.Errorf("chmod backup: %w", err)
 	}
 	return nil
 }

@@ -101,7 +101,19 @@ func TestAPISeriesRefs(t *testing.T) {
 		Store: fixtureStore(t, now), Version: "v-test",
 		Now: func() time.Time { return now },
 	}, "secret")
-	rr := authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
+	rr := authedGet(mux, "/api/v1/series/batch?workloads=app/api&metric=cpu_util_mcores&window=24h", "secret")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("batch %d %s", rr.Code, rr.Body.String())
+	}
+	var batch server.SeriesBatchOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &batch); err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Items) != 1 || batch.Items[0].Workload != "api" || batch.Items[0].Count < 1 {
+		t.Fatalf("batch %+v", batch)
+	}
+
+	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("series %d %s", rr.Code, rr.Body.String())
 	}
@@ -154,6 +166,52 @@ func TestAPIRecommendationsVerdicts(t *testing.T) {
 	}
 	if row.CPUDeltaM != -100 || row.MemDeltaB != -1000 {
 		t.Fatalf("deltas cpu=%v mem=%v", row.CPUDeltaM, row.MemDeltaB)
+	}
+}
+
+func TestAPIWorkloadsNamespaceFilter(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	mux := liveMux(t, fixtureStore(t, now), now)
+
+	rr := authedGet(mux, "/api/v1/workloads?window=24h&namespace=app&workload=api", "")
+	var wl server.WorkloadsOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &wl)
+	if rr.Code != http.StatusOK || wl.Count != 1 {
+		t.Fatalf("workloads filtered %d %+v", rr.Code, wl)
+	}
+	rr = authedGet(mux, "/api/v1/workloads?window=24h&namespace=other", "")
+	_ = json.Unmarshal(rr.Body.Bytes(), &wl)
+	if rr.Code != http.StatusOK || wl.Count != 0 {
+		t.Fatalf("workloads miss %d %+v", rr.Code, wl)
+	}
+}
+
+func TestAPINodesOffline(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	st := fixtureStore(t, now)
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{Store: st, Version: "v", Now: func() time.Time { return now }}, "")
+
+	rr := authedGet(mux, "/api/v1/nodes", "")
+	var empty server.NodesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &empty)
+	if rr.Code != http.StatusOK || empty.Count != 0 {
+		t.Fatalf("empty nodes %d %+v", rr.Code, empty)
+	}
+	if err := st.InsertNodeSnapshots(context.Background(), []store.NodeSnapshot{{
+		RecordedAt: now, ClientID: "c", ClusterName: "x", Node: "worker",
+		CPUAllocMcores: 2000, CPUReqMcores: 500, MemAllocBytes: 4 << 30, Pods: 3,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	rr = authedGet(mux, "/api/v1/nodes", "")
+	var out server.NodesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &out)
+	if rr.Code != http.StatusOK || out.Count != 1 || out.Items[0].Node != "worker" {
+		t.Fatalf("nodes %d %+v", rr.Code, out)
+	}
+	if out.Items[0].CPUReqMcores != 500 || out.Items[0].Pods != 3 {
+		t.Fatalf("row %+v", out.Items[0])
 	}
 }
 
@@ -320,6 +378,10 @@ func TestAPIErrorPaths(t *testing.T) {
 	rr = authedGet(mux2, "/api/v1/series?metric=mem_util_bytes&window=30m", "")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("mem bytes / go duration window %d %s", rr.Code, rr.Body.String())
+	}
+	rr = authedGet(mux2, "/api/v1/series?window=720h", "")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("oversize window want 400, got %d %s", rr.Code, rr.Body.String())
 	}
 }
 

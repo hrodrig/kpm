@@ -33,6 +33,9 @@ type Server struct {
 	TokenEnv string `yaml:"token_env" mapstructure:"token_env"`
 	// Auth nil → require bearer off-loopback only; true → always require token_env.
 	Auth *bool `yaml:"auth" mapstructure:"auth"`
+	// AllowedHosts are extra Host/Origin names for BrowserGuard on loopback listen
+	// (merged with mcp.allowed_hosts). Use when a reverse proxy preserves a public Host.
+	AllowedHosts []string `yaml:"allowed_hosts" mapstructure:"allowed_hosts"`
 }
 
 // MCP is optional read-only MCP + daemon HTTP ops (SPEC §7).
@@ -42,6 +45,7 @@ type MCP struct {
 	TokenEnv       string       `yaml:"token_env" mapstructure:"token_env"`
 	TrustedProxies []string     `yaml:"trusted_proxies" mapstructure:"trusted_proxies"`
 	AllowlistCIDRs []string     `yaml:"allowlist_cidrs" mapstructure:"allowlist_cidrs"`
+	AllowedHosts   []string     `yaml:"allowed_hosts" mapstructure:"allowed_hosts"`
 	RateLimit      MCPRateLimit `yaml:"rate_limit" mapstructure:"rate_limit"`
 }
 

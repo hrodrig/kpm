@@ -23,6 +23,15 @@ const APIPrefix = "/api/v1"
 // DefaultMaxSeriesPoints caps series response length before downsample.
 const DefaultMaxSeriesPoints = 300
 
+// MaxWindow caps analyze-local ?window= / free Go durations (15d UI preset).
+const MaxWindow = 15 * 24 * time.Hour
+
+// MaxWorkloadsScanRows fail-closes GET /workloads when the window is too large.
+const MaxWorkloadsScanRows = store.MaxScanRows
+
+// MaxSeriesScanRows clamps GET /series to the newest N rows before downsample.
+const MaxSeriesScanRows = 50_000
+
 // Deps is the read-only API backend.
 type Deps struct {
 	Store   *store.Store
@@ -49,7 +58,9 @@ func Mount(mux *http.ServeMux, d *Deps, bearerToken string) {
 	mux.Handle("GET "+APIPrefix+"/status", wrap(api.handleStatus))
 	mux.Handle("GET "+APIPrefix+"/workloads", wrap(api.handleWorkloads))
 	mux.Handle("GET "+APIPrefix+"/series", wrap(api.handleSeries))
+	mux.Handle("GET "+APIPrefix+"/series/batch", wrap(api.handleSeriesBatch))
 	mux.Handle("GET "+APIPrefix+"/recommendations", wrap(api.handleRecommendations))
+	mux.Handle("GET "+APIPrefix+"/nodes", wrap(api.handleNodes))
 	mux.Handle("GET "+APIPrefix+"/live", wrap(api.handleLive))
 	mux.Handle("GET "+APIPrefix+"/export/patch", wrap(api.handleExportPatch))
 }
@@ -149,6 +160,10 @@ func (a *api) handleWorkloads(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := listWorkloads(r.Context(), a.deps.Store, f)
 	if err != nil {
+		if strings.Contains(err.Error(), "exceeds") {
+			writeErr(w, http.StatusRequestEntityTooLarge, err.Error())
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -156,9 +171,13 @@ func (a *api) handleWorkloads(w http.ResponseWriter, r *http.Request) {
 }
 
 func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) ([]WorkloadOut, error) {
+	f.Limit = MaxWorkloadsScanRows + 1
 	recs, err := st.ListRecords(ctx, f)
 	if err != nil {
 		return nil, err
+	}
+	if len(recs) > MaxWorkloadsScanRows {
+		return nil, fmt.Errorf("sample window exceeds %d rows; narrow namespace, workload, or window", MaxWorkloadsScanRows)
 	}
 	type agg struct {
 		ns, kind, name string
@@ -228,6 +247,7 @@ type SeriesOut struct {
 	Workload    string        `json:"workload,omitempty"`
 	Count       int           `json:"count"`
 	Downsampled bool          `json:"downsampled"`
+	Truncated   bool          `json:"truncated,omitempty"`
 	Points      []SeriesPoint `json:"points"`
 	// Request / Limit are reference levels in the same units as Points
 	// (absolute mcores/bytes, or ratio of request for *_ratio metrics).
@@ -240,51 +260,155 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "store not open")
 		return
 	}
-	q := r.URL.Query()
-	metric := strings.TrimSpace(q.Get("metric"))
-	if metric == "" {
-		metric = "cpu_util_mcores"
-	}
-	f, err := filterFromQuery(r, a.deps.now())
+	metric, maxPts, f, err := seriesQuery(r, a.deps.now())
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	maxPts := DefaultMaxSeriesPoints
-	if s := strings.TrimSpace(q.Get("max_points")); s != "" {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 1 || n > 5000 {
-			writeErr(w, http.StatusBadRequest, "max_points must be 1..5000")
-			return
-		}
-		maxPts = n
-	}
-	recs, err := a.deps.Store.ListRecords(r.Context(), f)
+	out, err := a.buildSeries(r.Context(), metric, maxPts, f)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if out == nil {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
+		return
+	}
+	writeJSON(w, http.StatusOK, *out)
+}
+
+// SeriesBatchOut is GET /api/v1/series/batch — one response for many workloads.
+type SeriesBatchOut struct {
+	Metric string      `json:"metric"`
+	Items  []SeriesOut `json:"items"`
+}
+
+const maxSeriesBatchWorkloads = 100
+
+func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	metric, maxPts, base, err := seriesQuery(r, a.deps.now())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	keys := parseWorkloadKeys(r)
+	if len(keys) == 0 {
+		writeErr(w, http.StatusBadRequest, "workloads required (ns/name,ns/name or repeated workload=)")
+		return
+	}
+	if len(keys) > maxSeriesBatchWorkloads {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf("at most %d workloads per batch", maxSeriesBatchWorkloads))
+		return
+	}
+	items := make([]SeriesOut, 0, len(keys))
+	for _, k := range keys {
+		f := base
+		f.Namespace = k.ns
+		f.Workload = k.wl
+		out, err := a.buildSeries(r.Context(), metric, maxPts, f)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if out == nil {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
+			return
+		}
+		items = append(items, *out)
+	}
+	writeJSON(w, http.StatusOK, SeriesBatchOut{Metric: metric, Items: items})
+}
+
+type workloadKey struct{ ns, wl string }
+
+func parseWorkloadKeys(r *http.Request) []workloadKey {
+	q := r.URL.Query()
+	var keys []workloadKey
+	seen := map[string]bool{}
+	add := func(raw string) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return
+		}
+		ns, wl, ok := strings.Cut(raw, "/")
+		if !ok || ns == "" || wl == "" {
+			return
+		}
+		id := ns + "/" + wl
+		if seen[id] {
+			return
+		}
+		seen[id] = true
+		keys = append(keys, workloadKey{ns: ns, wl: wl})
+	}
+	for _, w := range q["workload"] {
+		add(w)
+	}
+	if csv := strings.TrimSpace(q.Get("workloads")); csv != "" {
+		for _, part := range strings.Split(csv, ",") {
+			add(part)
+		}
+	}
+	return keys
+}
+
+func seriesQuery(r *http.Request, now time.Time) (metric string, maxPts int, f store.ExportFilter, err error) {
+	q := r.URL.Query()
+	metric = strings.TrimSpace(q.Get("metric"))
+	if metric == "" {
+		metric = "cpu_util_mcores"
+	}
+	f, err = filterFromQuery(r, now)
+	if err != nil {
+		return "", 0, f, err
+	}
+	maxPts = DefaultMaxSeriesPoints
+	if s := strings.TrimSpace(q.Get("max_points")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > 5000 {
+			return "", 0, f, fmt.Errorf("max_points must be 1..5000")
+		}
+		maxPts = n
+	}
+	return metric, maxPts, f, nil
+}
+
+func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f store.ExportFilter) (*SeriesOut, error) {
+	f.Limit = MaxSeriesScanRows + 1
+	f.Newest = true
+	recs, err := a.deps.Store.ListRecords(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	truncated := len(recs) > MaxSeriesScanRows
+	if truncated {
+		recs = recs[len(recs)-MaxSeriesScanRows:]
 	}
 	raw := make([]SeriesPoint, 0, len(recs))
 	for _, rec := range recs {
 		v, ok := metricValue(rec, metric)
 		if !ok {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
-			return
+			return nil, nil
 		}
 		raw = append(raw, SeriesPoint{T: rec.SampledAt.UTC().Format(time.RFC3339), V: v})
 	}
 	pts, down := downsample(raw, maxPts)
 	req, lim := seriesRefs(recs, metric)
-	writeJSON(w, http.StatusOK, SeriesOut{
+	return &SeriesOut{
 		Metric:      metric,
 		Namespace:   f.Namespace,
 		Workload:    f.Workload,
 		Count:       len(pts),
 		Downsampled: down,
+		Truncated:   truncated,
 		Points:      pts,
 		Request:     req,
 		Limit:       lim,
-	})
+	}, nil
 }
 
 // seriesRefs returns request/limit guides from the newest record that has them.
@@ -403,6 +527,58 @@ type RecOut struct {
 type RecsOut struct {
 	Count int      `json:"count"`
 	Rows  []RecOut `json:"rows"`
+}
+
+// NodeOut is one offline node capacity snapshot row.
+type NodeOut struct {
+	Node           string  `json:"node"`
+	CPUAllocMcores float64 `json:"cpu_alloc_mcores"`
+	MemAllocBytes  int64   `json:"mem_alloc_bytes"`
+	CPUCapMcores   float64 `json:"cpu_cap_mcores"`
+	MemCapBytes    int64   `json:"mem_cap_bytes"`
+	CPUReqMcores   float64 `json:"cpu_req_mcores"`
+	MemReqBytes    int64   `json:"mem_req_bytes"`
+	CPUUtilMcores  float64 `json:"cpu_util_mcores"`
+	MemUtilBytes   int64   `json:"mem_util_bytes"`
+	Pods           int     `json:"pods"`
+}
+
+// NodesOut is GET /api/v1/nodes (store-backed; no kube).
+type NodesOut struct {
+	RecordedAt string    `json:"recorded_at,omitempty"`
+	Count      int       `json:"count"`
+	Items      []NodeOut `json:"items"`
+}
+
+func (a *api) handleNodes(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	rows, err := a.deps.Store.LatestNodeSnapshots(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := NodesOut{Count: len(rows), Items: make([]NodeOut, 0, len(rows))}
+	if len(rows) > 0 {
+		out.RecordedAt = rows[0].RecordedAt.UTC().Format(time.RFC3339)
+	}
+	for _, n := range rows {
+		out.Items = append(out.Items, NodeOut{
+			Node:           n.Node,
+			CPUAllocMcores: n.CPUAllocMcores,
+			MemAllocBytes:  n.MemAllocBytes,
+			CPUCapMcores:   n.CPUCapMcores,
+			MemCapBytes:    n.MemCapBytes,
+			CPUReqMcores:   n.CPUReqMcores,
+			MemReqBytes:    n.MemReqBytes,
+			CPUUtilMcores:  n.CPUUtilMcores,
+			MemUtilBytes:   n.MemUtilBytes,
+			Pods:           n.Pods,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
@@ -584,26 +760,34 @@ func filterFromQuery(r *http.Request, now time.Time) (store.ExportFilter, error)
 			return f, fmt.Errorf("until: %w", err)
 		}
 	}
+	if !f.Since.IsZero() && !f.Until.IsZero() && f.Until.Sub(f.Since) > MaxWindow {
+		return f, fmt.Errorf("window: max %s between since and until", MaxWindow)
+	}
 	return f, nil
 }
 
 func parseWindow(w string) (time.Duration, error) {
+	var d time.Duration
 	switch strings.ToLower(strings.TrimSpace(w)) {
 	case "1h":
-		return time.Hour, nil
+		d = time.Hour
 	case "24h", "1d":
-		return 24 * time.Hour, nil
+		d = 24 * time.Hour
 	case "48h", "2d":
-		return 48 * time.Hour, nil
+		d = 48 * time.Hour
 	case "7d":
-		return 7 * 24 * time.Hour, nil
+		d = 7 * 24 * time.Hour
 	case "15d":
-		return 15 * 24 * time.Hour, nil
+		d = 15 * 24 * time.Hour
 	default:
-		d, err := time.ParseDuration(w)
-		if err != nil || d <= 0 {
+		parsed, err := time.ParseDuration(w)
+		if err != nil || parsed <= 0 {
 			return 0, fmt.Errorf("window: want 1h|24h|48h|7d|15d or Go duration")
 		}
-		return d, nil
+		d = parsed
 	}
+	if d > MaxWindow {
+		return 0, fmt.Errorf("window: max %s", MaxWindow)
+	}
+	return d, nil
 }

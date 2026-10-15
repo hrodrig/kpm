@@ -94,15 +94,12 @@ type ListSamplesOut struct {
 }
 
 // ListSamples reads store samples with filters and a hard row cap.
+// The SQL LIMIT is applied before materialization (newest rows + one probe).
 func (d *Deps) ListSamples(ctx context.Context, in ListSamplesIn) (ListSamplesOut, error) {
 	if d.Store == nil {
 		return ListSamplesOut{}, fmt.Errorf("store not open")
 	}
 	f, err := filterFrom(in.Namespace, in.Workload, in.Since, in.Until)
-	if err != nil {
-		return ListSamplesOut{}, err
-	}
-	recs, err := d.Store.ListRecords(ctx, f)
 	if err != nil {
 		return ListSamplesOut{}, err
 	}
@@ -113,9 +110,15 @@ func (d *Deps) ListSamples(ctx context.Context, in ListSamplesIn) (ListSamplesOu
 	if capN > MaxListCap {
 		capN = MaxListCap
 	}
+	f.Limit = capN + 1 // +1 probes truncation without loading the full window
+	f.Newest = true
+	recs, err := d.Store.ListRecords(ctx, f)
+	if err != nil {
+		return ListSamplesOut{}, err
+	}
 	out := ListSamplesOut{Truncated: len(recs) > capN}
 	if len(recs) > capN {
-		recs = recs[len(recs)-capN:] // newest window within ASC list: take last cap
+		recs = recs[len(recs)-capN:]
 	}
 	out.Rows = make([]SampleRow, 0, len(recs))
 	for _, r := range recs {

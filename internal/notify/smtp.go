@@ -8,6 +8,7 @@ import (
 	"net/smtp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SMTP sends plain-text email (gghstats-school).
@@ -27,10 +28,17 @@ type SMTP struct {
 func (s *SMTP) Type() string { return "smtp" }
 
 func (s *SMTP) Send(ctx context.Context, m Message) error {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(s.To) == 0 {
 		return fmt.Errorf("smtp: no recipients")
 	}
+	// Bound every send so a hung MTA cannot stall the sample tick forever,
+	// even when the daemon context has no deadline.
+	ctx, cancel := context.WithTimeout(ctx, DefaultHTTPTimeout)
+	defer cancel()
+
 	subject := m.Title
 	body := m.Text
 	msg := []byte("From: " + s.From + "\r\n" +
@@ -45,26 +53,45 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 	if s.Username != "" {
 		auth = smtp.PlainAuth("", s.Username, s.Password, s.Host)
 	}
-	send := s.DialAndSend
-	if send == nil {
-		if s.UseTLS {
-			send = s.sendImplicitTLS
-		} else {
-			send = smtp.SendMail
+	inner := s.DialAndSend
+	if inner == nil {
+		inner = func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			if s.UseTLS {
+				return s.sendImplicitTLS(addr, a, from, to, msg)
+			}
+			return smtp.SendMail(addr, a, from, to, msg)
 		}
 	}
-	if err := send(addr, auth, s.From, s.To, msg); err != nil {
+	if err := runSMTPBounded(ctx, inner, addr, auth, s.From, s.To, msg); err != nil {
 		return fmt.Errorf("smtp: %w", err)
 	}
 	return nil
 }
 
+// runSMTPBounded runs send in a goroutine so ctx cancel/deadline is honored.
+func runSMTPBounded(
+	ctx context.Context,
+	send func(string, smtp.Auth, string, []string, []byte) error,
+	addr string, a smtp.Auth, from string, to []string, msg []byte,
+) error {
+	errCh := make(chan error, 1)
+	go func() { errCh <- send(addr, a, from, to, msg) }()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
+	}
+}
+
 func (s *SMTP) sendImplicitTLS(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12})
+	d := &net.Dialer{Timeout: DefaultHTTPTimeout}
+	conn, err := tls.DialWithDialer(d, "tcp", addr, &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12})
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(DefaultHTTPTimeout))
 	c, err := smtp.NewClient(conn, s.Host)
 	if err != nil {
 		return err

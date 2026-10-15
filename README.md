@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -36,6 +36,15 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 0.7 — Scale
+
+- Analyze-local **search/filter** (namespace, owner, grain, CPU/Mem verdict).
+- Offline **node capacity** panel (`kpm capacity --record-nodes` → store).
+- Store indexes + SQL caps; series/batch; serve harden leftovers.
+
+Contract: **[SPEC §8](SPECIFICATIONS.md)** · band notes: **[plan-0.7.0](docs/plan-0.7.0.md)** ·
+path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.6 — analyze-local charts
 
@@ -73,13 +82,14 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - **[pgwd](https://github.com/hrodrig/pgwd)** — PostgreSQL connection watchdog ([live traffic](https://gghstats.hermesrodriguez.com/hrodrig/pgwd); deploy: [pgwd-selfhosted](https://github.com/hrodrig/pgwd-selfhosted))
 - **[gghstats](https://github.com/hrodrig/gghstats)** — GitHub repo traffic beyond 14 days ([live demo](https://gghstats.hermesrodriguez.com); deploy: [gghstats-selfhosted](https://github.com/hrodrig/gghstats-selfhosted))
 
-**Releases** will ship **binaries**, **`.deb`** / **`.rpm`**, and
-**`ghcr.io/hrodrig/kpm`** (Cosign + SBOM via GoReleaser) once tagged from
+**Releases** publish **binaries**, **`.deb`** / **`.rpm`**, and
+**`ghcr.io/hrodrig/kpm`** (Cosign + SBOM via GoReleaser) from annotated tags on
 `main`. Behavior contract: **[SPECIFICATIONS.md](SPECIFICATIONS.md)**.
 
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 0.7](#whats-new-in-07--scale)
 - [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
 - [How it works](#how-it-works)
 - [Status](#status)
@@ -130,6 +140,7 @@ Details (bands, defaults, more diagrams):
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
 | Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
+| Scale (search/filter, node snapshots, store caps) | **In tree** (`v0.7.0` — [plan-0.7.0](docs/plan-0.7.0.md)) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
 [↑ Back to top](#top)
