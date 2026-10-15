@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // ListRecords returns samples matching the filter (same selectors as Export).
@@ -19,11 +18,11 @@ func (s *Store) ListRecords(ctx context.Context, f ExportFilter) ([]Record, erro
 	var args []any
 	if !f.Since.IsZero() {
 		q += ` AND sampled_at >= ?`
-		args = append(args, f.Since.UTC().Format(time.RFC3339Nano))
+		args = append(args, FormatUTC(f.Since))
 	}
 	if !f.Until.IsZero() {
 		q += ` AND sampled_at < ?`
-		args = append(args, f.Until.UTC().Format(time.RFC3339Nano))
+		args = append(args, FormatUTC(f.Until))
 	}
 	if ns := strings.TrimSpace(f.Namespace); ns != "" {
 		q += ` AND namespace = ?`
@@ -59,14 +58,11 @@ func (s *Store) ListRecords(ctx context.Context, f ExportFilter) ([]Record, erro
 		); err != nil {
 			return nil, err
 		}
-		t, err := time.Parse(time.RFC3339Nano, at)
+		t, err := ParseUTC(at)
 		if err != nil {
-			t, err = time.Parse(time.RFC3339, at)
-			if err != nil {
-				return nil, fmt.Errorf("parse sampled_at %q: %w", at, err)
-			}
+			return nil, fmt.Errorf("parse sampled_at %q: %w", at, err)
 		}
-		r.SampledAt = t.UTC()
+		r.SampledAt = t
 		out = append(out, r)
 	}
 	return out, rows.Err()

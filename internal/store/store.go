@@ -41,19 +41,31 @@ type Store struct {
 }
 
 // Open creates parent dirs, opens the DB, and migrates schema.
+// Directory mode is 0700; the DB file is chmod'd to 0600 after open.
+// WAL + busy_timeout reduce "database is locked" when sample and serve share a file.
 func Open(path string) (*Store, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("create store dir: %w", err)
 	}
-	db, err := sql.Open("sqlite", path)
+	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
+	if err := os.Chmod(path, 0o600); err != nil && !os.IsNotExist(err) {
+		// File may not exist until first write; ignore NotExist.
+		_ = db.Close()
+		return nil, fmt.Errorf("chmod store: %w", err)
+	}
 	s := &Store{db: db, path: path}
 	if err := s.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("chmod store: %w", err)
 	}
 	return s, nil
 }
@@ -151,7 +163,7 @@ func (s *Store) InsertRecords(ctx context.Context, records []Record) error {
 	defer stmt.Close()
 
 	for _, r := range records {
-		at := r.SampledAt.UTC().Format(time.RFC3339Nano)
+		at := FormatUTC(r.SampledAt)
 		if _, err := stmt.ExecContext(ctx,
 			at, r.ClientID, r.ClusterName,
 			r.Namespace, r.Pod, r.Container,
@@ -177,7 +189,7 @@ func (s *Store) Count(ctx context.Context) (int64, error) {
 func (s *Store) PruneOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx,
 		`DELETE FROM samples WHERE sampled_at < ?`,
-		cutoff.UTC().Format(time.RFC3339Nano),
+		FormatUTC(cutoff),
 	)
 	if err != nil {
 		return 0, err

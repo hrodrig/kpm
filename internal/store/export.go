@@ -57,11 +57,11 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 	var args []any
 	if !f.Since.IsZero() {
 		q += ` AND sampled_at >= ?`
-		args = append(args, f.Since.UTC().Format(time.RFC3339Nano))
+		args = append(args, FormatUTC(f.Since))
 	}
 	if !f.Until.IsZero() {
 		q += ` AND sampled_at < ?`
-		args = append(args, f.Until.UTC().Format(time.RFC3339Nano))
+		args = append(args, FormatUTC(f.Until))
 	}
 	if ns := strings.TrimSpace(f.Namespace); ns != "" {
 		q += ` AND namespace = ?`
