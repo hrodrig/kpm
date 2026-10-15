@@ -26,18 +26,18 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 - [x] `docs/plan-0.7.0.md` (this file)
 - [x] ROADMAP Current focus → 0.7.x Scale; mermaid 0.7 / 0.8 / 0.9 → 1.0
-- [ ] SPEC notes for search/filter, node snapshots (store caps + `allowed_hosts` done)
+- [ ] SPEC notes for node snapshots (search/filter + store caps + `allowed_hosts` done)
 - [ ] `configs/kpm.sample.yml` knobs for new surface (search/nodes)
 - [ ] man pages when CLI/help strings change
 - [ ] CHANGELOG `[Unreleased]` → `[0.7.0]` on version cut only
 
 ### `#20c` Serve UI search/filter
 
-- [ ] Filter controls: namespace, owner, grain, verdict (CPU/mem)
-- [ ] Client-side filter of loaded cards **or** server query params on
+- [x] Filter controls: namespace, owner, grain, verdict (CPU/mem)
+- [x] Client-side filter of loaded cards **or** server query params on
   `/api/v1/workloads` (prefer API params when list is large)
-- [ ] Empty / no-match state; no layout thrash on type
-- [ ] Unit / UI-facing tests where practical
+- [x] Empty / no-match state; no layout thrash on type
+- [x] Unit / UI-facing tests where practical
 
 ### `#20b` Node / capacity snapshots
 

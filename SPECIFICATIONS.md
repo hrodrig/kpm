@@ -808,7 +808,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   wired at process start; **`analyze-local`** when store-only (`/live` 503).
 - Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
   applies patches; operator owns production changes).
-- UI search/filter for large grids is **P6** (`#20c`, 0.7.x).
+- UI search/filter (`#20c`): namespace and owner are sent as
+  `/api/v1/workloads?namespace=&workload=` (narrows the sample scan); grain
+  substring and CPU/Mem verdict filters apply client-side after joining
+  recommendations. Empty grid distinguishes “no samples in window” vs “no
+  matches”.
 
 ### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
 

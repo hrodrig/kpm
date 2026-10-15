@@ -16,14 +16,17 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	body := mustGetBody(t, mux, "/", "text/html")
 	mustContain(t, body, "analyze-local", "/static/app.js", "theme-toggle",
 		"cluster-target", "recommend-summary", "mode-label", "site-footer",
-		"https://github.com/hrodrig/kpm", "MIT License", "advisory only")
+		"https://github.com/hrodrig/kpm", "MIT License", "advisory only",
+		"filter-ns", "filter-owner", "filter-grain", "filter-cpu", "filter-mem",
+		"Clear filters", "Filter workloads")
 
 	css := mustGetBody(t, mux, "/static/app.css", "")
-	mustContain(t, css, "--accent", `data-theme="dark"`)
+	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters")
 
 	js := mustGetBody(t, mux, "/static/app.js", "")
 	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
-		"kube_live", "updateModeLabel")
+		"kube_live", "updateModeLabel", "filterItems", "workloadQueryParams",
+		"No workloads match these filters")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {

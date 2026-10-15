@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Analyze-local search/filter: namespace, owner, grain, CPU/Mem verdict
+  ([#69](https://github.com/hrodrig/kpm/issues/69) / `#20c`).
 - Roadmap split **0.7 Scale / 0.8 Honesty / 0.9 Freeze → 1.0**; band plan
   [docs/plan-0.7.0.md](docs/plan-0.7.0.md).
 - `GET /api/v1/series/batch` so analyze-local can load many card series in one

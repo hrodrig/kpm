@@ -286,6 +286,35 @@ input:focus-visible {
   color: var(--ink);
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: 0 0 var(--sp-12);
+}
+
+.filters input,
+.filters select {
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  padding: var(--sp-4) var(--sp-8);
+  background: var(--surface);
+  color: var(--ink);
+  min-width: 7.5rem;
+}
+
+.filters input {
+  flex: 1 1 8rem;
+  max-width: 14rem;
+}
+
+.filters select:focus-visible,
+.filters input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 #main {
   flex: 1 0 auto;
   padding: var(--sp-16) var(--sp-24) var(--sp-24);
