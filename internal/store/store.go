@@ -14,7 +14,7 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 // MaxScanRows is the hard upper bound for a single ListRecords call when
 // callers pass Limit=0 (uncapped APIs must set their own Limit). Documented
@@ -143,6 +143,9 @@ func (s *Store) migrate() error {
 		}
 	}
 	if err := migrateRecommendations(s.db); err != nil {
+		return err
+	}
+	if err := migrateNodeSnapshots(s.db); err != nil {
 		return err
 	}
 	var n int

@@ -186,6 +186,35 @@ func TestAPIWorkloadsNamespaceFilter(t *testing.T) {
 	}
 }
 
+func TestAPINodesOffline(t *testing.T) {
+	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	st := fixtureStore(t, now)
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{Store: st, Version: "v", Now: func() time.Time { return now }}, "")
+
+	rr := authedGet(mux, "/api/v1/nodes", "")
+	var empty server.NodesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &empty)
+	if rr.Code != http.StatusOK || empty.Count != 0 {
+		t.Fatalf("empty nodes %d %+v", rr.Code, empty)
+	}
+	if err := st.InsertNodeSnapshots(context.Background(), []store.NodeSnapshot{{
+		RecordedAt: now, ClientID: "c", ClusterName: "x", Node: "worker",
+		CPUAllocMcores: 2000, CPUReqMcores: 500, MemAllocBytes: 4 << 30, Pods: 3,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	rr = authedGet(mux, "/api/v1/nodes", "")
+	var out server.NodesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &out)
+	if rr.Code != http.StatusOK || out.Count != 1 || out.Items[0].Node != "worker" {
+		t.Fatalf("nodes %d %+v", rr.Code, out)
+	}
+	if out.Items[0].CPUReqMcores != 500 || out.Items[0].Pods != 3 {
+		t.Fatalf("row %+v", out.Items[0])
+	}
+}
+
 func TestAPILiveAvailableAndMissing(t *testing.T) {
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	st := fixtureStore(t, now)

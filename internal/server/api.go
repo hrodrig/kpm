@@ -60,6 +60,7 @@ func Mount(mux *http.ServeMux, d *Deps, bearerToken string) {
 	mux.Handle("GET "+APIPrefix+"/series", wrap(api.handleSeries))
 	mux.Handle("GET "+APIPrefix+"/series/batch", wrap(api.handleSeriesBatch))
 	mux.Handle("GET "+APIPrefix+"/recommendations", wrap(api.handleRecommendations))
+	mux.Handle("GET "+APIPrefix+"/nodes", wrap(api.handleNodes))
 	mux.Handle("GET "+APIPrefix+"/live", wrap(api.handleLive))
 	mux.Handle("GET "+APIPrefix+"/export/patch", wrap(api.handleExportPatch))
 }
@@ -526,6 +527,58 @@ type RecOut struct {
 type RecsOut struct {
 	Count int      `json:"count"`
 	Rows  []RecOut `json:"rows"`
+}
+
+// NodeOut is one offline node capacity snapshot row.
+type NodeOut struct {
+	Node           string  `json:"node"`
+	CPUAllocMcores float64 `json:"cpu_alloc_mcores"`
+	MemAllocBytes  int64   `json:"mem_alloc_bytes"`
+	CPUCapMcores   float64 `json:"cpu_cap_mcores"`
+	MemCapBytes    int64   `json:"mem_cap_bytes"`
+	CPUReqMcores   float64 `json:"cpu_req_mcores"`
+	MemReqBytes    int64   `json:"mem_req_bytes"`
+	CPUUtilMcores  float64 `json:"cpu_util_mcores"`
+	MemUtilBytes   int64   `json:"mem_util_bytes"`
+	Pods           int     `json:"pods"`
+}
+
+// NodesOut is GET /api/v1/nodes (store-backed; no kube).
+type NodesOut struct {
+	RecordedAt string    `json:"recorded_at,omitempty"`
+	Count      int       `json:"count"`
+	Items      []NodeOut `json:"items"`
+}
+
+func (a *api) handleNodes(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	rows, err := a.deps.Store.LatestNodeSnapshots(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := NodesOut{Count: len(rows), Items: make([]NodeOut, 0, len(rows))}
+	if len(rows) > 0 {
+		out.RecordedAt = rows[0].RecordedAt.UTC().Format(time.RFC3339)
+	}
+	for _, n := range rows {
+		out.Items = append(out.Items, NodeOut{
+			Node:           n.Node,
+			CPUAllocMcores: n.CPUAllocMcores,
+			MemAllocBytes:  n.MemAllocBytes,
+			CPUCapMcores:   n.CPUCapMcores,
+			MemCapBytes:    n.MemCapBytes,
+			CPUReqMcores:   n.CPUReqMcores,
+			MemReqBytes:    n.MemReqBytes,
+			CPUUtilMcores:  n.CPUUtilMcores,
+			MemUtilBytes:   n.MemUtilBytes,
+			Pods:           n.Pods,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
