@@ -77,6 +77,13 @@ Daemon loop when interval_seconds > 0 (SIGINT/SIGTERM clean exit).`,
 					return err
 				}
 				onTick = withProcessMetrics(onTick, metrics)
+				if metrics != nil {
+					prevFail := sample.SetFailHook(func(n int, err error) {
+						metrics.SampleErrors.Add(1)
+						sample.LogSampleFail(n, err)
+					})
+					defer sample.SetFailHook(prevFail)
+				}
 				if err := sample.RunLoop(cmd.Context(), cfg, st, cs, mcs, onTick); err != nil {
 					return exitcode.New(exitcode.Cluster, err)
 				}

@@ -139,22 +139,40 @@ func TestRunLoopRetriesTransientThenSucceeds(t *testing.T) {
 	}
 }
 
+func TestRetryBackoff(t *testing.T) {
+	interval := 30 * time.Second
+	if got := retryBackoff(1, interval); got != time.Second {
+		t.Fatalf("fail1: %v", got)
+	}
+	if got := retryBackoff(3, interval); got != 4*time.Second {
+		t.Fatalf("fail3: %v", got)
+	}
+	if got := retryBackoff(10, 2*time.Second); got != 2*time.Second {
+		t.Fatalf("capped: %v", got)
+	}
+}
+
 func TestRunLoopFailsClosedAfterThreshold(t *testing.T) {
 	prev := runOnceFn
-	t.Cleanup(func() { runOnceFn = prev })
+	prevBudget := sampleRetryBudget
+	t.Cleanup(func() {
+		runOnceFn = prev
+		sampleRetryBudget = prevBudget
+	})
+	sampleRetryBudget = 400 * time.Millisecond
 
 	runOnceFn = func(context.Context, *config.Config, *store.Store, kubernetes.Interface, metricsclientset.Interface) (Result, error) {
 		return Result{}, fmt.Errorf("persistent failure")
 	}
 
-	cfg := &config.Config{Sample: config.Sample{IntervalSeconds: 60}}
-	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	cfg := &config.Config{Sample: config.Sample{IntervalSeconds: 1}}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	err := RunLoop(ctx, cfg, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected fail-closed error")
 	}
-	if !strings.Contains(err.Error(), "consecutive failures") {
+	if !strings.Contains(err.Error(), "retry budget") {
 		t.Fatalf("got %v", err)
 	}
 }

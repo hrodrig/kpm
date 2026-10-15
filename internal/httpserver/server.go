@@ -21,6 +21,7 @@ type ReadyFunc func(ctx context.Context) error
 // Counters holds process metrics for GET /metrics (Prometheus text).
 type Counters struct {
 	SampleTicks      atomic.Int64
+	SampleErrors     atomic.Int64 // transient RunOnce failures while retrying
 	NotifyErrors     atomic.Int64
 	SampleWriteNanos atomic.Int64 // cumulative nanoseconds spent inserting samples
 	SampleWriteCount atomic.Int64
@@ -98,6 +99,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	m := s.metrics
 	ticks := m.SampleTicks.Load()
+	sampleErrs := m.SampleErrors.Load()
 	notifyErrs := m.NotifyErrors.Load()
 	writeN := m.SampleWriteCount.Load()
 	writeNanos := m.SampleWriteNanos.Load()
@@ -108,6 +110,9 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(w, `# HELP kpm_sample_ticks_total Sample daemon ticks completed.
 # TYPE kpm_sample_ticks_total counter
 kpm_sample_ticks_total %d
+# HELP kpm_sample_errors_total Transient sample tick failures (retried).
+# TYPE kpm_sample_errors_total counter
+kpm_sample_errors_total %d
 # HELP kpm_notify_errors_total Notify fan-out evaluation errors.
 # TYPE kpm_notify_errors_total counter
 kpm_notify_errors_total %d
@@ -117,7 +122,7 @@ kpm_sample_write_seconds_avg %g
 # HELP kpm_sample_writes_total Sample batch inserts into SQLite.
 # TYPE kpm_sample_writes_total counter
 kpm_sample_writes_total %d
-`, ticks, notifyErrs, avgSec, writeN)
+`, ticks, sampleErrs, notifyErrs, avgSec, writeN)
 }
 
 // ListenAndServe binds addr and serves until ctx is cancelled.
