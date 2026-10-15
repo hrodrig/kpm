@@ -19,12 +19,10 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x–0.6.x** | Core → Insights → Notify → MCP → Server | shipped `v0.2.0`–`v0.6.0` |
-| **Current** | **0.7.x Scale** (nodes · search · store · harden leftovers) | [plan-0.7.0.md](./plan-0.7.0.md) |
-| **Next** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | plans when opened |
+| **0.2.x–0.7.x** | Core → Insights → Notify → MCP → Server → Scale | shipped `v0.2.0`–`v0.7.0` |
+| **Current** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | plans when opened |
 
-Audit hardenings `#54`–`#67` are on `develop` (not yet in a tagged release); they
-ship with `v0.7.0` or an earlier patch cut if operators need them sooner.
+Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
 ---
 
@@ -51,7 +49,7 @@ flowchart LR
 | **0.4.x** Notify (P3) | §6 thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
-| **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **In progress** |
+| **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
 | **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) | Planned (thin) |
 | **0.9.x** Freeze | E2E/docs/security/packaging (`#20`–`#23`, `#29`) | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
@@ -154,12 +152,12 @@ no landing funnel. Marketing sites (`kpm-webs`) stay a separate repo.
 
 | ID | Item | Status |
 |----|------|--------|
-| `#20b` | Node / capacity under-demand SQLite snapshots + analyze-local panel | Planned |
-| `#20c` | Serve UI **search/filter** (ns / owner / grain / verdict) for large grids | Planned |
-| — | Store SQL LIMIT / indexes; series batch; rate-limit vs static UI | Planned |
-| — | Harden leftovers (SMTP deadline, sample retry budget, `allowed_hosts`, WAL modes, CronJob patch, RS→Deploy) | Planned |
+| `#20b` | Node / capacity under-demand SQLite snapshots + analyze-local panel | **Shipped** `v0.7.0` |
+| `#20c` | Serve UI **search/filter** (ns / owner / grain / verdict) for large grids | **Shipped** `v0.7.0` |
+| — | Store SQL LIMIT / indexes; series batch; rate-limit vs static UI | **Shipped** `v0.7.0` |
+| — | Harden leftovers (SMTP deadline, sample retry budget, `allowed_hosts`, WAL modes, CronJob patch, RS→Deploy) | **Shipped** `v0.7.0` |
 
-Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Success:** UI usable at scale; nodes offline; `make release-check` green for `v0.7.0`.
+Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Shipped** `v0.7.0`.
 
 ### 0.8.x — Honesty (thin)
 

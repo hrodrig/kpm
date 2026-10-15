@@ -70,11 +70,11 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 ### Gates / band exit
 
-- [ ] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC Scale sections updated (status / CLI map as needed)
-- [ ] Feature PRs → `develop` green
-- [ ] Solo `chore/release-0.7.0` (VERSION, CHANGELOG, badge, both man `.TH`)
-- [ ] `make release-check` green
+- [x] `make lint` + `make cover-check` ≥ 80%
+- [x] SPEC Scale sections updated (status / CLI map as needed)
+- [x] Feature PRs → `develop` green
+- [x] Solo `chore/release-0.7.0` (VERSION, CHANGELOG, badge, both man `.TH`)
+- [x] `make release-check` green
 - [ ] PR `develop` → `main` + annotated tag `v0.7.0` (operator OK)
 - [ ] Sync `main` → `develop`; optional selfhosted / webs image pins
 
