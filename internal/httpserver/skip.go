@@ -9,10 +9,11 @@ type PathSkip struct {
 }
 
 // OpsSkip returns paths that must stay reachable without rate limits or
-// allowlist checks (liveness, readiness, Prometheus scrape).
+// allowlist checks (liveness, readiness, Prometheus scrape, embedded UI static).
 func OpsSkip() PathSkip {
 	return PathSkip{
-		Exact: []string{"/healthz", "/readyz", "/metrics"},
+		Exact:    []string{"/healthz", "/readyz", "/metrics"},
+		Prefixes: []string{"/static/"},
 	}
 }
 

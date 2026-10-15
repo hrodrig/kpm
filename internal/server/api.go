@@ -49,6 +49,7 @@ func Mount(mux *http.ServeMux, d *Deps, bearerToken string) {
 	mux.Handle("GET "+APIPrefix+"/status", wrap(api.handleStatus))
 	mux.Handle("GET "+APIPrefix+"/workloads", wrap(api.handleWorkloads))
 	mux.Handle("GET "+APIPrefix+"/series", wrap(api.handleSeries))
+	mux.Handle("GET "+APIPrefix+"/series/batch", wrap(api.handleSeriesBatch))
 	mux.Handle("GET "+APIPrefix+"/recommendations", wrap(api.handleRecommendations))
 	mux.Handle("GET "+APIPrefix+"/live", wrap(api.handleLive))
 	mux.Handle("GET "+APIPrefix+"/export/patch", wrap(api.handleExportPatch))
@@ -240,42 +241,139 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "store not open")
 		return
 	}
-	q := r.URL.Query()
-	metric := strings.TrimSpace(q.Get("metric"))
-	if metric == "" {
-		metric = "cpu_util_mcores"
-	}
-	f, err := filterFromQuery(r, a.deps.now())
+	metric, maxPts, f, err := seriesQuery(r, a.deps.now())
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	maxPts := DefaultMaxSeriesPoints
-	if s := strings.TrimSpace(q.Get("max_points")); s != "" {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 1 || n > 5000 {
-			writeErr(w, http.StatusBadRequest, "max_points must be 1..5000")
-			return
-		}
-		maxPts = n
-	}
-	recs, err := a.deps.Store.ListRecords(r.Context(), f)
+	out, err := a.buildSeries(r.Context(), metric, maxPts, f)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if out == nil {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
+		return
+	}
+	writeJSON(w, http.StatusOK, *out)
+}
+
+// SeriesBatchOut is GET /api/v1/series/batch — one response for many workloads.
+type SeriesBatchOut struct {
+	Metric string      `json:"metric"`
+	Items  []SeriesOut `json:"items"`
+}
+
+const maxSeriesBatchWorkloads = 100
+
+func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	metric, maxPts, base, err := seriesQuery(r, a.deps.now())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	keys := parseWorkloadKeys(r)
+	if len(keys) == 0 {
+		writeErr(w, http.StatusBadRequest, "workloads required (ns/name,ns/name or repeated workload=)")
+		return
+	}
+	if len(keys) > maxSeriesBatchWorkloads {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf("at most %d workloads per batch", maxSeriesBatchWorkloads))
+		return
+	}
+	items := make([]SeriesOut, 0, len(keys))
+	for _, k := range keys {
+		f := base
+		f.Namespace = k.ns
+		f.Workload = k.wl
+		out, err := a.buildSeries(r.Context(), metric, maxPts, f)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if out == nil {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
+			return
+		}
+		items = append(items, *out)
+	}
+	writeJSON(w, http.StatusOK, SeriesBatchOut{Metric: metric, Items: items})
+}
+
+type workloadKey struct{ ns, wl string }
+
+func parseWorkloadKeys(r *http.Request) []workloadKey {
+	q := r.URL.Query()
+	var keys []workloadKey
+	seen := map[string]bool{}
+	add := func(raw string) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return
+		}
+		ns, wl, ok := strings.Cut(raw, "/")
+		if !ok || ns == "" || wl == "" {
+			return
+		}
+		id := ns + "/" + wl
+		if seen[id] {
+			return
+		}
+		seen[id] = true
+		keys = append(keys, workloadKey{ns: ns, wl: wl})
+	}
+	for _, w := range q["workload"] {
+		add(w)
+	}
+	if csv := strings.TrimSpace(q.Get("workloads")); csv != "" {
+		for _, part := range strings.Split(csv, ",") {
+			add(part)
+		}
+	}
+	return keys
+}
+
+func seriesQuery(r *http.Request, now time.Time) (metric string, maxPts int, f store.ExportFilter, err error) {
+	q := r.URL.Query()
+	metric = strings.TrimSpace(q.Get("metric"))
+	if metric == "" {
+		metric = "cpu_util_mcores"
+	}
+	f, err = filterFromQuery(r, now)
+	if err != nil {
+		return "", 0, f, err
+	}
+	maxPts = DefaultMaxSeriesPoints
+	if s := strings.TrimSpace(q.Get("max_points")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > 5000 {
+			return "", 0, f, fmt.Errorf("max_points must be 1..5000")
+		}
+		maxPts = n
+	}
+	return metric, maxPts, f, nil
+}
+
+func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f store.ExportFilter) (*SeriesOut, error) {
+	recs, err := a.deps.Store.ListRecords(ctx, f)
+	if err != nil {
+		return nil, err
 	}
 	raw := make([]SeriesPoint, 0, len(recs))
 	for _, rec := range recs {
 		v, ok := metricValue(rec, metric)
 		if !ok {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("unknown metric %q", metric))
-			return
+			return nil, nil
 		}
 		raw = append(raw, SeriesPoint{T: rec.SampledAt.UTC().Format(time.RFC3339), V: v})
 	}
 	pts, down := downsample(raw, maxPts)
 	req, lim := seriesRefs(recs, metric)
-	writeJSON(w, http.StatusOK, SeriesOut{
+	return &SeriesOut{
 		Metric:      metric,
 		Namespace:   f.Namespace,
 		Workload:    f.Workload,
@@ -284,7 +382,7 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		Points:      pts,
 		Request:     req,
 		Limit:       lim,
-	})
+	}, nil
 }
 
 // seriesRefs returns request/limit guides from the newest record that has them.

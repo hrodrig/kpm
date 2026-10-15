@@ -101,7 +101,19 @@ func TestAPISeriesRefs(t *testing.T) {
 		Store: fixtureStore(t, now), Version: "v-test",
 		Now: func() time.Time { return now },
 	}, "secret")
-	rr := authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
+	rr := authedGet(mux, "/api/v1/series/batch?workloads=app/api&metric=cpu_util_mcores&window=24h", "secret")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("batch %d %s", rr.Code, rr.Body.String())
+	}
+	var batch server.SeriesBatchOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &batch); err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Items) != 1 || batch.Items[0].Workload != "api" || batch.Items[0].Count < 1 {
+		t.Fatalf("batch %+v", batch)
+	}
+
+	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=api&metric=cpu_util_mcores&window=24h", "secret")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("series %d %s", rr.Code, rr.Body.String())
 	}
