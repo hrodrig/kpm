@@ -22,6 +22,9 @@
     modeLabel: document.getElementById("mode-label"),
     clusterTarget: document.getElementById("cluster-target"),
     recSummary: document.getElementById("recommend-summary"),
+    nodesPanel: document.getElementById("nodes-panel"),
+    nodesMeta: document.getElementById("nodes-meta"),
+    nodesBody: document.getElementById("nodes-body"),
     tokenInput: document.getElementById("token"),
     authErr: document.getElementById("auth-err"),
     drawer: document.getElementById("drawer"),
@@ -519,11 +522,15 @@
           fetchJSON("/api/v1/recommendations", { grain: "workload" }).catch(function () {
             return { rows: [] };
           }),
+          fetchJSON("/api/v1/nodes").catch(function () {
+            return { items: [] };
+          }),
         ]);
       })
-      .then(function (pair) {
-        var wl = pair[0];
-        indexRecommendations(pair[1].rows || []);
+      .then(function (triple) {
+        var wl = triple[0];
+        indexRecommendations(triple[1].rows || []);
+        renderNodesPanel(triple[2]);
         if (!wl.items || !wl.items.length) {
           if (el.recSummary) el.recSummary.textContent = "";
           el.grid.innerHTML =
@@ -549,6 +556,67 @@
         if (el.recSummary) el.recSummary.textContent = "";
         el.grid.innerHTML = '<div class="error">' + escapeHTML(err.message || String(err)) + "</div>";
       });
+  }
+
+  function renderNodesPanel(nodes) {
+    if (!el.nodesPanel || !el.nodesBody) return;
+    el.nodesPanel.hidden = false;
+    var items = (nodes && nodes.items) || [];
+    if (!items.length) {
+      if (el.nodesMeta) el.nodesMeta.textContent = "";
+      el.nodesBody.innerHTML =
+        '<div class="empty">No node snapshots. Run <code>kpm capacity --record-nodes</code>.</div>';
+      return;
+    }
+    var cpuAlloc = 0;
+    var cpuReq = 0;
+    var cpuUtil = 0;
+    items.forEach(function (n) {
+      cpuAlloc += n.cpu_alloc_mcores || 0;
+      cpuReq += n.cpu_req_mcores || 0;
+      cpuUtil += n.cpu_util_mcores || 0;
+    });
+    if (el.nodesMeta) {
+      el.nodesMeta.textContent =
+        items.length +
+        " nodes · recorded " +
+        (nodes.recorded_at || "?") +
+        " · CPU alloc " +
+        Math.round(cpuAlloc) +
+        "m · req " +
+        Math.round(cpuReq) +
+        "m · util " +
+        Math.round(cpuUtil) +
+        "m";
+    }
+    var rows = items
+      .map(function (n) {
+        return (
+          "<tr><td>" +
+          escapeHTML(n.node) +
+          "</td><td>" +
+          Math.round(n.cpu_alloc_mcores || 0) +
+          "m</td><td>" +
+          Math.round(n.cpu_req_mcores || 0) +
+          "m</td><td>" +
+          Math.round(n.cpu_util_mcores || 0) +
+          "m</td><td>" +
+          formatBytes(n.mem_alloc_bytes || 0) +
+          "</td><td>" +
+          formatBytes(n.mem_req_bytes || 0) +
+          "</td><td>" +
+          (n.pods || 0) +
+          "</td></tr>"
+        );
+      })
+      .join("");
+    el.nodesBody.innerHTML =
+      '<table class="nodes-table"><thead><tr>' +
+      "<th>Node</th><th>CPU alloc</th><th>CPU req</th><th>CPU util</th>" +
+      "<th>Mem alloc</th><th>Mem req</th><th>Pods</th>" +
+      "</tr></thead><tbody>" +
+      rows +
+      "</tbody></table>";
   }
 
   function loadAllCardSeries(cards) {

@@ -18,15 +18,15 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 		"cluster-target", "recommend-summary", "mode-label", "site-footer",
 		"https://github.com/hrodrig/kpm", "MIT License", "advisory only",
 		"filter-ns", "filter-owner", "filter-grain", "filter-cpu", "filter-mem",
-		"Clear filters", "Filter workloads")
+		"Clear filters", "Filter workloads", "nodes-panel", "Node capacity")
 
 	css := mustGetBody(t, mux, "/static/app.css", "")
-	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters")
+	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel")
 
 	js := mustGetBody(t, mux, "/static/app.js", "")
 	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
 		"kube_live", "updateModeLabel", "filterItems", "workloadQueryParams",
-		"No workloads match these filters")
+		"No workloads match these filters", "/api/v1/nodes", "record-nodes", "renderNodesPanel")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {
