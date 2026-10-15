@@ -13,6 +13,7 @@ import (
 
 	"github.com/hrodrig/kpm/internal/config"
 	"github.com/hrodrig/kpm/internal/identity"
+	"github.com/hrodrig/kpm/internal/live"
 	"github.com/hrodrig/kpm/internal/store"
 )
 
@@ -99,6 +100,9 @@ func RunOnce(ctx context.Context, cfg *config.Config, st *store.Store, pods kube
 	})
 	if err != nil {
 		return Result{}, err
+	}
+	if pods != nil {
+		ResolveOwners(ctx, live.NewWorkloadGetter(pods), res.Records)
 	}
 	clientID := identity.Resolve(cfg.Client.ID)
 	clusterName := cfg.Cluster.Name

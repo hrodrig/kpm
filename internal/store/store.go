@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,33 +42,56 @@ type Store struct {
 }
 
 // Open creates parent dirs, opens the DB, and migrates schema.
-// Directory mode is 0700; the DB file is chmod'd to 0600 after open.
-// WAL + busy_timeout reduce "database is locked" when sample and serve share a file.
+// Directory mode is 0700; the DB file is created at 0600 before sql.Open so
+// WAL sidecars inherit owner-only mode. WAL + busy_timeout reduce
+// "database is locked" when sample and serve share a file.
 func Open(path string) (*Store, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create store dir: %w", err)
 	}
-	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
-	db, err := sql.Open("sqlite", dsn)
+	_ = os.Chmod(dir, 0o700)
+
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create store file: %w", err)
+	}
+	_ = f.Close()
+	if err := os.Chmod(path, 0o600); err != nil {
+		return nil, fmt.Errorf("chmod store: %w", err)
+	}
+
+	db, err := sql.Open("sqlite", sqliteDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	if err := os.Chmod(path, 0o600); err != nil && !os.IsNotExist(err) {
-		// File may not exist until first write; ignore NotExist.
-		_ = db.Close()
-		return nil, fmt.Errorf("chmod store: %w", err)
-	}
 	s := &Store{db: db, path: path}
 	if err := s.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
-	if err := os.Chmod(path, 0o600); err != nil {
+	if err := chmodStoreFiles(path); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("chmod store: %w", err)
+		return nil, err
 	}
 	return s, nil
+}
+
+func sqliteDSN(path string) string {
+	// file: URL so paths containing ? or # do not break pragma query parsing.
+	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	return u.String()
+}
+
+func chmodStoreFiles(path string) error {
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		if err := os.Chmod(p, 0o600); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("chmod store %s: %w", filepath.Base(p), err)
+		}
+	}
+	return nil
 }
 
 // Close closes the database.

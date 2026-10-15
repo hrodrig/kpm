@@ -94,6 +94,13 @@ func TestNewOpsHTTPServerOnlyAllowlist(t *testing.T) {
 	}
 }
 
+func TestMergeAllowedHosts(t *testing.T) {
+	got := mergeAllowedHosts([]string{"a.example", "b.example"}, []string{"b.example", "c.example", ""})
+	if len(got) != 3 || got[0] != "a.example" || got[2] != "c.example" {
+		t.Fatalf("got %#v", got)
+	}
+}
+
 func TestWithProcessMetrics(t *testing.T) {
 	c := &httpserver.Counters{}
 	called := false
