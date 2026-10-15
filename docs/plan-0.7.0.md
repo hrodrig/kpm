@@ -24,8 +24,8 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 ### Docs / planning
 
-- [ ] `docs/plan-0.7.0.md` (this file)
-- [ ] ROADMAP Current focus → 0.7.x Scale; mermaid 0.7 / 0.8 / 0.9 → 1.0
+- [x] `docs/plan-0.7.0.md` (this file)
+- [x] ROADMAP Current focus → 0.7.x Scale; mermaid 0.7 / 0.8 / 0.9 → 1.0
 - [ ] SPEC notes for search/filter, node snapshots, `allowed_hosts`, store caps
 - [ ] `configs/kpm.sample.yml` knobs for new surface
 - [ ] man pages when CLI/help strings change
@@ -55,13 +55,13 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 ### UI vs rate-limit (serve)
 
-- [ ] Exempt `GET /static/*` from rate-limit skip set
-- [ ] Batch or coalesce `/api/v1/series` (kill N+1 card fan-out)
-- [ ] UI handles 429 without broken `r.json()` (JSON error body or guard)
+- [x] Exempt `GET /static/*` from rate-limit skip set
+- [x] Batch or coalesce `/api/v1/series` (kill N+1 card fan-out)
+- [x] UI handles 429 without broken `r.json()` (JSON error body or guard)
 
 ### Harden leftovers (post `#54`–`#67`)
 
-- [ ] SMTP: per-send `context.WithTimeout` + connection `SetDeadline`
+- [x] SMTP: per-send `context.WithTimeout` + connection `SetDeadline`
 - [ ] Sample daemon: exponential backoff + time budget; log failures; ops counter
 - [ ] `allowed_hosts` (or equivalent) for BrowserGuard behind reverse proxy
 - [ ] Store: `OpenFile` 0600 before open; chmod `-wal`/`-shm`; safe DSN encoding
