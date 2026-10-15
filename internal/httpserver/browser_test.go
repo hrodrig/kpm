@@ -14,7 +14,7 @@ func TestBrowserGuardLoopbackRejectsBadHostOrigin(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	h := httpserver.AccessControl{Listen: "127.0.0.1:9740"}.Wrap(mux)
+	h := httpserver.AccessControl{Listen: "127.0.0.1:9740", AllowedHosts: []string{"kpm.example.com"}}.Wrap(mux)
 
 	// Empty Origin + loopback Host: allowed (curl).
 	rr := httptest.NewRecorder()
@@ -52,6 +52,16 @@ func TestBrowserGuardLoopbackRejectsBadHostOrigin(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("loopback Origin: %d", rr.Code)
+	}
+
+	// Configured public Host behind reverse proxy to loopback.
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	req.Host = "kpm.example.com"
+	req.Header.Set("Origin", "https://kpm.example.com")
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("allowed Host/Origin: %d", rr.Code)
 	}
 
 	// Ops paths stay exempt.

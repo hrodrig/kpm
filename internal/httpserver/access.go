@@ -13,6 +13,9 @@ type AccessControl struct {
 	RateLimit *RateLimiter
 	// Listen is the bind address (used for loopback Host/Origin checks).
 	Listen string
+	// AllowedHosts are extra Host/Origin names accepted on loopback listen
+	// (reverse-proxy public names). Loopback names are always allowed.
+	AllowedHosts []string
 }
 
 // Wrap returns next with access middleware applied. Ops paths stay exempt.
@@ -26,7 +29,7 @@ func (ac AccessControl) Wrap(next http.Handler) http.Handler {
 		h = ac.Allowlist.Middleware(h, skip)
 	}
 	if strings.TrimSpace(ac.Listen) != "" {
-		h = BrowserGuard(ac.Listen, h)
+		h = BrowserGuard(ac.Listen, ac.AllowedHosts, h)
 	}
 	return h
 }

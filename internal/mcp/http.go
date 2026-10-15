@@ -69,8 +69,9 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 func BuildAccessControl(mcpCfg config.MCP, bearer string) httpserver.AccessControl {
 	trusted := httpserver.ParseTrustedProxies(mcpCfg.TrustedProxies...)
 	ac := httpserver.AccessControl{
-		Trusted: trusted,
-		Listen:  strings.TrimSpace(mcpCfg.Listen),
+		Trusted:      trusted,
+		Listen:       strings.TrimSpace(mcpCfg.Listen),
+		AllowedHosts: append([]string(nil), mcpCfg.AllowedHosts...),
 	}
 	ac.Allowlist = httpserver.NewAllowlist(mcpCfg.AllowlistCIDRs, bearer, trusted)
 	if mcpCfg.MCPRateLimitEnabled() {
