@@ -73,8 +73,8 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - **[pgwd](https://github.com/hrodrig/pgwd)** — PostgreSQL connection watchdog ([live traffic](https://gghstats.hermesrodriguez.com/hrodrig/pgwd); deploy: [pgwd-selfhosted](https://github.com/hrodrig/pgwd-selfhosted))
 - **[gghstats](https://github.com/hrodrig/gghstats)** — GitHub repo traffic beyond 14 days ([live demo](https://gghstats.hermesrodriguez.com); deploy: [gghstats-selfhosted](https://github.com/hrodrig/gghstats-selfhosted))
 
-**Releases** will ship **binaries**, **`.deb`** / **`.rpm`**, and
-**`ghcr.io/hrodrig/kpm`** (Cosign + SBOM via GoReleaser) once tagged from
+**Releases** publish **binaries**, **`.deb`** / **`.rpm`**, and
+**`ghcr.io/hrodrig/kpm`** (Cosign + SBOM via GoReleaser) from annotated tags on
 `main`. Behavior contract: **[SPECIFICATIONS.md](SPECIFICATIONS.md)**.
 
 ## Table of contents

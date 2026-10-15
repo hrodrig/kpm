@@ -7,9 +7,9 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 
 - **What it is:** Go CLI whose **core** samples control-plane pod metrics into
   **SQLite** (plus backup/export). Adjacent: recommend, `capacity`, interactive
-  **TUI** (heatmap pod list). Optional: notifications (webhook), read-only
-  **MCP**, HTTP **server** charts. Core sample→SQLite shipped at `VERSION`
-  0.2.0; adjacent recommend/capacity/TUI still planned.
+  **TUI** (heatmap pod list). Optional: notifications (multi-sink), read-only
+  **MCP**, HTTP **server** charts. Shipped through `VERSION` 0.6.x (Core +
+  Insights + Notify + MCP + Server); path to v1 in `docs/ROADMAP.md`.
 - **Entrypoint:** `cmd/kpm/main.go`. Packages: `internal/cli` (Cobra),
   `internal/config`, `internal/identity` (`client.id` cascade),
   `internal/cluster`, `internal/store`, `internal/sample`,
