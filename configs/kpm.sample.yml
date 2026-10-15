@@ -26,6 +26,8 @@ store:
   # Keep enough history for stable percentiles / recommend (prefer ≥ window_days).
   # Production: >45 days recommended (often 60–90); lab default 14. Cost is disk.
   retention_days: 14
+  # Node panel (analyze-local): under-demand capture, not every sample tick:
+  #   kpm capacity --record-nodes
 
 # sample.interval_seconds:
 #   0  = one-shot sample → SQLite → exit

@@ -26,8 +26,8 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 - [x] `docs/plan-0.7.0.md` (this file)
 - [x] ROADMAP Current focus → 0.7.x Scale; mermaid 0.7 / 0.8 / 0.9 → 1.0
-- [ ] SPEC notes for node snapshots (search/filter + store caps + `allowed_hosts` done)
-- [ ] `configs/kpm.sample.yml` knobs for new surface (search/nodes)
+- [x] SPEC notes for search/filter, node snapshots, store caps, `allowed_hosts`
+- [x] `configs/kpm.sample.yml` knobs / notes for new surface
 - [ ] man pages when CLI/help strings change
 - [ ] CHANGELOG `[Unreleased]` → `[0.7.0]` on version cut only
 
@@ -41,10 +41,10 @@ security pass so operators can trust daemon + `kpm serve` at scale.
 
 ### `#20b` Node / capacity snapshots
 
-- [ ] Under-demand capture of node allocatable / requests / util → SQLite
-- [ ] Analyze-local panel (offline) reading store (no live kube required)
-- [ ] SPEC + sample config notes
-- [ ] Tests with fixture store
+- [x] Under-demand capture of node allocatable / requests / util → SQLite
+- [x] Analyze-local panel (offline) reading store (no live kube required)
+- [x] SPEC + sample config notes
+- [x] Tests with fixture store
 
 ### Store scale
 

@@ -144,7 +144,8 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ## 4. ADJACENT — capacity (non-interactive, normative today)
 
-- `kpm capacity` — one-shot **live** table (kube-capacity-like); **no SQLite**.
+- `kpm capacity` — one-shot **live** table (kube-capacity-like). Optional
+  `--record-nodes` writes under-demand `node_snapshots` for offline analyze-local.
 - Shared read model: `internal/live` (also for TUI/server).
 - Default grain: **one row per pod** — sum util / sum request / sum limit.
 - Pods without Metrics: still listed; util and ratios shown as `n/a`.
@@ -823,8 +824,9 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 - Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
   (undersized beats oversized beats ok; `n/a` = no request; missing row =
   no recommend).
-- Node / capacity under-demand snapshots are **out of band** for 0.6.x
-  (planned 0.7.x P6 `#20b`).
+- Node capacity snapshots (`#20b`): `kpm capacity --record-nodes` writes
+  `node_snapshots` (under-demand; not every sample tick). Analyze-local
+  `GET /api/v1/nodes` reads the latest batch offline (no kube).
 
 ### 8.6 Status / recommendations examples (anonymized)
 

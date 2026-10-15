@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Node capacity snapshots: `kpm capacity --record-nodes` → `node_snapshots`
+  (schema v4); analyze-local `GET /api/v1/nodes` + Nodes panel offline
+  ([#70](https://github.com/hrodrig/kpm/issues/70) / `#20b`).
 - Analyze-local search/filter: namespace, owner, grain, CPU/Mem verdict
   ([#69](https://github.com/hrodrig/kpm/issues/69) / `#20c`).
 - Roadmap split **0.7 Scale / 0.8 Honesty / 0.9 Freeze → 1.0**; band plan
