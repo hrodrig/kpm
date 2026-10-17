@@ -176,6 +176,48 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 
 ---
 
+### 2.5 Store schema and compatibility (Normative)
+
+`kpm doctor` reports the version on disk against the one the build expects. The
+history below is append-only: a version number is never reused or renumbered.
+
+| v | Release | Adds |
+|---|---------|------|
+| 1 | 0.2.0 | `schema_meta`, `samples` and its time/namespace indexes |
+| 2 | 0.3.0 | `recommendations` + grain index (`recommend --record`) |
+| 3 | 0.7.0 | `idx_samples_ns_owner_at` — index only, no table change |
+| 4 | 0.7.0 | `node_snapshots` + indexes (`capacity --record-nodes`) |
+| 5 | 0.8.0 | `recommendations.cpu_target_utilization`, `.memory_target_utilization` |
+| 6 | 0.8.0 | `recommendations.window_days`, `.days_with_samples` |
+| 7 | 0.9.0 | `node_snapshots.taints`, `.unschedulable` |
+
+- **Forward only, additive.** Opening an older store migrates it in place:
+  `CREATE TABLE IF NOT EXISTS` for tables, `addColumnIfMissing` for columns. No row
+  is rewritten and no column is dropped, so a migration is additive and idempotent.
+- **Irreversible.** A migrated store cannot be read by an older binary. `kpm backup`
+  before upgrading across a minor is the supported way back, and `kpm restore` puts
+  it back.
+- **A newer store is refused, untouched.** `Open` reads `schema_meta` *before*
+  running any DDL and fails when the store is newer than the build understands;
+  `restore --merge` applies the same rule to its source. The fix is a newer kpm,
+  never a partial read: an older binary adding the columns it thinks are missing
+  would corrupt a schema it cannot interpret.
+- **`1.0.0` freezes v7.** After that, new columns still need a version bump, but the
+  meaning of an existing table, column or index changes only in a major release.
+
+### 2.6 CLI surface freeze (Normative)
+
+The frozen surface for `1.0.0` is: command names, flag names and their meanings, the
+TSV/CSV column order, the JSON API field names, and the exit codes in §12.
+
+- Adding a command, flag or field is not a breaking change.
+- Removing or renaming one, reordering output columns, or reusing an exit code for a
+  different meaning is breaking and requires a major release.
+- A **behaviour correction** that brings the tool in line with this document is not a
+  break; it ships in a patch and the CHANGELOG records it.
+
+---
+
 ## 3. ADJACENT — recommend (normative today)
 
 - `kpm recommend` — **offline** from SQLite (no cluster access).
@@ -1231,7 +1273,7 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Topic | Decision |
 |-------|----------|
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
-| Schema | SQLite schema v2: `recommendations` table + indexes |
+| Schema | SQLite schema v2 **at the time**: `recommendations` table + indexes (full history: §2.5) |
 | Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
 | Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A). Full label and band semantics in [§3.1](#31-percentile-min_samples-and---score) |
 | TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
