@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Man pages now cover **every flag the binary accepts** (22/22, and none documented that no longer
+  exist). `capacity fit` is its own entry instead of a paragraph glued onto `capacity`, and
+  `--nodes` / `--record-nodes` are named rather than described as "the nodes flag". Two stale claims
+  removed along the way: `kubectl ... once the sampler is implemented` (it has been since `v0.2.0`)
+  and `node_snapshots (schema v4)` (it is v7).
+- SPEC is now **normative end to end**: the `draft v0.4` banner is gone, §9
+  (Configuration) and §10 (Security posture) are promoted, and the remaining `draft`
+  markers are gone or historical decision records. Each promotion was audited against
+  the code first; where a claim did not survive, the claim changed, not the heading.
+- SPEC §10 records the controls that exist and were previously unlisted: middleware
+  order (browser guard → allowlist → rate limit → mux), ops paths exempt from
+  allowlist and rate limiting, bearer bypassing the IP check, and the SMTP
+  TLS/STARTTLS rules. It also records a **known gap**: an unparseable `allowlist_cidrs`
+  entry is skipped and a list with no valid entries disables the allowlist, so a typo
+  fails open. Tracked as `#22`.
+- `configs/kpm.sample.yml` now documents every key the binary reads. Two were missing:
+  `threshold` (absolute threshold, the alternative to `threshold_ratio`) and `headers_env`
+  (extra webhook headers). SPEC §9 names the sample as the complete key reference, so this
+  file is now the contract, not an example.
 - [docs/migrating.md](docs/migrating.md): operator notes for upgrading — back up first, let the store
   migrate in place, what a refused newer store means, and which releases moved `capacity` numbers.
 - SPEC §2.5 records the full store schema history (v1–v7) and the compatibility rules; §2.6 freezes the
@@ -38,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SPEC §9 documented a configuration precedence the binary does not implement: "CLI flags
+  override config when explicitly set" implies a Viper flag binding, and there is no
+  `BindPFlag` anywhere in the tree. Flags win only where a command reads them (`--sort` over
+  `tui.default_sort`, `-o` over the default backup path), so level 4 of the chain is now
+  described as a per-command rule. The sibling rule "every knob overridable via ENV and CLI"
+  was corrected the same way: `KPM_*` covers every key, CLI does not. §9 is promoted to
+  Normative with the correction in place.
 - Opening a store written by a **newer** kpm is now refused **before any migration runs**. The version
   was read after the DDL, so a downgrade could have added the columns it thought were missing to a
   schema it cannot interpret. `restore --merge` already refused a newer source; `Open` now applies the

@@ -1,11 +1,10 @@
 # SPECIFICATIONS — kpm
 
-> **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
-> adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
-> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
-> as **`v0.6.0`**; Scale (search/filter, node snapshots, store caps) as
-> **`v0.7.0`**; Honesty (window coverage, per-resource targets, `kpm doctor`,
-> packaged systemd unit) as **`v0.8.0`**.
+> **Status: normative — describes the `0.9.x` tree.** Every section below is
+> implemented and must not regress without a CHANGELOG entry. The CLI surface and the
+> store schema are frozen for `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
+> `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
+> `v0.8.0`, capacity truth + `restore` `v0.9.x`.
 
 | Term | Meaning |
 |------|---------|
@@ -363,8 +362,11 @@ If empty → all pods matching `scope` (same as capacity default).
   later).
 - Each row: identity + **horizontal bar** (heatmap style) for the selected
   metric ratio, e.g. util/request or util/limit.
-- Color bands (draft): green &lt; 70%, yellow 70–90%, red ≥ 90% of baseline
-  (aligned with `target_utilization` / notify thresholds where sensible).
+- Color bands: green `[0, 0.70)`, yellow `[0.70, 0.90)`, red `[0.90, ∞)` of the
+  baseline. The boundaries are **hardcoded** (`internal/tui/bar.go`), not read from
+  `recommend.target_utilization` or the notify thresholds; they coincide with the
+  default target by convention only, so changing a threshold in config does not move
+  a bar's colour.
 - Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
   vs **vs limit**.
 - **vs last recommendation (P2):** when a `#9b` snapshot exists for the grain
@@ -1052,7 +1054,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ---
 
-## 9. Configuration (draft)
+## 9. Configuration (Normative)
 
 ### 9.1 Discovery (kwd-style)
 
@@ -1065,17 +1067,30 @@ Lowest → highest (later wins):
 1. Built-in **defaults**
 2. **YAML** file (`--config`)
 3. Environment **`KPM_*`** (`AutomaticEnv` / `BindEnv`; `.` → `_`)
-4. **CLI flags** (only when the flag is explicitly set / `Changed`)
+4. **CLI flags** — where a command implements the override explicitly:
+   `--sort` wins over `tui.default_sort`, `-o` over the default backup path.
 
-Every YAML knob that operators need at runtime must be overridable via ENV and
-CLI (band implementation rule for 0.6.x+). Secrets use `*_env` **names** in
-YAML; values come only from the environment (fail closed if missing when
-required).
+   There is **no general flag→config binding** (no `BindPFlag`): a flag is read by
+   the command that consumes it, not merged into the config tree. So level 4 is a
+   per-command rule, not a layer — a flag that no command reads does nothing, and
+   adding a flag is not adding a configuration knob.
+
+Every YAML knob that operators need at runtime must be overridable via **`KPM_*`**
+(`AutomaticEnv` covers every key through the `.` → `_` replacer). CLI overrides are
+per command and must be documented where they exist — see the note above. Secrets use
+`*_env` **names** in YAML; values come only from the environment (fail closed if
+missing when required).
 
 ### 9.2 Top-level keys
 
 `cluster`, `kube`, `client`, `store`, `sample`, `scope`, `recommend`, `tui`,
 `notifications`, `mcp`, `server`.
+
+**[`configs/kpm.sample.yml`](../configs/kpm.sample.yml) is the complete key
+reference** — every key the binary reads is documented there, in the block where it
+belongs. Optional sections (`notifications`, `mcp`, `server`) ship commented out on
+purpose: the file is packaged as `/etc/kpm/kpm.yaml` by the `.deb`/`.rpm`, and
+installing it must enable nothing.
 
 ### 9.2.1 Client identity (normative today — kwd/pgwd pattern)
 
@@ -1110,15 +1125,24 @@ tui:
 
 ---
 
-## 10. Security posture (draft)
+## 10. Security posture (Normative)
 
 | Area | Rule |
 |------|------|
-| Cluster | Read-only |
-| Secrets | `*_env` / env only |
-| Notify / MCP HTTP / server | Fail closed if enabled and secret missing |
-| MCP / server bind | Localhost default |
-| K8s RBAC deny | Fail closed |
+| Cluster | **Read-only.** No create/update/patch/delete verb is issued against the cluster; the typed client is used for List and Get only. |
+| Secrets | `*_env` **names** in YAML; the values come only from the environment, never from the file. |
+| Notify / MCP HTTP / server | **Fail closed.** A sink whose env var is missing or empty refuses to build (`environment variable X is missing or empty (fail-closed)`); `mcp.token_env` is required when `mcp.listen` is non-loopback; `server.token_env` (or `mcp.token_env`) is required when server auth is on. |
+| MCP / server bind | **`127.0.0.1:9740`** by default. Binding anywhere else requires a token. |
+| K8s RBAC deny | **Fail closed.** A denied List surfaces as exit `2`, never as an empty result. |
+| Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
+| Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
+| Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
+| SMTP | `use_tls` for implicit TLS (465), otherwise STARTTLS; `require_starttls` refuses a relay that will not upgrade. |
+
+**Known gap, tracked as `#22`:** `allowlist_cidrs` entries that fail to parse are skipped, and a list
+with no valid entries disables the allowlist instead of refusing to start. A typo therefore **fails
+open**. Closing it means rejecting the config at load time — a behaviour change, deliberately not
+folded into a documentation freeze.
 
 ---
 

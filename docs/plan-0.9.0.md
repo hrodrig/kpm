@@ -74,7 +74,8 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
 - `[x]` `make lint` · `make test` · `make cover-check` green (coverage 80.4%)
 - `[x]` Mutation check per behavioural fix (4/4 red before green)
 - `[ ]` `#20` Integration/E2E smoke
-- `[ ]` `#21` Docs freeze: SPEC → normative v1.0; sample config complete
+- `[x]` `#21` Docs freeze: SPEC → normative; man pages 22/22 flags; sample config complete
+      (72/74 already, the last 2 added)
 - `[ ]` `#22` Security pass; minimal RBAC ClusterRole example in docs (not Helm)
 - `[ ]` `#23` Homebrew tap, if still wanted
 - `[x]` `#29` CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes — SPEC §2.5/§2.6 and
