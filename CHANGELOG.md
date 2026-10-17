@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of implied. Persisted per snapshot (schema v6) and exposed as `window_days` /
   `days_with_samples` on `GET /api/v1/recommendations`
   ([#92](https://github.com/hrodrig/kpm/issues/92)).
+- `.deb` / `.rpm` install a `kpm-sample.service` systemd unit. The package never enables it — the
+  operator runs `systemctl enable --now kpm-sample`. The unit pins
+  `KPM_STORE_PATH=/var/lib/kpm/metrics.db` with `StateDirectory=kpm`, because the packaged config's
+  `~/.local/share/...` default would resolve to root's home under a system service.
 
 ### Changed
 

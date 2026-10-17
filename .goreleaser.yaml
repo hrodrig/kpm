@@ -136,6 +136,8 @@ nfpms:
       - src: configs/kpm.sample.yml
         dst: /etc/kpm/kpm.yaml
         type: config|noreplace
+      - src: contrib/systemd/kpm-sample.service
+        dst: /lib/systemd/system/kpm-sample.service
 
 snapshot:
   version_template: "{{ .Env.KPM_SNAPSHOT_VERSION }}"
