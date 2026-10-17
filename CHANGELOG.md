@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- SPEC is now **normative end to end**: the `draft v0.4` banner is gone, §9
+  (Configuration) and §10 (Security posture) are promoted, and the remaining `draft`
+  markers are gone or historical decision records. Each promotion was audited against
+  the code first; where a claim did not survive, the claim changed, not the heading.
+- SPEC §10 records the controls that exist and were previously unlisted: middleware
+  order (browser guard → allowlist → rate limit → mux), ops paths exempt from
+  allowlist and rate limiting, bearer bypassing the IP check, and the SMTP
+  TLS/STARTTLS rules. It also records a **known gap**: an unparseable `allowlist_cidrs`
+  entry is skipped and a list with no valid entries disables the allowlist, so a typo
+  fails open. Tracked as `#22`.
 - `configs/kpm.sample.yml` now documents every key the binary reads. Two were missing:
   `threshold` (absolute threshold, the alternative to `threshold_ratio`) and `headers_env`
   (extra webhook headers). SPEC §9 names the sample as the complete key reference, so this
