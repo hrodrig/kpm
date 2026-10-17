@@ -45,3 +45,5 @@
 # Never commit these
 .planning/
 **/.DS_Store
+# Generated when lint builds the man pages (!contrib/** un-ignores them)
+contrib/man/man1/*.gz

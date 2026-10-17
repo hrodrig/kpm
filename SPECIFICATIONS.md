@@ -163,6 +163,13 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 ### 2.4 Backup / export
 
 - `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
+- `kpm restore` — install a backup at the store path, or `--merge` the rows it
+  adds. **Replace** copies to a temp file and renames into place, removes stale
+  `-wal`/`-shm` left by the replaced database, and refuses a non-empty store
+  without `--force`. **Merge** opens the backup read-only and dedupes on each
+  table's natural key (`client_id`, `cluster_name`, grain or pod, `container`,
+  timestamp), so repeating it adds nothing. A backup from a newer schema is
+  refused; older backups are accepted, skipping absent tables and columns.
 - `kpm export` — **csv** and **tsv** only for the foreseeable future (json later
   only if demanded). Offline filters: `--since` / `--until` (RFC3339),
   `--namespace`, `--pod`, `--workload` (`owner_name`).
@@ -254,6 +261,27 @@ suggestions that were actually applied.
 - Shared read model: `internal/live` (also for TUI/server).
 - Default grain: **one row per pod** — sum util / sum request / sum limit.
 - Pods without Metrics: still listed; util and ratios shown as `n/a`.
+- **Requests are counted the way the scheduler counts them.** A pod's effective
+  request is `max(sum(containers), max(initContainers))`: an init container asking
+  for 2 CPU makes the pod occupy 2 CPU even if its app containers sum to 500m.
+  Node totals use that number. Container rows keep their own per-container
+  request, because rightsizing advice is per container and an init container
+  consumes nothing at runtime.
+- **Pods in a terminal phase are excluded** (`Succeeded`, `Failed`): they no
+  longer hold their reservation and the Metrics API stops reporting them.
+  `Pending` pods still count — they reserve capacity while they wait.
+- **Taints never change a total.** `capacity` reports per-node taints
+  (`NoSchedule` / `NoExecute` only — `PreferNoSchedule` is a hint) and cordon
+  state as **pool identity**. Capacity that exists is capacity that exists;
+  removing a dedicated pool from the totals would erase it from the report of the
+  operator who owns it.
+- **`kpm capacity fit`** — workload-aware placement check. `--for kind/name`
+  (`deployment`, `statefulset`, `daemonset`) or `--cpu` / `--memory`. Per node:
+  fits, or why not — cordon, taint not tolerated, `nodeSelector` / required
+  affinity mismatch, insufficient CPU or memory. Evaluates only what the pod and
+  the nodes can decide: pod (anti-)affinity, topology spread, volume zone binding
+  and fragmentation are **not** evaluated, and every run names them. Requests come
+  from pod specs alone, so it does not require the Metrics API.
 - Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
 - Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
 - Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
@@ -1053,6 +1081,7 @@ tui:
 |---------|-------|--------|----------|--------|
 | `sample` | Core | **Normative** | Yes | Write |
 | `backup` | Core | **Normative** | No | Yes |
+| `restore` | Core | **Normative** | No | Yes |
 | `export` | Core | **Normative** | No | Yes |
 | `recommend` | Adjacent | **Normative** | No | Yes |
 | `capacity` | Adjacent | **Normative** | Yes | No |

@@ -20,7 +20,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 | Band | Focus | Plan |
 |------|-------|------|
 | **0.2.x–0.8.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty | shipped `v0.2.0`–`v0.8.0` |
-| **Current** | **0.9.x Freeze** → **1.0.0** | plan not written yet |
+| **Current** | **0.9.x** Capacity truth + restore → **1.0.0** | [plan-0.9.0](./plan-0.9.0.md) |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -37,7 +37,7 @@ flowchart LR
   mcp --> server["0.6.x Server"]
   server --> scale["0.7.x Scale"]
   scale --> honesty["0.8.x Honesty"]
-  honesty --> freeze["0.9.x Freeze"]
+  honesty --> freeze["0.9.x truth+restore"]
   freeze --> v1["1.0.0 Stable"]
 ```
 
@@ -51,7 +51,7 @@ flowchart LR
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
 | **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
 | **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **Shipped** `v0.8.0` |
-| **0.9.x** Freeze | E2E/docs/security/packaging (`#20`–`#23`, `#29`) | Planned |
+| **0.9.x** Truth + restore | Aggregation, `restore`, `capacity fit` (`#110`/`#111`), then E2E/docs/security/packaging (`#20`–`#23`, `#29`) | **In tree** (part) |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
 [↑ Back to top](#top)
@@ -191,10 +191,12 @@ them still open. `#22` keeps the remaining security-pass and RBAC items.
 retention/window conflict, no rotatable rate limit, no unencoded SMTP header, no
 tag that publishes a non-`main` state.
 
-### 0.9.x — Freeze toward 1.0
+### 0.9.x — Capacity truth + restore, then Freeze toward 1.0
 
 | ID | Item | Status |
 |----|------|--------|
+| `#110` | `kpm restore` — replace or merge a backup | **In tree** |
+| `#111` | `capacity fit`, node pool identity, scheduler-shaped aggregation | **In tree** |
 | `#20` | Integration/E2E smoke (matrix may stay thin) | Planned |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | Planned |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |

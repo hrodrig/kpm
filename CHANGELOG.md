@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kpm capacity fit`: a placement check that answers "can this workload be scheduled here" rather
+  than "how much is free". Evaluates cordon, taints and tolerations, `nodeSelector`, required node
+  affinity, and remaining CPU/memory, reading the constraints from a real workload (`--for
+  deployment/api`) or a hypothetical pod (`--cpu`/`--memory`). Prints what it did not evaluate —
+  pod (anti-)affinity, topology spread, volume zone binding, fragmentation — on every run
+  ([#111](https://github.com/hrodrig/kpm/issues/111)).
+- `kpm restore`: the missing counterpart to `kpm backup`. By default it installs a backup at the
+  store path (temp file, rename, stale `-wal`/`-shm` removed, `--force` required to replace a
+  non-empty store). With `--merge` it opens the backup read-only and adds only the rows the store
+  does not already hold, matched on each table's natural key — so a second merge of the same file
+  adds nothing. Older backups are accepted (absent tables skipped, newer columns defaulted); a
+  backup from a newer schema is refused
+  ([#110](https://github.com/hrodrig/kpm/issues/110)).
+
+### Fixed
+
+- `kpm capacity` no longer counts `Succeeded`/`Failed` pods in node requests or in the per-node pod
+  count. The scheduler releases a pod's reservation when it reaches a terminal phase and the Metrics
+  API stops reporting it, so completed Jobs inflated both numbers and read as permanently idle
+  workloads that still held their requests.
+- `kpm capacity` now counts init container requests. A pod's effective request is
+  `max(sum(containers), max(initContainers))` — an init container asking for 2 CPU reserves 2 CPU
+  even when the app containers sum to 500m. Summing only regular containers understated how full a
+  node was and overstated free headroom.
+
 ## [0.8.0] - 2026-10-16
 
 ### Added
