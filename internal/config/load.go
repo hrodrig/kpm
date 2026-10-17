@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
@@ -184,6 +185,17 @@ func (c *Config) validate() error {
 	}
 	if c.Store.RetentionDays < 1 {
 		return fmt.Errorf("store.retention_days must be >= 1 (got %d)", c.Store.RetentionDays)
+	}
+	// Retention shorter than the recommend window truncates the very history the
+	// window measures, so percentiles come out noisier than the operator asked
+	// for. SPECIFICATIONS.md §2.2 states the relation as guidance ("prefer
+	// retention_days >= recommend.window_days"), not as a hard requirement, so
+	// this warns instead of failing closed: a collector that refuses to run is
+	// worse than one that runs with a noisy p95. Advisory only — no exit code.
+	if c.Store.RetentionDays < c.Recommend.WindowDays {
+		slog.Warn("store.retention_days is shorter than recommend.window_days; percentiles will be computed over truncated history",
+			"retention_days", c.Store.RetentionDays,
+			"window_days", c.Recommend.WindowDays)
 	}
 	if c.Sample.IntervalSeconds < 0 {
 		return fmt.Errorf("sample.interval_seconds must be >= 0 (got %d)", c.Sample.IntervalSeconds)
