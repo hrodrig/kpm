@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Window coverage in `kpm recommend`: `days_with_samples` and the oldest sample seen are reported
+  alongside `window_days`, so a percentile resting on a fraction of the window is visible instead
+  of implied. Persisted per snapshot (schema v6) and exposed as `window_days` /
+  `days_with_samples` on `GET /api/v1/recommendations`
+  ([#92](https://github.com/hrodrig/kpm/issues/92)).
+
 ### Fixed
 
 - Release workflow fails when the pushed tag is not an ancestor of `main`, and

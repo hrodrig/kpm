@@ -29,12 +29,16 @@ type Recommendation struct {
 	CPUTargetUtilization    float64
 	MemoryTargetUtilization float64
 	WindowDays              int
-	CPUPMcores              float64
-	MemPBytes               int64
-	CPUSugMcores            float64
-	MemSugBytes             int64
-	CPUReqMcores            float64
-	MemReqBytes             int64
+	// DaysWithSamples is how much of WindowDays actually held data when the
+	// snapshot was taken (#26). 0 means "unknown", the reading for rows written
+	// before the column existed.
+	DaysWithSamples int
+	CPUPMcores      float64
+	MemPBytes       int64
+	CPUSugMcores    float64
+	MemSugBytes     int64
+	CPUReqMcores    float64
+	MemReqBytes     int64
 }
 
 // CPUTarget resolves the CPU target recorded with this snapshot.
@@ -58,7 +62,7 @@ const recommendationColumns = `
 	recorded_at, client_id, cluster_name,
 	grain, grain_key, namespace, pod, container, owner_kind, owner_name,
 	samples, percentile, target_utilization,
-	cpu_target_utilization, memory_target_utilization, window_days,
+	cpu_target_utilization, memory_target_utilization, window_days, days_with_samples,
 	cpu_p_mcores, mem_p_bytes, cpu_sug_mcores, mem_sug_bytes,
 	cpu_req_mcores, mem_req_bytes`
 
@@ -82,6 +86,7 @@ func migrateRecommendations(db *sql.DB) error {
 			cpu_target_utilization REAL NOT NULL DEFAULT 0,
 			memory_target_utilization REAL NOT NULL DEFAULT 0,
 			window_days INTEGER NOT NULL DEFAULT 0,
+			days_with_samples INTEGER NOT NULL DEFAULT 0,
 			cpu_p_mcores REAL NOT NULL DEFAULT 0,
 			mem_p_bytes INTEGER NOT NULL DEFAULT 0,
 			cpu_sug_mcores REAL NOT NULL DEFAULT 0,
@@ -104,6 +109,11 @@ func migrateRecommendations(db *sql.DB) error {
 		if err := addColumnIfMissing(db, "recommendations", col, "REAL NOT NULL DEFAULT 0"); err != nil {
 			return err
 		}
+	}
+	// Same for the coverage column added by #26; default 0 keeps the old
+	// "coverage unknown" reading.
+	if err := addColumnIfMissing(db, "recommendations", "days_with_samples", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
 	}
 	return nil
 }
@@ -157,10 +167,10 @@ func (s *Store) InsertRecommendations(ctx context.Context, rows []Recommendation
 			grain, grain_key,
 			namespace, pod, container, owner_kind, owner_name,
 			samples, percentile, target_utilization,
-			cpu_target_utilization, memory_target_utilization, window_days,
+			cpu_target_utilization, memory_target_utilization, window_days, days_with_samples,
 			cpu_p_mcores, mem_p_bytes, cpu_sug_mcores, mem_sug_bytes,
 			cpu_req_mcores, mem_req_bytes
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -173,7 +183,7 @@ func (s *Store) InsertRecommendations(ctx context.Context, rows []Recommendation
 			r.Grain, r.GrainKey,
 			r.Namespace, r.Pod, r.Container, r.OwnerKind, r.OwnerName,
 			r.Samples, r.Percentile, r.TargetUtilization,
-			r.CPUTargetUtilization, r.MemoryTargetUtilization, r.WindowDays,
+			r.CPUTargetUtilization, r.MemoryTargetUtilization, r.WindowDays, r.DaysWithSamples,
 			r.CPUPMcores, r.MemPBytes, r.CPUSugMcores, r.MemSugBytes,
 			r.CPUReqMcores, r.MemReqBytes,
 		); err != nil {
@@ -207,7 +217,7 @@ func (s *Store) LatestRecommendations(ctx context.Context, grain string) ([]Reco
 		SELECT r.id, r.recorded_at, r.client_id, r.cluster_name,
 			r.grain, r.grain_key, r.namespace, r.pod, r.container, r.owner_kind, r.owner_name,
 			r.samples, r.percentile, r.target_utilization,
-			r.cpu_target_utilization, r.memory_target_utilization, r.window_days,
+			r.cpu_target_utilization, r.memory_target_utilization, r.window_days, r.days_with_samples,
 			r.cpu_p_mcores, r.mem_p_bytes, r.cpu_sug_mcores, r.mem_sug_bytes,
 			r.cpu_req_mcores, r.mem_req_bytes
 		FROM recommendations r
@@ -250,7 +260,7 @@ func scanRecommendation(row scannable) (*Recommendation, error) {
 		&r.ID, &at, &r.ClientID, &r.ClusterName,
 		&r.Grain, &r.GrainKey, &r.Namespace, &r.Pod, &r.Container, &r.OwnerKind, &r.OwnerName,
 		&r.Samples, &r.Percentile, &r.TargetUtilization,
-		&r.CPUTargetUtilization, &r.MemoryTargetUtilization, &r.WindowDays,
+		&r.CPUTargetUtilization, &r.MemoryTargetUtilization, &r.WindowDays, &r.DaysWithSamples,
 		&r.CPUPMcores, &r.MemPBytes, &r.CPUSugMcores, &r.MemSugBytes,
 		&r.CPUReqMcores, &r.MemReqBytes,
 	)

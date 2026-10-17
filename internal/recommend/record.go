@@ -31,6 +31,7 @@ func SnapshotsFromResult(res Result, clientID, clusterName string, at time.Time)
 			CPUTargetUtilization:    res.CPUTargetUtil,
 			MemoryTargetUtilization: res.MemTargetUtil,
 			WindowDays:              windowDays,
+			DaysWithSamples:         res.DaysWithSamples,
 			CPUPMcores:              a.CPUPercentile,
 			MemPBytes:               int64(a.MemPercentile),
 			CPUSugMcores:            a.CPUSuggested,
