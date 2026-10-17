@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Release workflow fails when the pushed tag is not an ancestor of `main`, and
+  drops the redundant workflow-level write permissions
+  ([#90](https://github.com/hrodrig/kpm/issues/90)).
+
 ## [0.7.0] - 2026-10-14
 
 ### Added
