@@ -446,7 +446,7 @@ Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** op
 | `mcp.listen` | `127.0.0.1:9740` | Bind; use `0.0.0.0` only when the operator intentionally exposes the port |
 | `mcp.trusted_proxies` | empty | TCP peers allowed to supply `X-Forwarded-For` / `X-Real-IP` for rate-limit / allowlist identity |
 | `mcp.allowlist_cidrs` | empty (off) | Optional client IP/CIDR allowlist; matching `Authorization: Bearer` bypasses IP check |
-| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables |
+| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables. IPv6 buckets are grouped by `/64` (the standard subscriber allocation) so a client cannot refill by rotating its source address; IPv4 and IPv4-mapped IPv6 stay per-address (the mapped form normalises to its IPv4 bucket). The allowlist is deliberately **not** grouped this way — it matches exactly the CIDR written |
 
 Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
 When rate limit or allowlist is active and `trusted_proxies` is empty, the process
