@@ -85,9 +85,10 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 
 *`kpm serve` (dark): summary strip and per-workload CPU/Mem verdicts. Advisory only — never applied to the cluster.*
 
-![kpm tui — CPU vs request spectrum across pods](docs/kpm-tui-cpu-request-13pods.png)
+[![kpm tui — CPU vs request spectrum across pods](docs/kpm-tui-cpu-request-13pods.png)](docs/kpm-tui-cpu-request-13pods.gif)
 
-*Live TUI (`kpm tui`): graded util vs request with Δ vs last recommend when recorded.*
+*Live TUI (`kpm tui`): graded util vs request with Δ vs last recommend when recorded. Click the still
+for the [recording](docs/kpm-tui-cpu-request-13pods.gif).*
 
 ![kpm flow — sample to SQLite to recommend, serve, MCP](docs/kpm-flow-diagram.png)
 
