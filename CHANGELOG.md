@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Homebrew: GoReleaser now publishes a **cask** into [`hrodrig/homebrew-kpm`](https://github.com/hrodrig/homebrew-kpm)
+  on every release, the same pattern as kwd/pgwd/kzero/groot/gghstats — the tap stays correct because
+  the release writes it, not because someone remembered to bump four hashes. Installs both binaries
+  and the man pages; `brew install --cask hrodrig/kpm/kpm`. The release workflow refuses to start
+  without `HOMEBREW_TAP_TOKEN` (a PAT with `contents:write` on the tap), so a release cannot silently
+  ship with a stale tap.
 - [docs/rbac.md](docs/rbac.md): the smallest ClusterRole kpm needs, derived from the API calls in the
   tree — `get`/`list` on `nodes` and `pods`, `get` on `apps` workloads, `list` on
   `metrics.k8s.io/pods`; no `watch`, no `secrets`, no writes. It also explains why a ClusterRole

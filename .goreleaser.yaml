@@ -155,6 +155,47 @@ release:
     owner: hrodrig
     name: kpm
 
+# Homebrew: GoReleaser writes the cask into https://github.com/hrodrig/homebrew-kpm
+# on every release, the same way kwd/pgwd/kzero/groot/gghstats do.
+# CI needs the repo secret HOMEBREW_TAP_TOKEN (a PAT with contents:write on the tap;
+# GITHUB_TOKEN cannot push to another repository), and the release workflow refuses
+# to start without it rather than publishing a release with a stale tap.
+homebrew_casks:
+  - name: kpm
+    ids:
+      - default
+    binaries:
+      - kpm
+      - kubectl-kpm
+    directory: Casks
+    homepage: "https://github.com/hrodrig/kpm"
+    description: "Kubernetes pod CPU/memory metrics into SQLite, with offline rightsizing"
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
+    commit_author:
+      name: Hermes Rodríguez
+      email: hrodrig@usb.ve
+    repository:
+      owner: hrodrig
+      name: homebrew-kpm
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    manpages:
+      - share/man/man1/kpm.1
+      - share/man/man1/kubectl-kpm.1
+    caveats: |
+      The sample configuration is not bundled with the Homebrew cask.
+      Generate it with `kpm --print-sample-config > kpm.yml`.
+      kubectl plugin: `kubectl plugin list | grep kpm` after install.
+      The RBAC the sampler needs is documented at
+      https://github.com/hrodrig/kpm/blob/develop/docs/rbac.md
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kpm"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/kubectl-kpm"]
+          end
+
 dockers_v2:
   - disable: "{{ .IsSnapshot }}"
     sbom: false
