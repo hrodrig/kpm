@@ -66,6 +66,7 @@ copy.
 | `kpm --print-sample-config` | embedded sample YAML → stdout, exit 0 |
 | Bare `kpm` | help, exit 0 |
 | `kpm doctor` | read-only diagnosis of config, store, history coverage and (opt-in) cluster — §1.1 |
+| Packaged systemd unit | `contrib/systemd/kpm-sample.service` → `/lib/systemd/system/kpm-sample.service` in the `.deb` / `.rpm`. **Never enabled by the package** — the operator runs `systemctl enable --now kpm-sample`. Pins `KPM_STORE_PATH=/var/lib/kpm/metrics.db` (`StateDirectory=kpm`) because the packaged config's `~/.local/share/...` default would resolve to root's home under a system service |
 | Exit codes | `0` / `1` / `2` (cluster) via `internal/exitcode` |
 
 ### 1.1 `kpm doctor` — read-only diagnosis

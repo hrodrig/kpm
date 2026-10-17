@@ -1,0 +1,48 @@
+# systemd unit for kpm (sample daemon).
+#
+# The .deb / .rpm installs this file but does NOT enable it. Turn it on once:
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now kpm-sample
+#
+# Manual install (tarball, /usr/local/bin): change ExecStart accordingly.
+#
+# Config: /etc/kpm/kpm.yaml, installed by the package. It ships with
+#         sample.interval_seconds: 300, so `kpm sample` runs as a daemon; with
+#         0 it would take one sample and exit, and this unit would stop.
+#
+# Store:  /var/lib/kpm/metrics.db, pinned below via KPM_STORE_PATH. The packaged
+#         config carries a user-relative "~/.local/share/kpm/metrics.db" default,
+#         which under a system service would resolve to root's home and be lost.
+#         KPM_STORE_PATH overrides store.path (internal/config/load.go binds it).
+#
+# Cluster access follows internal/cluster.LoadRESTConfig: --kubeconfig, then
+# $KUBECONFIG, then ~/.kube/config, then in-cluster service account credentials.
+# A root service therefore reads /root/.kube/config unless pointed elsewhere:
+#
+#   Environment=KUBECONFIG=/etc/kpm/kubeconfig
+
+[Unit]
+Description=Kubernetes Pods Metrics (sample daemon)
+Documentation=https://github.com/hrodrig/kpm
+# network.target, not network-online.target: Wants=network-online pulls in
+# systemd-networkd-wait-online, which can block `systemctl enable --now` for a
+# long time or leave a stale job behind on static-IP hosts.
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/kpm sample --config /etc/kpm/kpm.yaml
+Environment=KPM_STORE_PATH=/var/lib/kpm/metrics.db
+StateDirectory=kpm
+Restart=on-failure
+RestartSec=30
+
+# Optional: run as a dedicated user instead of root.
+#   useradd -r -s /bin/false kpm
+# User=kpm
+# Group=kpm
+
+[Install]
+WantedBy=multi-user.target
