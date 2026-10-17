@@ -154,6 +154,13 @@ func buildContainerRows(pods []corev1.Pod, metrics []metricsv1beta1.PodMetrics) 
 	var out []ContainerRow
 	for i := range pods {
 		p := &pods[i]
+		// Succeeded/Failed pods no longer hold their requests: the scheduler
+		// released them when the pod reached a terminal phase, and the Metrics API
+		// stops reporting them. Counting them inflates node requests and the pod
+		// count, and makes finished Jobs look like permanently idle workloads.
+		if p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed {
+			continue
+		}
 		ownerKind, ownerName := ownerRef(p)
 		reqCPU, reqMem, limCPU, limMem := requestsLimits(p)
 		m, hasMetrics := byKey[p.Namespace+"/"+p.Name]
