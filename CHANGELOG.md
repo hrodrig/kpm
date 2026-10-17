@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `e2e/` + `make test-e2e`: an end-to-end smoke that runs the **built binary as a process**
+  against a real SQLite file, with no cluster. It pins the things a unit test cannot: that an
+  absent store exits `3`, that `recommend` reads back what `restore` wrote, that
+  `restore --merge` is idempotent (`+0` on the second run), that a store from a newer build is
+  refused **without being touched**, and that `capacity fit` fails cleanly when there is no
+  cluster rather than reporting a verdict against nothing. Runs in CI and in `make release-check`.
+- `make test-e2e-kind`: the same binary against a **real** kind cluster — metrics-server
+  (`--kubelet-insecure-tls`), two workloads with requests, and one (`polinux/stress`) that actually
+  burns CPU and memory. It asserts the sampler stored real utilization (`996m` CPU / `137 MB` memory
+  in the last run) and real requests, that `capacity fit` answers `yes`, that it exits `4` when
+  nothing fits and `2` for a workload that does not exist. Needs Docker and kind, so it is a
+  deliberate target rather than a CI gate.
 - Homebrew: GoReleaser now publishes a **cask** into [`hrodrig/homebrew-kpm`](https://github.com/hrodrig/homebrew-kpm)
   on every release, the same pattern as kwd/pgwd/kzero/groot/gghstats — the tap stays correct because
   the release writes it, not because someone remembered to bump four hashes. Installs both binaries

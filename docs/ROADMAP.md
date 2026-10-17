@@ -197,7 +197,7 @@ tag that publishes a non-`main` state.
 |----|------|--------|
 | `#110` | `kpm restore` — replace or merge a backup | **In tree** |
 | `#111` | `capacity fit`, node pool identity, scheduler-shaped aggregation | **In tree** |
-| `#20` | Integration/E2E smoke (matrix may stay thin) | Planned |
+| `#20` | Integration/E2E smoke: `make test-e2e` (binary, no cluster) + `make test-e2e-kind` (kind + metrics-server) | **In tree** |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | **In tree** |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | **In tree** |
 | `#23` | Homebrew tap: cask published by GoReleaser to `hrodrig/homebrew-kpm`; needs the `HOMEBREW_TAP_TOKEN` secret | **In tree** |

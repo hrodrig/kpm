@@ -38,6 +38,12 @@
 !docs/
 !docs/**
 
+# Tests
+!e2e/
+!e2e/**
+!testing/
+!testing/**
+
 # CI
 !.github/
 !.github/**
