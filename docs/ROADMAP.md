@@ -19,8 +19,8 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x–0.7.x** | Core → Insights → Notify → MCP → Server → Scale | shipped `v0.2.0`–`v0.7.0` |
-| **Current** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | [plan-0.8.0.md](./plan-0.8.0.md) |
+| **0.2.x–0.8.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty | shipped `v0.2.0`–`v0.8.0` |
+| **Current** | **0.9.x Freeze** → **1.0.0** | plan not written yet |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -50,7 +50,7 @@ flowchart LR
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
 | **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
-| **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **In progress** |
+| **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **Shipped** `v0.8.0` |
 | **0.9.x** Freeze | E2E/docs/security/packaging (`#20`–`#23`, `#29`) | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
@@ -169,18 +169,18 @@ Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Shipped** `v0.7.0`.
 
 ### 0.8.x — Honesty (thin)
 
-Plan: [plan-0.8.0.md](./plan-0.8.0.md). **In progress** (opened 2026-10-16).
+Plan: [plan-0.8.0.md](./plan-0.8.0.md). **Shipped** `v0.8.0`.
 
 | ID | Item | Issue | Status |
 |----|------|-------|--------|
-| `#24` | Warn when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Done** (PR pending) |
-| `#25` | Separate CPU vs memory `target_utilization` | — | Planned |
-| `#26` | Window coverage by days-with-samples | — | Planned |
-| `#27` | Percentile / `--score` docs first-class | — | Planned |
-| `#28` | `kpm doctor` (metrics-server / store / history) | — | Planned |
-| `#30` | Rate-limit buckets grouped by IPv6 `/64` | [#88](https://github.com/hrodrig/kpm/issues/88) | **Done** (PR pending) |
-| `#31` | SMTP `Subject` RFC 2047 + CR/LF rejection + `require_starttls` | [#89](https://github.com/hrodrig/kpm/issues/89) | **Done** (PR pending) |
-| `#32` | Release fails unless the tag is on `main`; scope workflow permissions | [#90](https://github.com/hrodrig/kpm/issues/90) | **Done** (PR pending) |
+| `#24` | Warn when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Done** |
+| `#25` | Separate CPU vs memory `target_utilization` | [#91](https://github.com/hrodrig/kpm/issues/91) | **Done** |
+| `#26` | Window coverage by days-with-samples | [#92](https://github.com/hrodrig/kpm/issues/92) | **Done** |
+| `#27` | Percentile / `--score` docs first-class | [#93](https://github.com/hrodrig/kpm/issues/93) | **Done** |
+| `#28` | `kpm doctor` (metrics-server / store / history) | [#94](https://github.com/hrodrig/kpm/issues/94) | **Done** |
+| `#30` | Rate-limit buckets grouped by IPv6 `/64` | [#88](https://github.com/hrodrig/kpm/issues/88) | **Done** |
+| `#31` | SMTP `Subject` RFC 2047 + CR/LF rejection + `require_starttls` | [#89](https://github.com/hrodrig/kpm/issues/89) | **Done** |
+| `#32` | Release fails unless the tag is on `main`; scope workflow permissions | [#90](https://github.com/hrodrig/kpm/issues/90) | **Done** |
 
 **Why `#30`–`#32` are here:** pulled forward from the 0.9.x Freeze parked list
 (Claude 2026-10-14 re-audit). Each is a closed-scope correctness gap with a

@@ -4,7 +4,8 @@
 > adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
 > `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
 > as **`v0.6.0`**; Scale (search/filter, node snapshots, store caps) as
-> **`v0.7.0`**.
+> **`v0.7.0`**; Honesty (window coverage, per-resource targets, `kpm doctor`,
+> packaged systemd unit) as **`v0.8.0`**.
 
 | Term | Meaning |
 |------|---------|
