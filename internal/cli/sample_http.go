@@ -39,7 +39,9 @@ func newOpsHTTP(
 	if err := requireHTTPTokens(cfg, addr, mcpTok, apiTok); err != nil {
 		return nil, err
 	}
-	mountHTTPFacades(srv, cfg, st, liveFn, mcpTok, apiTok)
+	if err := mountHTTPFacades(srv, cfg, st, liveFn, mcpTok, apiTok); err != nil {
+		return nil, err
+	}
 	return srv, nil
 }
 
@@ -71,7 +73,7 @@ func mountHTTPFacades(
 	st *store.Store,
 	liveFn func(context.Context) (server.LiveOut, error),
 	mcpTok, apiTok string,
-) {
+) error {
 	// Access control applies whenever any HTTP facade is active. Knobs today
 	// live under mcp.* (allowlist / rate-limit / trusted_proxies) and apply to
 	// the shared mux — including server-only listen.
@@ -80,7 +82,10 @@ func mountHTTPFacades(
 		if bearer == "" {
 			bearer = apiTok
 		}
-		ac := mcp.BuildAccessControl(cfg.MCP, bearer)
+		ac, err := mcp.BuildAccessControl(cfg.MCP, bearer)
+		if err != nil {
+			return err
+		}
 		ac.Listen = cfg.HTTPListen()
 		ac.AllowedHosts = mergeAllowedHosts(ac.AllowedHosts, cfg.Server.AllowedHosts)
 		srv.SetAccessControl(ac)
@@ -98,6 +103,7 @@ func mountHTTPFacades(
 			Live:    liveFn,
 		}, apiTok)
 	}
+	return nil
 }
 
 // startOpsHTTP starts the daemon ops mux when mcp/server enabled.

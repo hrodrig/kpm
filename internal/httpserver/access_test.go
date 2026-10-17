@@ -18,7 +18,10 @@ func TestAllowlistAndOpsExempt(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	trusted := httpserver.ParseTrustedProxies()
-	al := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "", trusted)
+	al, err := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "", trusted)
+	if err != nil {
+		t.Fatal(err)
+	}
 	h := httpserver.AccessControl{Trusted: trusted, Allowlist: al}.Wrap(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -52,7 +55,10 @@ func TestAllowlistBearerBypass(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	trusted := httpserver.ParseTrustedProxies()
-	al := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "tok", trusted)
+	al, err := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "tok", trusted)
+	if err != nil {
+		t.Fatal(err)
+	}
 	h := httpserver.AccessControl{Allowlist: al}.Wrap(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/sse", nil)
@@ -169,7 +175,10 @@ func TestShouldWarnTrustedProxies(t *testing.T) {
 func TestServerSetAccessControl(t *testing.T) {
 	s := httpserver.New("127.0.0.1:0", nil, nil)
 	trusted := httpserver.ParseTrustedProxies("10.0.0.0/8")
-	al := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "", trusted)
+	al, err := httpserver.NewAllowlist([]string{"10.0.0.0/8"}, "", trusted)
+	if err != nil {
+		t.Fatal(err)
+	}
 	rl := httpserver.NewRateLimiter(httpserver.DefaultRateLimitConfig(), trusted)
 	defer rl.Shutdown()
 	ac := httpserver.AccessControl{Trusted: trusted, Allowlist: al, RateLimit: rl}
@@ -211,13 +220,18 @@ func TestClientIPRealIPAndPeer(t *testing.T) {
 }
 
 func TestNewAllowlistEdges(t *testing.T) {
-	if httpserver.NewAllowlist(nil, "", nil) != nil {
-		t.Fatal("empty allowlist")
+	if al, err := httpserver.NewAllowlist(nil, "", nil); al != nil || err != nil {
+		t.Fatalf("empty allowlist should stay off: al=%v err=%v", al, err)
 	}
-	if httpserver.NewAllowlist([]string{"not-a-cidr", "bogus"}, "", nil) != nil {
-		t.Fatal("all invalid")
+	// A malformed entry is an error, not a silent skip: skipping is how an operator's
+	// only entry becomes an empty list that admits everyone.
+	if al, err := httpserver.NewAllowlist([]string{"not-a-cidr", "bogus"}, "", nil); err == nil || al != nil {
+		t.Fatalf("invalid entries must fail closed: al=%v err=%v", al, err)
 	}
-	a := httpserver.NewAllowlist([]string{"2001:db8::1"}, "", nil)
+	a, err := httpserver.NewAllowlist([]string{"2001:db8::1"}, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if a == nil || !a.Active() {
 		t.Fatal("want ipv6 /128")
 	}
