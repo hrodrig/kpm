@@ -546,6 +546,11 @@ type NodeOut struct {
 	CPUUtilMcores  float64 `json:"cpu_util_mcores"`
 	MemUtilBytes   int64   `json:"mem_util_bytes"`
 	Pods           int     `json:"pods"`
+
+	// Pool identity (schema v7). Taints holds only blocking effects; a node with
+	// none belongs to the general pool and its capacity is available to anyone.
+	Taints        []string `json:"taints,omitempty"`
+	Unschedulable bool     `json:"unschedulable"`
 }
 
 // NodesOut is GET /api/v1/nodes (store-backed; no kube).
@@ -581,6 +586,8 @@ func (a *api) handleNodes(w http.ResponseWriter, r *http.Request) {
 			CPUUtilMcores:  n.CPUUtilMcores,
 			MemUtilBytes:   n.MemUtilBytes,
 			Pods:           n.Pods,
+			Taints:         n.Taints,
+			Unschedulable:  n.Unschedulable,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

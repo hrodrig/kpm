@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/hrodrig/kpm/internal/exitcode"
 	"github.com/hrodrig/kpm/internal/fit"
 )
 
@@ -22,13 +23,16 @@ func TestWriteFitTable(t *testing.T) {
 		{Node: "free-0", Fits: true},
 		{Node: "gpu-0", Reasons: []string{"taint dedicated=gpu:NoSchedule not tolerated"}},
 	}
-	if err := writeFitTable(out, fit.Pod{
+	fitting, err := writeFitTable(out, fit.Pod{
 		CPURequestMcores: 500,
 		MemRequestBytes:  2 * 1024 * 1024 * 1024,
-	}, verdicts); err != nil {
+	}, verdicts)
+	if err != nil {
 		t.Fatal(err)
 	}
-
+	if fitting != 1 {
+		t.Fatalf("fitting: got %d want 1", fitting)
+	}
 	got := out.String()
 	for _, want := range []string{
 		"cpu=500m", "memory=2.0Gi",
@@ -166,5 +170,27 @@ func TestFitNodesMapsNodesAndRequests(t *testing.T) {
 	}
 	if len(n.Taints) != 1 || n.Taints[0].Key != "dedicated" {
 		t.Fatalf("taints: %v", n.Taints)
+	}
+}
+
+// Zero fitting nodes is an answer, not a failure to answer. A script has to be able
+// to tell it apart from an unreachable cluster (2) or a store with no data (3).
+func TestFitResultExitCodes(t *testing.T) {
+	if err := fitResult(1); err != nil {
+		t.Fatalf("one fitting node should succeed: %v", err)
+	}
+	if err := fitResult(3); err != nil {
+		t.Fatalf("three fitting nodes should succeed: %v", err)
+	}
+
+	err := fitResult(0)
+	if err == nil {
+		t.Fatal("zero fitting nodes must not exit 0")
+	}
+	if got := exitcode.Of(err); got != exitcode.NoFit {
+		t.Fatalf("exit code: got %d want %d", got, exitcode.NoFit)
+	}
+	if exitcode.NoFit == exitcode.Failure || exitcode.NoFit == exitcode.Cluster || exitcode.NoFit == exitcode.Store {
+		t.Fatal("NoFit must be distinct from the other failure codes")
 	}
 }

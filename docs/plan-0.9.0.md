@@ -52,8 +52,9 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
 - `[x]` Merge idempotence — second run of the same file adds nothing
 - `[x]` Older backup accepted (absent tables skipped, newer columns defaulted)
 - `[x]` Newer schema refused
-- `[ ]` **Persist per-node pool data.** `NodeSnapshot` has no taint column, so the server node panel
-      does not see pool identity yet. Needs a schema decision (v7) — deliberately not taken here.
+- `[x]` **Persist per-node pool data.** Schema **v7** adds `taints` and `unschedulable` to
+      `node_snapshots`, so the server node panel sees pool identity. Pre-v7 rows read back with no
+      pool, which is what they meant.
 
 ### `#111` — placement
 
@@ -63,6 +64,8 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
       never blocks, ORed affinity terms, `Gt`/`Lt` on integers only
 - `[x]` Unmodelled filters named on every run
 - `[x]` Taints never change a total (`NodeCapacity.Taints`, `Unschedulable`)
+- `[x]` **Pool grouping in output.** `capacity --nodes` prints per-node pools and the aggregate
+      grouped by pool; a pool is the set of blocking taints.
 - `[ ]` **Exit code when nothing fits.** The exit table has only cluster (2) and store (3);
       inventing a fourth is a SPEC decision. Today the output says `0 of N nodes fit`.
 

@@ -275,13 +275,18 @@ suggestions that were actually applied.
   state as **pool identity**. Capacity that exists is capacity that exists;
   removing a dedicated pool from the totals would erase it from the report of the
   operator who owns it.
+  `capacity --nodes` prints the per-node table and then the same numbers grouped
+  by pool — a pool being the set of blocking taints, `(general)` for nodes that
+  have none. Pool identity persists per snapshot (schema **v7**), so
+  `GET /api/v1/nodes` carries `taints` and `unschedulable` as well.
 - **`kpm capacity fit`** — workload-aware placement check. `--for kind/name`
   (`deployment`, `statefulset`, `daemonset`) or `--cpu` / `--memory`. Per node:
   fits, or why not — cordon, taint not tolerated, `nodeSelector` / required
   affinity mismatch, insufficient CPU or memory. Evaluates only what the pod and
   the nodes can decide: pod (anti-)affinity, topology spread, volume zone binding
   and fragmentation are **not** evaluated, and every run names them. Requests come
-  from pod specs alone, so it does not require the Metrics API.
+  from pod specs alone, so it does not require the Metrics API. Exit code **4** when
+  no node fits (see §12) — the answer is no, which is not the same as failing to ask.
 - Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
 - Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
 - Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
@@ -1105,6 +1110,12 @@ tui:
 | `1` | generic failure | **Normative** |
 | `2` | cluster / Metrics API / RBAC | **Normative** |
 | `3` | empty / insufficient store data | **Normative** (recommend) |
+| `4` | answered, and the answer is no: no node can run the workload | **Normative** (capacity fit) |
+
+Code `4` exists so a script can tell "the cluster says no" from "the cluster could not
+be asked" (`2`) and "there is no data" (`3`). A capacity tool that returns a plain
+failure for both is unusable in a pipeline: `if ! kpm capacity fit ...` cannot
+distinguish a genuine negative answer from a broken query.
 
 ---
 
