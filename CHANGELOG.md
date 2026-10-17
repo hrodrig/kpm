@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `contrib/homebrew/`: a working Homebrew formula for `v0.8.0` with real URLs and SHA-256s taken from
+  that release's `checksums.txt`, plus notes on publishing it. **The tap repository
+  `hrodrig/homebrew-kpm` does not exist yet**, so nothing is installable through `brew` until it does —
+  creating it and choosing between manual bumps and GoReleaser automation (`brews:` + a tap token) are
+  the remaining steps, and both need a human.
 - [docs/rbac.md](docs/rbac.md): the smallest ClusterRole kpm needs, derived from the API calls in the
   tree — `get`/`list` on `nodes` and `pods`, `get` on `apps` workloads, `list` on
   `metrics.k8s.io/pods`; no `watch`, no `secrets`, no writes. It also explains why a ClusterRole

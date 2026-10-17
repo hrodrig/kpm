@@ -200,7 +200,7 @@ tag that publishes a non-`main` state.
 | `#20` | Integration/E2E smoke (matrix may stay thin) | Planned |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | **In tree** |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | **In tree** |
-| `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
+| `#23` | Homebrew tap: formula in `contrib/homebrew/`; **tap repo `hrodrig/homebrew-kpm` pending** | Partial |
 | `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | **In tree** |
 
 **Moved out of 0.9 → 0.8.x:** the parked re-audit items (IPv6 `/64`, SMTP RFC 2047 /
