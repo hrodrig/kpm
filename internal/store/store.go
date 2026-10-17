@@ -14,7 +14,8 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-const SchemaVersion = 4
+// 5 adds per-resource recommend targets (#25).
+const SchemaVersion = 5
 
 // MaxScanRows is the hard upper bound for a single ListRecords call when
 // callers pass Limit=0 (uncapped APIs must set their own Limit). Documented

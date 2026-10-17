@@ -22,18 +22,19 @@ const (
 
 // ScoreRow is one recommendation evaluated against later samples.
 type ScoreRow struct {
-	Grain      string
-	GrainKey   string
-	RecordedAt time.Time
-	Samples    int
-	CPUSug     float64
-	MemSug     int64
-	CPUAfterP  float64
-	MemAfterP  float64
-	CPULabel   ScoreLabel
-	MemLabel   ScoreLabel
-	TargetUtil float64
-	Band       float64
+	Grain         string
+	GrainKey      string
+	RecordedAt    time.Time
+	Samples       int
+	CPUSug        float64
+	MemSug        int64
+	CPUAfterP     float64
+	MemAfterP     float64
+	CPULabel      ScoreLabel
+	MemLabel      ScoreLabel
+	CPUTargetUtil float64
+	MemTargetUtil float64
+	Band          float64
 }
 
 // ScoreResult aggregates calibration rows.
@@ -71,13 +72,14 @@ func ScoreCalibration(recs []store.Recommendation, samples []store.Record, opt S
 	out := ScoreResult{Band: opt.Band, MinSamples: opt.MinSamples}
 	for _, rec := range recs {
 		row := ScoreRow{
-			Grain:      rec.Grain,
-			GrainKey:   rec.GrainKey,
-			RecordedAt: rec.RecordedAt,
-			CPUSug:     rec.CPUSugMcores,
-			MemSug:     rec.MemSugBytes,
-			TargetUtil: rec.TargetUtilization,
-			Band:       opt.Band,
+			Grain:         rec.Grain,
+			GrainKey:      rec.GrainKey,
+			RecordedAt:    rec.RecordedAt,
+			CPUSug:        rec.CPUSugMcores,
+			MemSug:        rec.MemSugBytes,
+			CPUTargetUtil: rec.CPUTarget(),
+			MemTargetUtil: rec.MemTarget(),
+			Band:          opt.Band,
 		}
 		cpuVals, memVals := collectAfter(samples, rec)
 		row.Samples = len(cpuVals)
@@ -90,8 +92,8 @@ func ScoreCalibration(recs []store.Recommendation, samples []store.Record, opt S
 		}
 		row.CPUAfterP = Percentile(cpuVals, opt.Percentile)
 		row.MemAfterP = Percentile(memVals, opt.Percentile)
-		row.CPULabel = labelUtilVsSug(row.CPUAfterP, rec.CPUSugMcores, rec.TargetUtilization, opt.Band)
-		row.MemLabel = labelUtilVsSug(row.MemAfterP, float64(rec.MemSugBytes), rec.TargetUtilization, opt.Band)
+		row.CPULabel = labelUtilVsSug(row.CPUAfterP, rec.CPUSugMcores, rec.CPUTarget(), opt.Band)
+		row.MemLabel = labelUtilVsSug(row.MemAfterP, float64(rec.MemSugBytes), rec.MemTarget(), opt.Band)
 		if row.CPULabel != ScoreNoData {
 			out.ScoredCPU++
 			if row.CPULabel == ScoreHit {

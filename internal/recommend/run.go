@@ -44,14 +44,16 @@ type Advice struct {
 
 // Result is the outcome of a recommend pass.
 type Result struct {
-	Advice       []Advice
-	SkippedKeys  int
-	WindowStart  time.Time
-	WindowEnd    time.Time
-	MinSamples   int
-	Percentile   int
-	TargetUtil   float64
-	RecordsInWin int
+	Advice        []Advice
+	SkippedKeys   int
+	WindowStart   time.Time
+	WindowEnd     time.Time
+	MinSamples    int
+	Percentile    int
+	TargetUtil    float64
+	CPUTargetUtil float64
+	MemTargetUtil float64
+	RecordsInWin  int
 }
 
 // ErrInsufficient is returned when no advice rows meet min_samples.
@@ -62,11 +64,13 @@ func Run(records []store.Record, cfg config.Recommend, now time.Time) Result {
 	end := now.UTC()
 	start := end.AddDate(0, 0, -cfg.WindowDays)
 	res := Result{
-		WindowStart: start,
-		WindowEnd:   end,
-		MinSamples:  cfg.MinSamples,
-		Percentile:  cfg.Percentile,
-		TargetUtil:  cfg.TargetUtilization,
+		WindowStart:   start,
+		WindowEnd:     end,
+		MinSamples:    cfg.MinSamples,
+		Percentile:    cfg.Percentile,
+		TargetUtil:    cfg.TargetUtilization,
+		CPUTargetUtil: cfg.CPUUtilTarget(),
+		MemTargetUtil: cfg.MemUtilTarget(),
 	}
 
 	var inWin []store.Record
@@ -136,8 +140,8 @@ func Run(records []store.Record, cfg config.Recommend, now time.Time) Result {
 				MemRequest:      last.MemRequestBytes,
 				CPULimit:        last.CPULimitMcores,
 				MemLimit:        last.MemLimitBytes,
-				CPUSuggested:    SuggestedCPU(cpuP, cfg.TargetUtilization),
-				MemSuggested:    SuggestedMem(memP, cfg.TargetUtilization),
+				CPUSuggested:    SuggestedCPU(cpuP, res.CPUTargetUtil),
+				MemSuggested:    SuggestedMem(memP, res.MemTargetUtil),
 				CPUVerdictReq:   Classify(cpuP, last.CPURequestMcores, cfg.CPUOversizeRatio, cfg.CPUUndersizeRatio),
 				MemVerdictReq:   Classify(memP, float64(last.MemRequestBytes), cfg.MemoryOversizeRatio, cfg.MemoryUndersizeRatio),
 				CPUVerdictLimit: Classify(cpuP, last.CPULimitMcores, cfg.CPULimitOversizeRatio, cfg.CPULimitUndersizeRatio),

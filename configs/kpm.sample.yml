@@ -49,7 +49,12 @@ recommend:
   window_days: 7
   percentile: 95
   min_samples: 24
-  target_utilization: 0.70
+  target_utilization: 0.70   # shared default for both resources
+  # Per-resource overrides; 0 or omitted = inherit target_utilization.
+  # CPU is compressible (throttles under a burst), memory is not (OOMKilled),
+  # so operators commonly set CPU lower and memory higher.
+  cpu_target_utilization: 0.0
+  memory_target_utilization: 0.0
   cpu_oversize_ratio: 0.35
   cpu_undersize_ratio: 0.85
   cpu_limit_oversize_ratio: 0.35
