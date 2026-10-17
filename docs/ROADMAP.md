@@ -19,8 +19,8 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
 | Band | Focus | Plan |
 |------|-------|------|
-| **0.2.x–0.8.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty | shipped `v0.2.0`–`v0.8.0` |
-| **Current** | **0.9.x** Capacity truth + restore → **1.0.0** | [plan-0.9.0](./plan-0.9.0.md) |
+| **0.2.x–0.9.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty → Capacity truth + restore | shipped `v0.2.0`–`v0.9.0` |
+| **Current** | **1.0.0** — the freeze holds; no new surface before it | — |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -51,7 +51,7 @@ flowchart LR
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
 | **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
 | **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **Shipped** `v0.8.0` |
-| **0.9.x** Truth + restore | Aggregation, `restore`, `capacity fit` (`#110`/`#111`), then E2E/docs/security/packaging (`#20`–`#23`, `#29`) | **In tree** (part) |
+| **0.9.x** Truth + restore | Aggregation, `restore`, `capacity fit` (`#110`/`#111`), then E2E/docs/security/packaging (`#20`–`#23`, `#29`) | **Shipped** `v0.9.0` |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
 [↑ Back to top](#top)
