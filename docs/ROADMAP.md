@@ -201,7 +201,7 @@ tag that publishes a non-`main` state.
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | Planned |
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |
 | `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
-| `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | Planned |
+| `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | **In tree** |
 
 **Moved out of 0.9 → 0.8.x:** the parked re-audit items (IPv6 `/64`, SMTP RFC 2047 /
 `require_starttls`, release tag guard) now ship as `#30`–`#32`.

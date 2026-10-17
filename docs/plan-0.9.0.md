@@ -77,7 +77,8 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
 - `[ ]` `#21` Docs freeze: SPEC → normative v1.0; sample config complete
 - `[ ]` `#22` Security pass; minimal RBAC ClusterRole example in docs (not Helm)
 - `[ ]` `#23` Homebrew tap, if still wanted
-- `[ ]` `#29` CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes
+- `[x]` `#29` CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes — SPEC §2.5/§2.6 and
+      [migrating.md](./migrating.md)
 - `[ ]` `make release-check`
 
 ## What this band deliberately does not do
