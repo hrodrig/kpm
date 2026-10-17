@@ -11,7 +11,7 @@ Product path from scaffold to **v1.0.0**. Behavior contract:
 multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
 normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
-**Last reviewed:** 2026-10-14
+**Last reviewed:** 2026-10-16
 
 ---
 
@@ -20,7 +20,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 | Band | Focus | Plan |
 |------|-------|------|
 | **0.2.x–0.7.x** | Core → Insights → Notify → MCP → Server → Scale | shipped `v0.2.0`–`v0.7.0` |
-| **Current** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | plans when opened |
+| **Current** | **0.8.x Honesty** (thin) then **0.9.x Freeze** → **1.0.0** | [plan-0.8.0.md](./plan-0.8.0.md) |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -50,7 +50,7 @@ flowchart LR
 | **0.5.x** MCP (P4) | §7 stdio + HTTP/SSE + ops mux | **Shipped** `v0.5.0` |
 | **0.6.x** Server (P5) | §8 analyze-local + charts + JSON API (no SPA) | **Shipped** `v0.6.0` |
 | **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
-| **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) | Planned (thin) |
+| **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **In progress** |
 | **0.9.x** Freeze | E2E/docs/security/packaging (`#20`–`#23`, `#29`) | Planned |
 | **1.0.0** Stable | Full SPEC surface normative | Planned |
 
@@ -61,6 +61,14 @@ flowchart LR
 ## Global work items
 
 IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
+
+> **Number reuse (known, deliberate):** `#24`, `#25` and `#26` were used by the
+> shipped 0.2.x band and were re-used by the 0.8.x band when it was drafted. Both
+> meanings are live: `CHANGELOG.md` and [plan-0.2.0.md](./plan-0.2.0.md) cite the
+> 0.2.x items, while [plan-0.7.0.md](./plan-0.7.0.md) and this file cite the 0.8.x
+> items. The 0.2.x numbers are **retired** — they stay in the historical record and
+> must not be reassigned, but no new item uses them. From 0.8.x onward every new
+> item takes the next number **past the current maximum (`#29`)**: `#30`, `#31`, …
 
 ### Shipped — 0.1.x
 
@@ -79,9 +87,9 @@ IDs are **stable across bands**. Cite in CHANGELOG as `(0.X.x #N)`.
 | `#5` | `kpm backup` (SQLite `VACUUM INTO`) | **Done** (in tree) |
 | `#6` | `kpm export` csv/tsv + filters | **Done** (in tree) |
 | `#7` | Exit codes 0/1/2 for cluster/RBAC fail-closed | **Done** (exit `2` wired) |
-| `#24` | FreeBSD + OpenBSD port skeletons + `make port-*-sync` / `dist-*` | **Done** (in tree) |
-| `#25` | VHS `docs/demo.tape` + `docs/demo.gif` (offline Core CLI demo) | **Done** (in tree) |
-| `#26` | Document `kubectl kpm` plugin (`install-kubectl-plugin`, man, README) | **Done** (in tree) |
+| `#24` | FreeBSD + OpenBSD port skeletons + `make port-*-sync` / `dist-*` | **Done** (in tree) — *number retired* |
+| `#25` | VHS `docs/demo.tape` + `docs/demo.gif` (offline Core CLI demo) | **Done** (in tree) — *number retired* |
+| `#26` | Document `kubectl kpm` plugin (`install-kubectl-plugin`, man, README) | **Done** (in tree) — *number retired* |
 
 **Success:** fixtures or kind+metrics-server path; SPEC §2 normative; cover ≥ 80%.
 
@@ -161,13 +169,27 @@ Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Shipped** `v0.7.0`.
 
 ### 0.8.x — Honesty (thin)
 
-| ID | Item | Status |
-|----|------|--------|
-| `#24` | Warn if `retention_days` thin vs recommend window | Planned |
-| `#25` | Separate CPU vs memory `target_utilization` | Planned |
-| `#26` | Window coverage by days-with-samples | Planned |
-| `#27` | Percentile / `--score` docs first-class | Planned |
-| `#28` | `kpm doctor` (metrics-server / store / history) | Planned |
+Plan: [plan-0.8.0.md](./plan-0.8.0.md). **In progress** (opened 2026-10-16).
+
+| ID | Item | Issue | Status |
+|----|------|-------|--------|
+| `#24` | Fail load when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Open** |
+| `#25` | Separate CPU vs memory `target_utilization` | — | Planned |
+| `#26` | Window coverage by days-with-samples | — | Planned |
+| `#27` | Percentile / `--score` docs first-class | — | Planned |
+| `#28` | `kpm doctor` (metrics-server / store / history) | — | Planned |
+| `#30` | Rate-limit buckets grouped by IPv6 `/64` | [#88](https://github.com/hrodrig/kpm/issues/88) | **Open** |
+| `#31` | SMTP `Subject` RFC 2047 + CR/LF rejection + `require_starttls` | [#89](https://github.com/hrodrig/kpm/issues/89) | **Open** |
+| `#32` | Release fails unless the tag is on `main`; scope workflow permissions | [#90](https://github.com/hrodrig/kpm/issues/90) | **Open** |
+
+**Why `#30`–`#32` are here:** pulled forward from the 0.9.x Freeze parked list
+(Claude 2026-10-14 re-audit). Each is a closed-scope correctness gap with a
+one-file centre of gravity; leaving them in Freeze risked shipping `v1.0.0` with
+them still open. `#22` keeps the remaining security-pass and RBAC items.
+
+**Success:** every number kpm prints is backed by the configuration it needs — no
+retention/window conflict, no rotatable rate limit, no unencoded SMTP header, no
+tag that publishes a non-`main` state.
 
 ### 0.9.x — Freeze toward 1.0
 
@@ -178,6 +200,9 @@ Plan: [plan-0.7.0.md](./plan-0.7.0.md). **Shipped** `v0.7.0`.
 | `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | Planned |
 | `#23` | Homebrew tap (deferred from 0.1) if still wanted | Planned |
 | `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | Planned |
+
+**Moved out of 0.9 → 0.8.x:** the parked re-audit items (IPv6 `/64`, SMTP RFC 2047 /
+`require_starttls`, release tag guard) now ship as `#30`–`#32`.
 
 **Success:** no open draft on shipped surface; `make release-check` + Security green.
 
