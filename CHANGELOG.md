@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `kpm capacity fit`: a placement check that answers "can this workload be scheduled here" rather
+  than "how much is free". Evaluates cordon, taints and tolerations, `nodeSelector`, required node
+  affinity, and remaining CPU/memory, reading the constraints from a real workload (`--for
+  deployment/api`) or a hypothetical pod (`--cpu`/`--memory`). Prints what it did not evaluate —
+  pod (anti-)affinity, topology spread, volume zone binding, fragmentation — on every run
+  ([#111](https://github.com/hrodrig/kpm/issues/111)).
 - `kpm restore`: the missing counterpart to `kpm backup`. By default it installs a backup at the
   store path (temp file, rename, stale `-wal`/`-shm` removed, `--force` required to replace a
   non-empty store). With `--merge` it opens the backup read-only and adds only the rows the store

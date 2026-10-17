@@ -270,6 +270,18 @@ suggestions that were actually applied.
 - **Pods in a terminal phase are excluded** (`Succeeded`, `Failed`): they no
   longer hold their reservation and the Metrics API stops reporting them.
   `Pending` pods still count — they reserve capacity while they wait.
+- **Taints never change a total.** `capacity` reports per-node taints
+  (`NoSchedule` / `NoExecute` only — `PreferNoSchedule` is a hint) and cordon
+  state as **pool identity**. Capacity that exists is capacity that exists;
+  removing a dedicated pool from the totals would erase it from the report of the
+  operator who owns it.
+- **`kpm capacity fit`** — workload-aware placement check. `--for kind/name`
+  (`deployment`, `statefulset`, `daemonset`) or `--cpu` / `--memory`. Per node:
+  fits, or why not — cordon, taint not tolerated, `nodeSelector` / required
+  affinity mismatch, insufficient CPU or memory. Evaluates only what the pod and
+  the nodes can decide: pod (anti-)affinity, topology spread, volume zone binding
+  and fragmentation are **not** evaluated, and every run names them. Requests come
+  from pod specs alone, so it does not require the Metrics API.
 - Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
 - Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
 - Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
