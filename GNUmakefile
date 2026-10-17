@@ -58,6 +58,7 @@ help:
 	@echo "  $(GREEN)lint-fix$(RESET)                  gofmt -s -w"
 	@echo "  $(GREEN)security$(RESET)                  govulncheck + gocyclo + grype"
 	@echo "  $(GREEN)tools$(RESET)                     Install govulncheck, gocyclo and grype"
+	@echo "  $(GREEN)hooks$(RESET)                     Install git hooks (refuses direct commits to develop/main)"
 	@echo ""
 	@echo "$(YELLOW)Docker:$(RESET)"
 	@echo "  $(GREEN)docker-build$(RESET)              Build the image locally (kpm:$(VERSION))"
@@ -77,6 +78,7 @@ help:
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
 .PHONY: test cover cover-check lint lint-fix tools security release-check release snapshot
 .PHONY: check-pins check-man-version check-docker govulncheck gocyclo grype
+.PHONY: hooks
 .PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
 
 build:
@@ -190,6 +192,12 @@ tools:
 	  echo "Installing grype into $(GOBIN)..."; \
 	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
 	fi
+
+# Local git guard: refuses a direct commit to develop/main. Run once per clone.
+hooks:
+	@gitdir=$$(git rev-parse --git-dir); \
+	install -m 755 contrib/hooks/pre-commit "$$gitdir/hooks/pre-commit"; \
+	echo "installed $$gitdir/hooks/pre-commit"
 
 # govulncheck exit codes: 0 = clean, 3 = vulnerabilities reported, other = tool error.
 # Never treat tool errors as a clean PASS (fixes fail-open from `|| true`).
