@@ -147,6 +147,56 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 - Output: `--format table` (default) or `tsv`.
 - **No auto-apply** (read-only). Later: patch/Kustomize export + server `#18b`.
 
+### 3.1 Percentile, `min_samples` and `--score`
+
+**The percentile is a nearest-rank order statistic over observed samples.** For `n` values the rank
+is `ceil(p/100 × n)` and the result is that element of the sorted samples — an actually observed
+utilisation, never an interpolation. `percentile: 95` over 20 samples is the 19th smallest. Empty
+input is `0`; `p` is clamped to `0..100`, and `p: 0` returns the minimum.
+
+**Both grains pool their samples before the percentile.** The workload grain keys on
+`owner_kind/owner_name/container`, so *every pod of that owner and container feeds the same sample
+set*; the pod grain keys on `namespace/pod/container`. A workload p95 is therefore the p95 of the
+pool, **not** the maximum of its pods' p95s — pooling can only pull a top order statistic down, and
+one bursty pod is diluted by its quieter siblings. Sizing an owner from the workload grain sizes the
+aggregate, not the worst pod; use the pod grain when a single pod drives the risk. A row's request,
+limit and verdicts come from the newest sample in its pool.
+
+**A grain below `min_samples` is skipped, not reported as low confidence.** It leaves the table
+entirely and is only counted (`skipped N keys below min_samples`). A quiet table therefore means
+either "no samples in the window" or "every grain below the threshold" — neither is a per-row state.
+Exit code `3` when no row survives.
+
+**Verdicts and the suggestion answer different questions.** The verdict compares the *percentile* to
+the *current* request (and limit) through the oversize/undersize ratios, so it describes what is
+allocated today and is independent of the suggestion. The suggestion is
+`round_up(percentile / target_utilization)`, ceiled to 10m CPU / 1 MiB memory. A row can be
+`oversized` and still carry a suggestion above the current request.
+
+**`--score` (calibration mode A) evaluates a snapshot against the samples that followed it.** For
+each latest snapshot per grain key, samples strictly *after* `recorded_at` are pooled for the same
+grain key; if fewer than `recommend.min_samples` remain, both dimensions are `skip`. Otherwise the
+post-change percentile is compared to the *suggested* request, with
+`ratio = percentile / suggested_request`:
+
+| Label | Condition |
+|-------|-----------|
+| `hit` | `ratio` inside `[target − band, target + band]` |
+| `miss-low` | `ratio` below that band |
+| `miss-high` | `ratio` above it |
+| `skip` | fewer than `min_samples` holdout samples |
+| `no-data` | suggested request is `0`, so there is nothing to compare against |
+
+`band` defaults to **±0.15 absolute** around the target, so `target_utilization: 0.70` accepts
+`0.55–0.85`. The target is the one the suggestion was built with — per resource when
+`cpu_target_utilization` / `memory_target_utilization` are set, otherwise the shared
+`target_utilization`.
+
+**Mode A assumes the suggestion was applied.** The comparison divides by the *suggested* request, so
+a `miss-low` on a suggestion that never landed says nothing about the recommendation: it reports
+utilisation against a request the cluster does not have. Score runs are only meaningful for
+suggestions that were actually applied.
+
 ---
 
 ## 4. ADJACENT — capacity (non-interactive, normative today)
@@ -1095,7 +1145,7 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
 | Schema | SQLite schema v2: `recommendations` table + indexes |
 | Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
-| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A) |
+| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A). Full label and band semantics in [§3.1](#31-percentile-min_samples-and---score) |
 | TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
 | Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
 
