@@ -53,10 +53,12 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 
 ### `#24` — retention vs window (issue #87)
 
-- [ ] Validation fails closed when `store.retention_days < recommend.window_days`
-- [ ] Error message names both values and the file that sets them
-- [ ] Cross-check `SPECIFICATIONS.md:95` and `docs/measurement-and-rightsizing.md:76` still match
-- [ ] Config tests: equal values pass, shorter retention rejected, default (14 vs 7) passes
+- [x] Advisory warning when `store.retention_days < recommend.window_days` — **warn, not fail-closed**:
+      `SPECIFICATIONS.md` §2.2 states the relation as guidance ("prefer"), so a hard error would
+      contradict the contract and stop collection over a quality nit
+- [x] Warning names both values (via `slog.Warn`, same channel as `httpserver/trusted.go`)
+- [x] Cross-check `SPECIFICATIONS.md:95` and `docs/measurement-and-rightsizing.md:76` still match
+- [x] Config tests: equal values stay silent, thin retention warns and still loads, default (14 vs 7) silent
 
 ### `#30` — IPv6 rate-limit grouping (issue #88)
 

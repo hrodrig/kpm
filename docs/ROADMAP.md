@@ -173,7 +173,7 @@ Plan: [plan-0.8.0.md](./plan-0.8.0.md). **In progress** (opened 2026-10-16).
 
 | ID | Item | Issue | Status |
 |----|------|-------|--------|
-| `#24` | Fail load when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Open** |
+| `#24` | Warn when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Open** |
 | `#25` | Separate CPU vs memory `target_utilization` | — | Planned |
 | `#26` | Window coverage by days-with-samples | — | Planned |
 | `#27` | Percentile / `--score` docs first-class | — | Planned |
