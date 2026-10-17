@@ -49,7 +49,12 @@ recommend:
   window_days: 7
   percentile: 95
   min_samples: 24
-  target_utilization: 0.70
+  target_utilization: 0.70   # shared default for both resources
+  # Per-resource overrides; 0 or omitted = inherit target_utilization.
+  # CPU is compressible (throttles under a burst), memory is not (OOMKilled),
+  # so operators commonly set CPU lower and memory higher.
+  cpu_target_utilization: 0.0
+  memory_target_utilization: 0.0
   cpu_oversize_ratio: 0.35
   cpu_undersize_ratio: 0.85
   cpu_limit_oversize_ratio: 0.35
@@ -108,6 +113,9 @@ tui:
 #       from_env: KPM_SMTP_FROM
 #       to_env: KPM_SMTP_TO
 #       # use_tls: true   # 465 implicit TLS; omit/false → STARTTLS (587)
+#       # require_starttls: true   # refuse a relay without STARTTLS (fail
+#       #                          # closed; the 587 path is otherwise
+#       #                          # opportunistic and can go cleartext)
 
 # OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP via daemon or `kpm serve`).
 # `kpm serve` opens store.path and binds mcp.listen without a sample loop
@@ -132,6 +140,8 @@ tui:
 #     requests: 120
 #     period: 1m
 #     burst: 20
+#     # IPv6 buckets group by /64 so a routed /64 cannot refill by rotating
+#     # its source address; IPv4 stays per-address.
 
 # OPTIONAL — JSON API + embedded charts UI. Shares listen with mcp when empty.
 # GET /  → analyze-local charts (workload cards + drawers)

@@ -24,9 +24,12 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - **This repo (`kpm`):** Go CLI, config, tests, CI, **`make release-check`**,
   binaries, `.deb`/`.rpm`, **`ghcr.io/hrodrig/kpm`**, cosign + SBOM — same split
   as **kwd** / **kzero** / **groot** / **pgwd**.
-- **Not here:** cron/systemd, Helm CronJob, operator runbooks →
+- **Not here:** Helm CronJob, operator runbooks, deployment trees →
   **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)**. Do not add
-  `run/` deployment trees here.
+  `run/` deployment trees here. **Exception:** the packaged systemd unit lives in
+  `contrib/systemd/` and is installed by the `.deb`/`.rpm` — it is part of the
+  artifact, not an operator runbook (same pattern as `pgwd` / `gghstats`). The
+  package never enables it; the operator runs `systemctl enable --now kpm-sample`.
 - **Not kwd:** readiness watchdog stays in [kwd](https://github.com/hrodrig/kwd).
 
 ## Setup and build

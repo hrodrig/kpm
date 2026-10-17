@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-14" "kpm v0.7.0" "User Commands"
+.TH KPM 1 "2026-10-16" "kpm v0.8.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -94,6 +94,29 @@ table (schema v2).
 .B \-\-score
 calibrates latest snapshots against later samples (mutually exclusive with
 .BR \-\-record ).
+.TP
+.B doctor
+Read-only diagnosis of config, store, history coverage and, only with
+.BR \-\-live ,
+the cluster Metrics API.
+.RB ( \-\-config ,
+.BR \-\-kubeconfig ,
+.BR \-\-format ,
+.BR \-\-live ).
+Reports every check as
+.BR ok ,
+.BR warn ,
+.B fail
+or
+.B skip
+instead of stopping at the first problem; warnings never fail the run.
+Opens the store without creating or migrating it. Exit
+.B 0
+when nothing verifiably broke,
+.B 1
+for a general failure, and
+.B 2
+when only the cluster probe failed.
 .TP
 .B tui
 Interactive live heatmap of pod util ratios (Metrics API).

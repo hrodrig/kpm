@@ -94,6 +94,9 @@ type NotifySink struct {
 	FromEnv       string            `yaml:"from_env" mapstructure:"from_env"`
 	ToEnv         string            `yaml:"to_env" mapstructure:"to_env"`
 	UseTLS        bool              `yaml:"use_tls" mapstructure:"use_tls"`
+	// RequireSTARTTLS refuses to send unless the relay advertises STARTTLS.
+	// Ignored when use_tls is true (that path is TLS from the first byte).
+	RequireSTARTTLS bool `yaml:"require_starttls" mapstructure:"require_starttls"`
 }
 
 // Client is the sampling identity ("who samples"). ID empty resolves via the
@@ -141,6 +144,8 @@ type Recommend struct {
 	Percentile                int     `yaml:"percentile" mapstructure:"percentile"`
 	MinSamples                int     `yaml:"min_samples" mapstructure:"min_samples"`
 	TargetUtilization         float64 `yaml:"target_utilization" mapstructure:"target_utilization"`
+	CPUTargetUtilization      float64 `yaml:"cpu_target_utilization" mapstructure:"cpu_target_utilization"`
+	MemoryTargetUtilization   float64 `yaml:"memory_target_utilization" mapstructure:"memory_target_utilization"`
 	CPUOversizeRatio          float64 `yaml:"cpu_oversize_ratio" mapstructure:"cpu_oversize_ratio"`
 	CPUUndersizeRatio         float64 `yaml:"cpu_undersize_ratio" mapstructure:"cpu_undersize_ratio"`
 	CPULimitOversizeRatio     float64 `yaml:"cpu_limit_oversize_ratio" mapstructure:"cpu_limit_oversize_ratio"`
@@ -149,6 +154,26 @@ type Recommend struct {
 	MemoryUndersizeRatio      float64 `yaml:"memory_undersize_ratio" mapstructure:"memory_undersize_ratio"`
 	MemoryLimitOversizeRatio  float64 `yaml:"memory_limit_oversize_ratio" mapstructure:"memory_limit_oversize_ratio"`
 	MemoryLimitUndersizeRatio float64 `yaml:"memory_limit_undersize_ratio" mapstructure:"memory_limit_undersize_ratio"`
+}
+
+// CPUUtilTarget resolves the CPU target utilization: its own knob when set,
+// otherwise the shared target_utilization.
+func (r Recommend) CPUUtilTarget() float64 {
+	if r.CPUTargetUtilization > 0 {
+		return r.CPUTargetUtilization
+	}
+	return r.TargetUtilization
+}
+
+// MemUtilTarget resolves the memory target utilization: its own knob when set,
+// otherwise the shared target_utilization. Memory is not compressible — over
+// the limit means OOMKilled, not throttling — so it is commonly set higher than
+// the CPU target.
+func (r Recommend) MemUtilTarget() float64 {
+	if r.MemoryTargetUtilization > 0 {
+		return r.MemoryTargetUtilization
+	}
+	return r.TargetUtilization
 }
 
 // TUI holds interactive heatmap defaults (unused until 0.3.x).

@@ -127,10 +127,26 @@ func runRecommendScore(cmd *cobra.Command, st *store.Store, cfg *config.Config, 
 	return nil
 }
 
+// coverageNote describes how much of the requested window actually holds data,
+// so a percentile resting on thin evidence is not read as a full-window result.
+// A fully covered rolling window counts WindowDays+1 distinct UTC days, because
+// the window clips the first and last day; only a count below WindowDays is a gap.
+func coverageNote(res recommend.Result) string {
+	switch {
+	case res.DaysWithSamples == 0:
+		return fmt.Sprintf("window %dd, no samples in window", res.WindowDays)
+	case res.DaysWithSamples < res.WindowDays:
+		return fmt.Sprintf("window %dd, only %d days with samples (oldest %s) — thinner history than the window implies",
+			res.WindowDays, res.DaysWithSamples, res.OldestSample.UTC().Format("2006-01-02"))
+	default:
+		return fmt.Sprintf("window %dd, %d days with samples", res.WindowDays, res.DaysWithSamples)
+	}
+}
+
 func writeRecommend(out, errOut io.Writer, res recommend.Result, format string) error {
 	if len(res.Advice) == 0 {
-		_, _ = fmt.Fprintf(errOut, "recommend: no keys with ≥ %d samples (skipped %d keys, %d rows in window)\n",
-			res.MinSamples, res.SkippedKeys, res.RecordsInWin)
+		_, _ = fmt.Fprintf(errOut, "recommend: no keys with ≥ %d samples (skipped %d keys, %d rows in window; %s)\n",
+			res.MinSamples, res.SkippedKeys, res.RecordsInWin, coverageNote(res))
 		return exitcode.New(exitcode.Store, recommend.ErrInsufficient)
 	}
 	switch strings.ToLower(strings.TrimSpace(format)) {
@@ -145,7 +161,7 @@ func writeRecommend(out, errOut io.Writer, res recommend.Result, format string) 
 	default:
 		return fmt.Errorf("recommend --format must be table or tsv (got %q)", format)
 	}
-	_, _ = fmt.Fprintf(errOut, "recommend: %d advice rows (skipped %d keys below min_samples)\n",
-		len(res.Advice), res.SkippedKeys)
+	_, _ = fmt.Fprintf(errOut, "recommend: %d advice rows (skipped %d keys below min_samples; %s)\n",
+		len(res.Advice), res.SkippedKeys, coverageNote(res))
 	return nil
 }

@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.7.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -36,6 +36,25 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 0.8 — Honesty
+
+- **`kpm doctor`** — read-only diagnosis of config, store, history coverage and,
+  with `--live`, the cluster Metrics API.
+- **Window coverage** — `kpm recommend` reports `days_with_samples`, so a p95
+  resting on a fraction of the window is visible instead of implied.
+- **Per-resource targets** — `cpu_target_utilization` /
+  `memory_target_utilization` override the shared value: CPU throttles, memory
+  gets OOMKilled.
+- **Honest guards** — warns when `retention_days` < `window_days`, rejects CR/LF
+  in SMTP headers, groups rate-limit buckets by IPv6 `/64`, and fails a release
+  whose tag is not on `main`.
+- **TUI** — the cursor row is highlighted across its full width.
+- **Packaging** — the `.deb`/`.rpm` install a `kpm-sample.service` systemd unit,
+  never enabled automatically.
+
+Contract: **[SPEC §3](SPECIFICATIONS.md)** · band notes: **[plan-0.8.0](docs/plan-0.8.0.md)** ·
+path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.7 — Scale
 
@@ -89,6 +108,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 0.8](#whats-new-in-08--honesty)
 - [What’s new in 0.7](#whats-new-in-07--scale)
 - [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
 - [How it works](#how-it-works)
@@ -137,9 +157,11 @@ Details (bands, defaults, more diagrams):
 | `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
 | `kpm tui` / `capacity --tui` | **In tree** (`0.3.x #11`; Δ vs recommend — SPEC §5.3.1) |
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
+| `kpm doctor` (read-only diagnosis) | **In tree** (`0.8.x #28`; SPEC §1.1) |
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
 | Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
+| Honesty (window coverage, per-resource targets, `kpm doctor`, systemd unit) | **In tree** (`v0.8.0` — [plan-0.8.0](docs/plan-0.8.0.md)) |
 | Scale (search/filter, node snapshots, store caps) | **In tree** (`v0.7.0` — [plan-0.7.0](docs/plan-0.7.0.md)) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
