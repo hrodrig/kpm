@@ -14,8 +14,9 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-// 5 adds per-resource recommend targets (#25); 6 adds window coverage (#26).
-const SchemaVersion = 6
+// 5 adds per-resource recommend targets (#25); 6 adds window coverage (#26);
+// 7 adds node pool identity (blocking taints and cordon state).
+const SchemaVersion = 7
 
 // MaxScanRows is the hard upper bound for a single ListRecords call when
 // callers pass Limit=0 (uncapped APIs must set their own Limit). Documented

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,12 @@ type NodeSnapshot struct {
 	CPUUtilMcores  float64
 	MemUtilBytes   int64
 	Pods           int
+
+	// Pool identity, as of schema v7. Taints holds only the blocking effects
+	// (NoSchedule, NoExecute) in "key=value:Effect" form; stored comma-joined
+	// because a taint key cannot contain a comma.
+	Taints        []string
+	Unschedulable bool
 }
 
 func migrateNodeSnapshots(db *sql.DB) error {
@@ -41,7 +48,9 @@ func migrateNodeSnapshots(db *sql.DB) error {
 			mem_req_bytes INTEGER NOT NULL DEFAULT 0,
 			cpu_util_mcores REAL NOT NULL DEFAULT 0,
 			mem_util_bytes INTEGER NOT NULL DEFAULT 0,
-			pods INTEGER NOT NULL DEFAULT 0
+			pods INTEGER NOT NULL DEFAULT 0,
+			taints TEXT NOT NULL DEFAULT '',
+			unschedulable INTEGER NOT NULL DEFAULT 0
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_node_snap_at ON node_snapshots(recorded_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_node_snap_node_at ON node_snapshots(node, recorded_at)`,
@@ -51,7 +60,31 @@ func migrateNodeSnapshots(db *sql.DB) error {
 			return fmt.Errorf("migrate node_snapshots: %w", err)
 		}
 	}
-	return nil
+	// Stores written before v7 have the table without pool identity.
+	if err := addColumnIfMissing(db, "node_snapshots", "taints", `TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	return addColumnIfMissing(db, "node_snapshots", "unschedulable", `INTEGER NOT NULL DEFAULT 0`)
+}
+
+// joinTaints and splitTaints carry pool identity through a TEXT column. The
+// canonical form is produced by live.BlockingTaints; keys and values cannot
+// contain a comma, so it is a safe separator.
+func joinTaints(taints []string) string {
+	return strings.Join(taints, ",")
+}
+
+func splitTaints(s string) []string {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // InsertNodeSnapshots writes a capture batch in one transaction.
@@ -69,8 +102,9 @@ func (s *Store) InsertNodeSnapshots(ctx context.Context, rows []NodeSnapshot) er
 		INSERT INTO node_snapshots (
 			recorded_at, client_id, cluster_name, node,
 			cpu_alloc_mcores, mem_alloc_bytes, cpu_cap_mcores, mem_cap_bytes,
-			cpu_req_mcores, mem_req_bytes, cpu_util_mcores, mem_util_bytes, pods
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+			cpu_req_mcores, mem_req_bytes, cpu_util_mcores, mem_util_bytes, pods,
+			taints, unschedulable
+		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -81,11 +115,19 @@ func (s *Store) InsertNodeSnapshots(ctx context.Context, rows []NodeSnapshot) er
 			FormatUTC(r.RecordedAt), r.ClientID, r.ClusterName, r.Node,
 			r.CPUAllocMcores, r.MemAllocBytes, r.CPUCapMcores, r.MemCapBytes,
 			r.CPUReqMcores, r.MemReqBytes, r.CPUUtilMcores, r.MemUtilBytes, r.Pods,
+			joinTaints(r.Taints), boolToInt(r.Unschedulable),
 		); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // LatestNodeSnapshots returns all rows from the newest recorded_at batch.
@@ -101,7 +143,8 @@ func (s *Store) LatestNodeSnapshots(ctx context.Context) ([]NodeSnapshot, error)
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, recorded_at, client_id, cluster_name, node,
 			cpu_alloc_mcores, mem_alloc_bytes, cpu_cap_mcores, mem_cap_bytes,
-			cpu_req_mcores, mem_req_bytes, cpu_util_mcores, mem_util_bytes, pods
+			cpu_req_mcores, mem_req_bytes, cpu_util_mcores, mem_util_bytes, pods,
+			taints, unschedulable
 		FROM node_snapshots
 		WHERE recorded_at = ?
 		ORDER BY node ASC`, at)
@@ -113,14 +156,18 @@ func (s *Store) LatestNodeSnapshots(ctx context.Context) ([]NodeSnapshot, error)
 	var out []NodeSnapshot
 	for rows.Next() {
 		var r NodeSnapshot
-		var ats string
+		var ats, taints string
+		var unsched int
 		if err := rows.Scan(
 			&r.ID, &ats, &r.ClientID, &r.ClusterName, &r.Node,
 			&r.CPUAllocMcores, &r.MemAllocBytes, &r.CPUCapMcores, &r.MemCapBytes,
 			&r.CPUReqMcores, &r.MemReqBytes, &r.CPUUtilMcores, &r.MemUtilBytes, &r.Pods,
+			&taints, &unsched,
 		); err != nil {
 			return nil, err
 		}
+		r.Taints = splitTaints(taints)
+		r.Unschedulable = unsched != 0
 		t, err := ParseUTC(ats)
 		if err != nil {
 			return nil, err
