@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-17
+
+### Added
+
+- `e2e/` + `make test-e2e`: an end-to-end smoke that runs the **built binary as a process**
+  against a real SQLite file, with no cluster. It pins the things a unit test cannot: that an
+  absent store exits `3`, that `recommend` reads back what `restore` wrote, that
+  `restore --merge` is idempotent (`+0` on the second run), that a store from a newer build is
+  refused **without being touched**, and that `capacity fit` fails cleanly when there is no
+  cluster rather than reporting a verdict against nothing. Runs in CI and in `make release-check`.
+- `make test-e2e-kind`: the same binary against a **real** kind cluster — metrics-server
+  (`--kubelet-insecure-tls`), two workloads with requests, and one (`polinux/stress`) that actually
+  burns CPU and memory. It asserts the sampler stored real utilization (`996m` CPU / `137 MB` memory
+  in the last run) and real requests, that `capacity fit` answers `yes`, that it exits `4` when
+  nothing fits and `2` for a workload that does not exist. Needs Docker and kind, so it is a
+  deliberate target rather than a CI gate.
+- Homebrew: GoReleaser now publishes a **cask** into [`hrodrig/homebrew-kpm`](https://github.com/hrodrig/homebrew-kpm)
+  on every release, the same pattern as kwd/pgwd/kzero/groot/gghstats — the tap stays correct because
+  the release writes it, not because someone remembered to bump four hashes. Installs both binaries
+  and the man pages; `brew install --cask hrodrig/kpm/kpm`. The release workflow refuses to start
+  without `HOMEBREW_TAP_TOKEN` (a PAT with `contents:write` on the tap), so a release cannot silently
+  ship with a stale tap.
+- [docs/rbac.md](docs/rbac.md): the smallest ClusterRole kpm needs, derived from the API calls in the
+  tree — `get`/`list` on `nodes` and `pods`, `get` on `apps` workloads, `list` on
+  `metrics.k8s.io/pods`; no `watch`, no `secrets`, no writes. It also explains why a ClusterRole
+  rather than a namespaced `Role`: `nodes` is cluster-scoped, and a node view limited to one namespace
+  would undercount what is reserved — the failure the 0.9 aggregation work exists to fix.
+- Man pages now cover **every flag the binary accepts** (22/22, and none documented that no longer
+  exist). `capacity fit` is its own entry instead of a paragraph glued onto `capacity`, and
+  `--nodes` / `--record-nodes` are named rather than described as "the nodes flag". Two stale claims
+  removed along the way: `kubectl ... once the sampler is implemented` (it has been since `v0.2.0`)
+  and `node_snapshots (schema v4)` (it is v7).
+- SPEC is now **normative end to end**: the `draft v0.4` banner is gone, §9
+  (Configuration) and §10 (Security posture) are promoted, and the remaining `draft`
+  markers are gone or historical decision records. Each promotion was audited against
+  the code first; where a claim did not survive, the claim changed, not the heading.
+- SPEC §10 records the controls that exist and were previously unlisted: middleware
+  order (browser guard → allowlist → rate limit → mux), ops paths exempt from
+  allowlist and rate limiting, bearer bypassing the IP check, and the SMTP
+  TLS/STARTTLS rules. It also records a **known gap**: an unparseable `allowlist_cidrs`
+  entry is skipped and a list with no valid entries disables the allowlist, so a typo
+  fails open. Tracked as `#22`.
+- `configs/kpm.sample.yml` now documents every key the binary reads. Two were missing:
+  `threshold` (absolute threshold, the alternative to `threshold_ratio`) and `headers_env`
+  (extra webhook headers). SPEC §9 names the sample as the complete key reference, so this
+  file is now the contract, not an example.
+- [docs/migrating.md](docs/migrating.md): operator notes for upgrading — back up first, let the store
+  migrate in place, what a refused newer store means, and which releases moved `capacity` numbers.
+- SPEC §2.5 records the full store schema history (v1–v7) and the compatibility rules; §2.6 freezes the
+  CLI surface for `1.0.0` (command/flag names, column order, JSON fields, exit codes) and states that a
+  behaviour correction is not a break (roadmap `#29`).
+- `kpm capacity --nodes`: per-node table with each node's pool, then the same numbers grouped by
+  pool. A pool is the set of blocking taints — what decides who may use the capacity — with
+  `(general)` for nodes that have none. No total is filtered by taint. Pool identity is persisted
+  per snapshot (schema **v7**: `node_snapshots.taints`, `.unschedulable`) and exposed on
+  `GET /api/v1/nodes` ([#111](https://github.com/hrodrig/kpm/issues/111)).
+- `kpm capacity fit` exits **4** when no node can run the workload: the question was answered and the
+  answer is no, which a script must be able to tell from a failed query (`2`) or missing data (`3`)
+  (SPEC §12).
+- `kpm capacity fit`: a placement check that answers "can this workload be scheduled here" rather
+  than "how much is free". Evaluates cordon, taints and tolerations, `nodeSelector`, required node
+  affinity, and remaining CPU/memory, reading the constraints from a real workload (`--for
+  deployment/api`) or a hypothetical pod (`--cpu`/`--memory`). Prints what it did not evaluate —
+  pod (anti-)affinity, topology spread, volume zone binding, fragmentation — on every run
+  ([#111](https://github.com/hrodrig/kpm/issues/111)).
+- `kpm restore`: the missing counterpart to `kpm backup`. By default it installs a backup at the
+  store path (temp file, rename, stale `-wal`/`-shm` removed, `--force` required to replace a
+  non-empty store). With `--merge` it opens the backup read-only and adds only the rows the store
+  does not already hold, matched on each table's natural key — so a second merge of the same file
+  adds nothing. Older backups are accepted (absent tables skipped, newer columns defaulted); a
+  backup from a newer schema is refused
+  ([#110](https://github.com/hrodrig/kpm/issues/110)).
+
+### Fixed
+
+- `allowlist_cidrs` **fails closed**: an entry that does not parse is now a startup error instead of
+  being skipped. Skipping meant a typo in the only entry produced an empty list, which the code
+  treated as "no allowlist" and admitted everyone — while the operator believed access was
+  restricted. An empty list still means off; a list that cannot be read is now a refusal to start.
+  `NewAllowlist` and `BuildAccessControl` return errors, so `kpm serve` and the MCP daemon surface it
+  before binding a socket.
+- SPEC §9 documented a configuration precedence the binary does not implement: "CLI flags
+  override config when explicitly set" implies a Viper flag binding, and there is no
+  `BindPFlag` anywhere in the tree. Flags win only where a command reads them (`--sort` over
+  `tui.default_sort`, `-o` over the default backup path), so level 4 of the chain is now
+  described as a per-command rule. The sibling rule "every knob overridable via ENV and CLI"
+  was corrected the same way: `KPM_*` covers every key, CLI does not. §9 is promoted to
+  Normative with the correction in place.
+- Opening a store written by a **newer** kpm is now refused **before any migration runs**. The version
+  was read after the DDL, so a downgrade could have added the columns it thought were missing to a
+  schema it cannot interpret. `restore --merge` already refused a newer source; `Open` now applies the
+  same rule, and a test asserts the refused store is left untouched.
+- `kpm capacity` no longer counts `Succeeded`/`Failed` pods in node requests or in the per-node pod
+  count. The scheduler releases a pod's reservation when it reaches a terminal phase and the Metrics
+  API stops reporting it, so completed Jobs inflated both numbers and read as permanently idle
+  workloads that still held their requests.
+- `kpm capacity` now counts init container requests. A pod's effective request is
+  `max(sum(containers), max(initContainers))` — an init container asking for 2 CPU reserves 2 CPU
+  even when the app containers sum to 500m. Summing only regular containers understated how full a
+  node was and overstated free headroom.
+
 ## [0.8.0] - 2026-10-16
 
 ### Added

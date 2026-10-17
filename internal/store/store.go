@@ -14,8 +14,9 @@ import (
 )
 
 // SchemaVersion is the current on-disk schema revision.
-// 5 adds per-resource recommend targets (#25); 6 adds window coverage (#26).
-const SchemaVersion = 6
+// 5 adds per-resource recommend targets (#25); 6 adds window coverage (#26);
+// 7 adds node pool identity (blocking taints and cordon state).
+const SchemaVersion = 7
 
 // MaxScanRows is the hard upper bound for a single ListRecords call when
 // callers pass Limit=0 (uncapped APIs must set their own Limit). Documented
@@ -112,10 +113,25 @@ func (s *Store) Close() error {
 func (s *Store) Path() string { return s.path }
 
 func (s *Store) migrate() error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS schema_meta (
+	// schema_meta comes first, and its version is read *before* any other DDL: a
+	// store written by a newer build has to be refused while it is still untouched.
+	// An older binary adding what merely looks missing to it would corrupt a schema
+	// it cannot read.
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS schema_meta (
 			version INTEGER NOT NULL
-		)`,
+		)`); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+	empty, ver, err := s.schemaState()
+	if err != nil {
+		return err
+	}
+	if !empty && ver > SchemaVersion {
+		return fmt.Errorf(
+			"store schema v%d is newer than this build understands (v%d): upgrade kpm", ver, SchemaVersion)
+	}
+
+	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS samples (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			sampled_at TEXT NOT NULL,
@@ -149,26 +165,31 @@ func (s *Store) migrate() error {
 	if err := migrateNodeSnapshots(s.db); err != nil {
 		return err
 	}
-	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_meta`).Scan(&n); err != nil {
-		return err
-	}
-	if n == 0 {
-		if _, err := s.db.Exec(`INSERT INTO schema_meta(version) VALUES (?)`, SchemaVersion); err != nil {
-			return err
-		}
-		return nil
-	}
-	var ver int
-	if err := s.db.QueryRow(`SELECT version FROM schema_meta LIMIT 1`).Scan(&ver); err != nil {
+
+	if empty {
+		_, err := s.db.Exec(`INSERT INTO schema_meta(version) VALUES (?)`, SchemaVersion)
 		return err
 	}
 	if ver < SchemaVersion {
-		if _, err := s.db.Exec(`UPDATE schema_meta SET version = ?`, SchemaVersion); err != nil {
-			return err
-		}
+		_, err := s.db.Exec(`UPDATE schema_meta SET version = ?`, SchemaVersion)
+		return err
 	}
 	return nil
+}
+
+// schemaState reports whether schema_meta carries a version yet, and which.
+func (s *Store) schemaState() (empty bool, version int, err error) {
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_meta`).Scan(&n); err != nil {
+		return false, 0, err
+	}
+	if n == 0 {
+		return true, 0, nil
+	}
+	if err := s.db.QueryRow(`SELECT version FROM schema_meta LIMIT 1`).Scan(&version); err != nil {
+		return false, 0, err
+	}
+	return false, version, nil
 }
 
 // InsertRecords writes records in a single transaction.

@@ -36,6 +36,13 @@ type NodeCapacity struct {
 	CPUUtilMcores  float64
 	MemUtilBytes   int64
 	Pods           int
+
+	// Pool identity. Taints holds only the effects that keep a pod off the node
+	// unless it tolerates them (NoSchedule, NoExecute); PreferNoSchedule is a
+	// hint, not a filter. Neither field changes a total -- capacity that exists
+	// is capacity that exists -- they say who may use it.
+	Taints        []string
+	Unschedulable bool
 }
 
 // CaptureNodeCapacity lists Nodes and joins live container rows by Spec.NodeName.
@@ -55,6 +62,32 @@ func CaptureNodeCapacityClients(ctx context.Context, cs kubernetes.Interface, co
 	return CaptureNodeCapacity(ctx, k8sNodeLister{cs: cs}, containers)
 }
 
+// BlockingTaints formats the taints that keep a pod off a node unless it tolerates
+// them. PreferNoSchedule is a preference, not a filter: reporting it as blocking
+// would hide capacity that is perfectly usable.
+func BlockingTaints(taints []corev1.Taint) []string {
+	var out []string
+	for _, t := range taints {
+		if t.Effect != corev1.TaintEffectNoSchedule && t.Effect != corev1.TaintEffectNoExecute {
+			continue
+		}
+		s := t.Key
+		if t.Value != "" {
+			s += "=" + t.Value
+		}
+		out = append(out, s+":"+string(t.Effect))
+	}
+	return out
+}
+
+// ContainerRowsFromPods builds the container join with no metrics. Every row
+// carries its pod's requests and no utilisation, which is what a caller needs when
+// it only cares about what is reserved (fit checks, doctor) and should not depend
+// on the Metrics API being readable.
+func ContainerRowsFromPods(pods []corev1.Pod) []ContainerRow {
+	return buildContainerRows(pods, nil)
+}
+
 // AggregateNodes builds per-node capacity rows (sorted by name).
 // Pod request/util are summed from containers scheduled on that node.
 func AggregateNodes(nodes []corev1.Node, containers []ContainerRow) []NodeCapacity {
@@ -70,9 +103,21 @@ func AggregateNodes(nodes []corev1.Node, containers []ContainerRow) []NodeCapaci
 			MemAllocBytes:  bytesQty(alloc.Memory()),
 			CPUCapMcores:   milliCPU(cap.Cpu()),
 			MemCapBytes:    bytesQty(cap.Memory()),
+			Taints:         BlockingTaints(n.Spec.Taints),
+			Unschedulable:  n.Spec.Unschedulable,
 		}
 	}
-	seenPods := map[string]bool{}
+	// Requests are counted once per pod, from the pod's *effective* request
+	// (max of the container sum and init containers), because that is what the
+	// scheduler reserves. Summing container rows directly understates a node
+	// whose pods carry heavy init containers. Utilisation still sums per
+	// container: init containers produce no usage at runtime.
+	type podTotals struct {
+		node           *NodeCapacity
+		sumCPU, sumMem float64
+		podCPU, podMem float64
+	}
+	pods := map[string]*podTotals{}
 	for _, c := range containers {
 		node := strings.TrimSpace(c.Node)
 		if node == "" {
@@ -83,17 +128,40 @@ func AggregateNodes(nodes []corev1.Node, containers []ContainerRow) []NodeCapaci
 			row = &NodeCapacity{Name: node}
 			byName[node] = row
 		}
-		row.CPUReqMcores += c.CPURequestMcores
-		row.MemReqBytes += c.MemRequestBytes
 		if c.HasUtil {
 			row.CPUUtilMcores += c.CPUUtilMcores
 			row.MemUtilBytes += c.MemUtilBytes
 		}
 		pk := c.Namespace + "/" + c.Pod
-		if !seenPods[pk] {
-			seenPods[pk] = true
-			row.Pods++
+		t := pods[pk]
+		if t == nil {
+			t = &podTotals{node: row}
+			pods[pk] = t
 		}
+		t.sumCPU += c.CPURequestMcores
+		t.sumMem += float64(c.MemRequestBytes)
+		if c.PodCPURequestMcores > t.podCPU {
+			t.podCPU = c.PodCPURequestMcores
+		}
+		if float64(c.PodMemRequestBytes) > t.podMem {
+			t.podMem = float64(c.PodMemRequestBytes)
+		}
+	}
+	for _, t := range pods {
+		// max(container sum, effective pod request). The second is authoritative
+		// when the caller populated it; the sum keeps rows built by hand
+		// (existing tests, other callers) behaving as before.
+		cpu := t.sumCPU
+		if t.podCPU > cpu {
+			cpu = t.podCPU
+		}
+		mem := t.sumMem
+		if t.podMem > mem {
+			mem = t.podMem
+		}
+		t.node.CPUReqMcores += cpu
+		t.node.MemReqBytes += int64(mem)
+		t.node.Pods++
 	}
 	out := make([]NodeCapacity, 0, len(byName))
 	for _, r := range byName {

@@ -154,8 +154,16 @@ func buildContainerRows(pods []corev1.Pod, metrics []metricsv1beta1.PodMetrics) 
 	var out []ContainerRow
 	for i := range pods {
 		p := &pods[i]
+		// Succeeded/Failed pods no longer hold their requests: the scheduler
+		// released them when the pod reached a terminal phase, and the Metrics API
+		// stops reporting them. Counting them inflates node requests and the pod
+		// count, and makes finished Jobs look like permanently idle workloads.
+		if p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed {
+			continue
+		}
 		ownerKind, ownerName := ownerRef(p)
 		reqCPU, reqMem, limCPU, limMem := requestsLimits(p)
+		podCPUReq, podMemReq := EffectivePodRequest(&p.Spec)
 		m, hasMetrics := byKey[p.Namespace+"/"+p.Name]
 		utilByContainer := map[string]metricsv1beta1.ContainerMetrics{}
 		if hasMetrics {
@@ -175,6 +183,9 @@ func buildContainerRows(pods []corev1.Pod, metrics []metricsv1beta1.PodMetrics) 
 				MemRequestBytes:  bytesQty(reqMem[c.Name]),
 				CPULimitMcores:   milliCPU(limCPU[c.Name]),
 				MemLimitBytes:    bytesQty(limMem[c.Name]),
+
+				PodCPURequestMcores: podCPUReq,
+				PodMemRequestBytes:  podMemReq,
 			}
 			if um, ok := utilByContainer[c.Name]; ok {
 				row.HasUtil = true
@@ -193,6 +204,37 @@ func ownerRef(p *corev1.Pod) (kind, name string) {
 	}
 	o := p.OwnerReferences[0]
 	return o.Kind, o.Name
+}
+
+// EffectivePodRequest is the request Kubernetes reserves for a pod:
+// max(sum of regular containers, max of init containers). A pod whose init
+// container asks for 2 CPU while its app containers sum to 500m still occupies
+// 2 CPU of node capacity, so summing only Spec.Containers understates how full a
+// node is.
+func EffectivePodRequest(spec *corev1.PodSpec) (cpuM float64, memB int64) {
+	for i := range spec.Containers {
+		c := &spec.Containers[i]
+		if q, ok := c.Resources.Requests[corev1.ResourceCPU]; ok {
+			cpuM += milliCPU(&q)
+		}
+		if q, ok := c.Resources.Requests[corev1.ResourceMemory]; ok {
+			memB += bytesQty(&q)
+		}
+	}
+	for i := range spec.InitContainers {
+		c := &spec.InitContainers[i]
+		if q, ok := c.Resources.Requests[corev1.ResourceCPU]; ok {
+			if v := milliCPU(&q); v > cpuM {
+				cpuM = v
+			}
+		}
+		if q, ok := c.Resources.Requests[corev1.ResourceMemory]; ok {
+			if v := bytesQty(&q); v > memB {
+				memB = v
+			}
+		}
+	}
+	return cpuM, memB
 }
 
 func requestsLimits(p *corev1.Pod) (reqCPU, reqMem, limCPU, limMem map[string]*resource.Quantity) {

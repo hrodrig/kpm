@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-16" "kpm v0.8.0" "User Commands"
+.TH KPM 1 "2026-10-17" "kpm v0.9.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -15,7 +15,7 @@ It uses
 .B client-go
 directly (no
 .BR kubectl
-binary) once the sampler is implemented.
+binary).
 .PP
 Behavior contract:
 .B SPECIFICATIONS.md
@@ -48,7 +48,11 @@ is true, each daemon tick also evaluates threshold rules and fans out to
 Safe SQLite copy via
 .B VACUUM INTO
 .RB ( \-\-config ,
-.BR \-o ).
+.BR \-\-output , \-o ).
+.TP
+.B restore
+Install a backup at the store path, or merge only the rows the store is missing
+.RB ( \-\-config , \-\-merge , \-\-force ).
 .TP
 .B export
 Export samples as
@@ -56,7 +60,7 @@ Export samples as
 or
 .B tsv
 .RB ( \-\-format ,
-.BR \-o ,
+.BR \-\-output , \-o ,
 .BR \-\-since ,
 .BR \-\-until ,
 .BR \-\-namespace ,
@@ -65,15 +69,20 @@ or
 .TP
 .B capacity
 Live pod CPU/memory table from the Metrics API.
-.RB ( \-\-config ,
-.BR \-\-kubeconfig ,
-.BR \-\-sort ,
-.BR \-\-record\-nodes ).
+.RB ( \-\-config , \-\-kubeconfig , \-\-sort , \-\-nodes , \-\-record\-nodes ).
 Default grain: one row per pod (sum util / sum request).
+.B \-\-nodes
+also prints the per-node table and the same numbers grouped by pool (blocking
+taints; general for the rest).
 .B \-\-record\-nodes
 writes node allocatable/request/util into
 .B node_snapshots
-(schema v4) for offline analyze-local.
+(schema v7) for offline analyze-local.
+.TP
+.B capacity fit
+Answers whether a workload can be scheduled, per node, and names the filters
+it did not evaluate.
+.RB ( \-\-for , \-\-cpu , \-\-memory , \-\-namespace ).
 .TP
 .B recommend
 Offline rightsizing from SQLite history (no cluster).

@@ -56,6 +56,10 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 
 - Work on **topic branches** from `develop`; PR **into `develop`**. **Never**
   commit or push directly to `develop` or `main`.
+- Run **`make hooks`** once per clone. It installs a pre-commit hook that refuses a
+  direct commit to `develop`/`main`; merges and rebases step aside, and
+  `git commit --no-verify` overrides it deliberately. The server-side rulesets catch
+  the push — this catches the mistake at the point it is made.
 - Release: PR **`develop` → `main`**, annotated tag **`v<semver>`** on **`main`**
   only. Then sync **`main` → `develop`** via PR.
 - **Never** merge to `main`, create/push a release tag, or run `make release`

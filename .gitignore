@@ -38,6 +38,12 @@
 !docs/
 !docs/**
 
+# Tests
+!e2e/
+!e2e/**
+!testing/
+!testing/**
+
 # CI
 !.github/
 !.github/**
@@ -45,3 +51,5 @@
 # Never commit these
 .planning/
 **/.DS_Store
+# Generated when lint builds the man pages (!contrib/** un-ignores them)
+contrib/man/man1/*.gz

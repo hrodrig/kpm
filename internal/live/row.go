@@ -19,6 +19,15 @@ type ContainerRow struct {
 
 	// HasUtil is false when Metrics API had no sample for this container.
 	HasUtil bool
+
+	// PodCPURequestMcores / PodMemRequestBytes are the pod's *effective* request
+	// — max(sum of regular containers, max of init containers) — repeated on
+	// every row of that pod. Kubernetes reserves that number, not the container
+	// sum, so node totals must use it. The per-container fields above stay per
+	// container, because rightsizing advice is per container and an init
+	// container consumes nothing at runtime.
+	PodCPURequestMcores float64
+	PodMemRequestBytes  int64
 }
 
 // PodRow is pod-aggregated (sum util / sum request / sum limit) for capacity/TUI.

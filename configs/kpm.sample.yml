@@ -1,5 +1,7 @@
-# kpm sample configuration (SPEC draft v0.4 — Core + Insights + Notify + MCP +
-# Server normative; see SPECIFICATIONS.md).
+# kpm sample configuration — Core + Insights + Notify + MCP + Server.
+# Normative reference: every key the binary reads is documented here, and the
+# optional sections are commented out so installing this file enables nothing.
+# Contract: SPECIFICATIONS.md §9.
 # One process ↔ one cluster. Default config path: ./kpm.yaml (--config, kwd-style).
 #
 # Layers:
@@ -88,7 +90,9 @@ tui:
 #   #   - name: cpu-hot
 #   #     namespaces: ["app"]
 #   #     metric: cpu.util_vs_request
-#   #     threshold_ratio: 0.90
+#   #     threshold_ratio: 0.90      # fraction of the request (0..1)
+#   #     # threshold: 850           # OR an absolute value (mcores / bytes);
+#   #     #                          # use one or the other, not both
 #   #     hold_for_seconds: 600
 #   #     clear_after_seconds: 600
 #   #     repeat_seconds: 3600   # omit → 3600; set 0 for no repeat
@@ -99,6 +103,8 @@ tui:
 #     - type: webhook
 #       url_env: KPM_DISCORD_WEBHOOK_URL
 #       body: discord
+#       # headers_env:                    # extra request headers, name: ENV_VAR
+#       #   X-Tenant: KPM_TENANT_HEADER   # (values come from the environment)
 #     - type: webhook
 #       url_env: KPM_TEAMS_WEBHOOK_URL
 #       body: teams

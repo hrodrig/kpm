@@ -1,0 +1,49 @@
+#!/bin/sh
+# Refuse direct commits to the branches that only take pull requests.
+#
+# Install once per clone:  make hooks
+#
+# This is a guard, not a permission system: `git commit --no-verify` skips it. Its
+# job is to catch the ordinary mistake — being on develop and typing git commit —
+# which is a mistake people and agents both make at the end of a long session, when
+# the branch they thought they were on is not the branch they are on.
+#
+# A merge commit is allowed: syncing main back into develop produces one, and that
+# is not a direct commit.
+
+set -eu
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+
+case "$branch" in
+develop | main | master) ;;
+*) exit 0 ;;
+esac
+
+# In-progress merge or rebase: those produce commits on purpose.
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+	exit 0
+fi
+for state in rebase-merge rebase-apply; do
+	if [ -d "$(git rev-parse --git-path "$state")" ]; then
+		exit 0
+	fi
+done
+
+cat >&2 <<EOF
+error: refusing to commit directly to '$branch'.
+
+This repository takes changes to $branch through a pull request:
+
+    git switch -c <type>/<short-slug>
+    git commit ...
+
+Then open the PR against $branch:
+
+    gh pr create --base $branch
+
+If this really is a merge, use 'git merge --no-ff' -- MERGE_HEAD is set and this
+check steps aside. Deliberate override: git commit --no-verify
+EOF
+
+exit 1

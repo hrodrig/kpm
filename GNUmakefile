@@ -52,12 +52,15 @@ help:
 	@echo "  $(GREEN)test$(RESET)                      Unit tests (go test -race ./...)"
 	@echo "  $(GREEN)cover$(RESET)                     Unit tests with coverage.out"
 	@echo "  $(GREEN)cover-check$(RESET)               Fail if total statement coverage < $(COVERAGE_MIN)%"
+	@echo "  $(GREEN)test-e2e$(RESET)                  End-to-end smoke: the real binary, no cluster (go test -tags e2e)"
+	@echo "  $(GREEN)test-e2e-kind$(RESET)             End-to-end on a kind cluster + metrics-server (needs Docker)"
 	@echo ""
 	@echo "$(YELLOW)Quality:$(RESET)"
 	@echo "  $(GREEN)lint$(RESET)                      check-pins, check-man-version, gofmt -s, go vet, gocyclo (<=14)"
 	@echo "  $(GREEN)lint-fix$(RESET)                  gofmt -s -w"
 	@echo "  $(GREEN)security$(RESET)                  govulncheck + gocyclo + grype"
 	@echo "  $(GREEN)tools$(RESET)                     Install govulncheck, gocyclo and grype"
+	@echo "  $(GREEN)hooks$(RESET)                     Install git hooks (refuses direct commits to develop/main)"
 	@echo ""
 	@echo "$(YELLOW)Docker:$(RESET)"
 	@echo "  $(GREEN)docker-build$(RESET)              Build the image locally (kpm:$(VERSION))"
@@ -75,8 +78,9 @@ help:
 	@echo "$(CYAN)Current version:$(RESET) $$(cat VERSION 2>/dev/null | tr -d '\n\r' || echo '?') (ldflags $(VERSION), branch $(BRANCH))"
 
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
-.PHONY: test cover cover-check lint lint-fix tools security release-check release snapshot
+.PHONY: test test-e2e test-e2e-kind cover cover-check lint lint-fix tools security release-check release snapshot
 .PHONY: check-pins check-man-version check-docker govulncheck gocyclo grype
+.PHONY: hooks
 .PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
 
 build:
@@ -132,6 +136,13 @@ install-kubectl-plugin:
 
 test:
 	go test -race ./...
+
+test-e2e:
+	go test -tags e2e ./e2e/ -count=1 -v
+
+test-e2e-kind:
+	@echo "Running kind E2E (needs Docker, kind, kubectl; a few minutes)..."
+	@testing/kind/kind-e2e.sh
 
 cover:
 	go test ./... -coverprofile=coverage.out -covermode=atomic
@@ -191,6 +202,12 @@ tools:
 	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
 	fi
 
+# Local git guard: refuses a direct commit to develop/main. Run once per clone.
+hooks:
+	@gitdir=$$(git rev-parse --git-dir); \
+	install -m 755 contrib/hooks/pre-commit "$$gitdir/hooks/pre-commit"; \
+	echo "installed $$gitdir/hooks/pre-commit"
+
 # govulncheck exit codes: 0 = clean, 3 = vulnerabilities reported, other = tool error.
 # Never treat tool errors as a clean PASS (fixes fail-open from `|| true`).
 govulncheck:
@@ -244,6 +261,7 @@ release-check:
 	@$(MAKE) lint
 	@$(MAKE) test
 	@$(MAKE) cover-check
+	@$(MAKE) test-e2e
 	@$(MAKE) security
 	@$(MAKE) docker-scan
 	@echo "All release checks passed."

@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.8.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -13,7 +13,7 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
@@ -150,7 +150,7 @@ Details (bands, defaults, more diagrams):
 |------|--------|
 | Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
-| Core: sample → SQLite, backup, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
+| Core: sample → SQLite, backup / restore, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
 | `kubectl kpm` plugin shim | **Done** (`make install-kubectl-plugin` / release binary) |
 | FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
 | VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
@@ -162,6 +162,8 @@ Details (bands, defaults, more diagrams):
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
 | Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
 | Honesty (window coverage, per-resource targets, `kpm doctor`, systemd unit) | **In tree** (`v0.8.0` — [plan-0.8.0](docs/plan-0.8.0.md)) |
+| Capacity aggregation + `kpm restore` (terminal pods, init containers, replace/merge) | **In tree** (`0.9.x` — SPEC §2.4 and §4) |
+| `kpm capacity fit` (workload-aware placement check) | **In tree** (`0.9.x` — SPEC §4) |
 | Scale (search/filter, node snapshots, store caps) | **In tree** (`v0.7.0` — [plan-0.7.0](docs/plan-0.7.0.md)) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 

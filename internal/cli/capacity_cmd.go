@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/hrodrig/kpm/internal/cluster"
 	"github.com/hrodrig/kpm/internal/config"
 	"github.com/hrodrig/kpm/internal/exitcode"
+	"github.com/hrodrig/kpm/internal/fit"
 	"github.com/hrodrig/kpm/internal/identity"
 	"github.com/hrodrig/kpm/internal/live"
 	"github.com/hrodrig/kpm/internal/store"
@@ -22,6 +22,7 @@ func newCapacityCmd() *cobra.Command {
 	var sortFlag string
 	var asTUI bool
 	var recordNodes bool
+	var listNodes bool
 
 	cmd := &cobra.Command{
 		Use:   "capacity",
@@ -64,10 +65,22 @@ Exit code 2 on cluster/Metrics/RBAC failure. With --tui, enters the interactive 
 			if err := writeCapacityTable(cmd.OutOrStdout(), cmd.ErrOrStderr(), snap, sortFlag, cfg.TUI.DefaultSort); err != nil {
 				return err
 			}
+			if !listNodes && !recordNodes {
+				return nil
+			}
+			nodes, err := live.CaptureNodeCapacityClients(cmd.Context(), cs, snap.Containers)
+			if err != nil {
+				return exitcode.New(exitcode.Cluster, err)
+			}
+			if listNodes {
+				if err := writeNodeTable(cmd.OutOrStdout(), nodes); err != nil {
+					return err
+				}
+			}
 			if !recordNodes {
 				return nil
 			}
-			return recordNodeSnapshots(cmd, cfg, cs, snap)
+			return recordNodeSnapshots(cmd, cfg, nodes, snap.CapturedAt)
 		},
 	}
 
@@ -76,6 +89,8 @@ Exit code 2 on cluster/Metrics/RBAC failure. With --tui, enters the interactive 
 	cmd.Flags().StringVar(&sortFlag, "sort", "", "sort key: name, cpu.ratio, cpu.util, mem.ratio, mem.util (default: tui.default_sort or cpu.ratio)")
 	cmd.Flags().BoolVar(&asTUI, "tui", false, "open interactive heatmap (alias for kpm tui)")
 	cmd.Flags().BoolVar(&recordNodes, "record-nodes", false, "persist node allocatable/request/util into node_snapshots")
+	cmd.Flags().BoolVar(&listNodes, "nodes", false, "also print the per-node table with its pool (taints, cordon)")
+	cmd.AddCommand(newCapacityFitCmd())
 	return cmd
 }
 
@@ -94,11 +109,7 @@ func writeCapacityTable(out, errOut io.Writer, snap live.Snapshot, sortFlag, def
 	return nil
 }
 
-func recordNodeSnapshots(cmd *cobra.Command, cfg *config.Config, cs kubernetes.Interface, snap live.Snapshot) error {
-	nodes, err := live.CaptureNodeCapacityClients(cmd.Context(), cs, snap.Containers)
-	if err != nil {
-		return exitcode.New(exitcode.Cluster, err)
-	}
+func recordNodeSnapshots(cmd *cobra.Command, cfg *config.Config, nodes []live.NodeCapacity, capturedAt time.Time) error {
 	path, err := cfg.ExpandedStorePath()
 	if err != nil {
 		return err
@@ -110,8 +121,8 @@ func recordNodeSnapshots(cmd *cobra.Command, cfg *config.Config, cs kubernetes.I
 	defer st.Close()
 
 	now := time.Now().UTC()
-	if !snap.CapturedAt.IsZero() {
-		now = snap.CapturedAt.UTC()
+	if !capturedAt.IsZero() {
+		now = capturedAt.UTC()
 	}
 	clientID := identity.Resolve(cfg.Client.ID)
 	clusterName := cfg.Cluster.Name
@@ -134,11 +145,49 @@ func recordNodeSnapshots(cmd *cobra.Command, cfg *config.Config, cs kubernetes.I
 			CPUUtilMcores:  n.CPUUtilMcores,
 			MemUtilBytes:   n.MemUtilBytes,
 			Pods:           n.Pods,
+			Taints:         n.Taints,
+			Unschedulable:  n.Unschedulable,
 		})
 	}
 	if err := st.InsertNodeSnapshots(cmd.Context(), rows); err != nil {
 		return exitcode.New(exitcode.Store, err)
 	}
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "capacity: recorded %d node snapshot rows → %s\n", len(rows), st.Path())
+	return nil
+}
+
+// writeNodeTable prints per-node capacity with the pool each node belongs to,
+// then the same numbers grouped by pool.
+//
+// No total is filtered by taint. A dedicated pool's capacity is real and appears
+// here in full; the pool column says who may consume it, which is a different
+// question from whether it exists.
+func writeNodeTable(out io.Writer, nodes []live.NodeCapacity) error {
+	_, _ = fmt.Fprintf(out, "\n%-30s %-38s %9s %9s %9s %6s\n",
+		"NODE", "POOL", "ALLOC_CPU", "REQ_CPU", "UTIL_CPU", "PODS")
+	for _, n := range nodes {
+		cordoned := ""
+		if n.Unschedulable {
+			cordoned = " (cordoned)"
+		}
+		_, _ = fmt.Fprintf(out, "%-30s %-38s %9s %9s %9s %6d%s\n",
+			n.Name, live.PoolKey(n),
+			fit.FormatMilliCPU(n.CPUAllocMcores), fit.FormatMilliCPU(n.CPUReqMcores),
+			fit.FormatMilliCPU(n.CPUUtilMcores), n.Pods, cordoned)
+	}
+
+	pools := live.GroupNodesByPool(nodes)
+	if len(pools) == 0 {
+		return nil
+	}
+	_, _ = fmt.Fprintf(out, "\n%-38s %5s %8s %9s %9s %9s %10s %10s\n",
+		"POOL", "NODES", "CORDONED", "ALLOC_CPU", "REQ_CPU", "UTIL_CPU", "ALLOC_MEM", "REQ_MEM")
+	for _, p := range pools {
+		_, _ = fmt.Fprintf(out, "%-38s %5d %8d %9s %9s %9s %10s %10s\n",
+			p.Pool, p.Nodes, p.Cordoned,
+			fit.FormatMilliCPU(p.CPUAllocMcores), fit.FormatMilliCPU(p.CPUReqMcores),
+			fit.FormatMilliCPU(p.CPUUtilMcores),
+			fit.FormatBytes(p.MemAllocBytes), fit.FormatBytes(p.MemReqBytes))
+	}
 	return nil
 }

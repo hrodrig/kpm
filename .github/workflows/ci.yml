@@ -25,6 +25,12 @@ jobs:
       - name: Run unit tests
         run: go test -race -coverprofile=coverage.out -covermode=atomic -v ./internal/... ./configs/
 
+      # The binary is exercised as a process: exit codes, store round trips, schema
+      # refusal. No cluster, so it is deterministic here and cannot flake on a
+      # metrics-server that is slow to come up.
+      - name: End-to-end smoke (no cluster)
+        run: go test -tags e2e ./e2e/ -count=1 -v
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

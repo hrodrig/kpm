@@ -1,11 +1,10 @@
 # SPECIFICATIONS — kpm
 
-> **Status: draft v0.4 — Normative in-tree:** scaffold (§1), Core (§2),
-> adjacent Insights (§3–5), notifications (§6), MCP (§7), server (§8),
-> `client.id` (§9.2.1), and exit codes `0`/`1`/`2`/`3`. Server band shipped
-> as **`v0.6.0`**; Scale (search/filter, node snapshots, store caps) as
-> **`v0.7.0`**; Honesty (window coverage, per-resource targets, `kpm doctor`,
-> packaged systemd unit) as **`v0.8.0`**.
+> **Status: normative — describes the `v0.9.0` tree.** Every section below is
+> implemented and must not regress without a CHANGELOG entry. The CLI surface and the
+> store schema are frozen for `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
+> `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
+> `v0.8.0`, capacity truth + `restore` `v0.9.0`.
 
 | Term | Meaning |
 |------|---------|
@@ -163,9 +162,58 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 ### 2.4 Backup / export
 
 - `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
+- `kpm restore` — install a backup at the store path, or `--merge` the rows it
+  adds. **Replace** copies to a temp file and renames into place, removes stale
+  `-wal`/`-shm` left by the replaced database, and refuses a non-empty store
+  without `--force`. **Merge** opens the backup read-only and dedupes on each
+  table's natural key (`client_id`, `cluster_name`, grain or pod, `container`,
+  timestamp), so repeating it adds nothing. A backup from a newer schema is
+  refused; older backups are accepted, skipping absent tables and columns.
 - `kpm export` — **csv** and **tsv** only for the foreseeable future (json later
   only if demanded). Offline filters: `--since` / `--until` (RFC3339),
   `--namespace`, `--pod`, `--workload` (`owner_name`).
+
+---
+
+### 2.5 Store schema and compatibility (Normative)
+
+`kpm doctor` reports the version on disk against the one the build expects. The
+history below is append-only: a version number is never reused or renumbered.
+
+| v | Release | Adds |
+|---|---------|------|
+| 1 | 0.2.0 | `schema_meta`, `samples` and its time/namespace indexes |
+| 2 | 0.3.0 | `recommendations` + grain index (`recommend --record`) |
+| 3 | 0.7.0 | `idx_samples_ns_owner_at` — index only, no table change |
+| 4 | 0.7.0 | `node_snapshots` + indexes (`capacity --record-nodes`) |
+| 5 | 0.8.0 | `recommendations.cpu_target_utilization`, `.memory_target_utilization` |
+| 6 | 0.8.0 | `recommendations.window_days`, `.days_with_samples` |
+| 7 | 0.9.0 | `node_snapshots.taints`, `.unschedulable` |
+
+- **Forward only, additive.** Opening an older store migrates it in place:
+  `CREATE TABLE IF NOT EXISTS` for tables, `addColumnIfMissing` for columns. No row
+  is rewritten and no column is dropped, so a migration is additive and idempotent.
+- **Irreversible.** A migrated store cannot be read by an older binary. `kpm backup`
+  before upgrading across a minor is the supported way back, and `kpm restore` puts
+  it back.
+- **A newer store is refused, untouched.** `Open` reads `schema_meta` *before*
+  running any DDL and fails when the store is newer than the build understands;
+  `restore --merge` applies the same rule to its source. The fix is a newer kpm,
+  never a partial read: an older binary adding the columns it thinks are missing
+  would corrupt a schema it cannot interpret.
+- **`1.0.0` freezes v7.** After that, new columns still need a version bump, but the
+  meaning of an existing table, column or index changes only in a major release.
+
+### 2.6 CLI surface freeze (Normative)
+
+The frozen surface for `1.0.0` is: command names, flag names and their meanings, the
+TSV/CSV column order, the JSON API field names, and the exit codes in §12.
+
+- Adding a command, flag or field is not a breaking change.
+- Removing or renaming one, reordering output columns, or reusing an exit code for a
+  different meaning is breaking and requires a major release.
+- A **behaviour correction** that brings the tool in line with this document is not a
+  break; it ships in a patch and the CHANGELOG records it.
 
 ---
 
@@ -254,6 +302,32 @@ suggestions that were actually applied.
 - Shared read model: `internal/live` (also for TUI/server).
 - Default grain: **one row per pod** — sum util / sum request / sum limit.
 - Pods without Metrics: still listed; util and ratios shown as `n/a`.
+- **Requests are counted the way the scheduler counts them.** A pod's effective
+  request is `max(sum(containers), max(initContainers))`: an init container asking
+  for 2 CPU makes the pod occupy 2 CPU even if its app containers sum to 500m.
+  Node totals use that number. Container rows keep their own per-container
+  request, because rightsizing advice is per container and an init container
+  consumes nothing at runtime.
+- **Pods in a terminal phase are excluded** (`Succeeded`, `Failed`): they no
+  longer hold their reservation and the Metrics API stops reporting them.
+  `Pending` pods still count — they reserve capacity while they wait.
+- **Taints never change a total.** `capacity` reports per-node taints
+  (`NoSchedule` / `NoExecute` only — `PreferNoSchedule` is a hint) and cordon
+  state as **pool identity**. Capacity that exists is capacity that exists;
+  removing a dedicated pool from the totals would erase it from the report of the
+  operator who owns it.
+  `capacity --nodes` prints the per-node table and then the same numbers grouped
+  by pool — a pool being the set of blocking taints, `(general)` for nodes that
+  have none. Pool identity persists per snapshot (schema **v7**), so
+  `GET /api/v1/nodes` carries `taints` and `unschedulable` as well.
+- **`kpm capacity fit`** — workload-aware placement check. `--for kind/name`
+  (`deployment`, `statefulset`, `daemonset`) or `--cpu` / `--memory`. Per node:
+  fits, or why not — cordon, taint not tolerated, `nodeSelector` / required
+  affinity mismatch, insufficient CPU or memory. Evaluates only what the pod and
+  the nodes can decide: pod (anti-)affinity, topology spread, volume zone binding
+  and fragmentation are **not** evaluated, and every run names them. Requests come
+  from pod specs alone, so it does not require the Metrics API. Exit code **4** when
+  no node fits (see §12) — the answer is no, which is not the same as failing to ask.
 - Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
 - Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
 - Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
@@ -288,8 +362,11 @@ If empty → all pods matching `scope` (same as capacity default).
   later).
 - Each row: identity + **horizontal bar** (heatmap style) for the selected
   metric ratio, e.g. util/request or util/limit.
-- Color bands (draft): green &lt; 70%, yellow 70–90%, red ≥ 90% of baseline
-  (aligned with `target_utilization` / notify thresholds where sensible).
+- Color bands: green `[0, 0.70)`, yellow `[0.70, 0.90)`, red `[0.90, ∞)` of the
+  baseline. The boundaries are **hardcoded** (`internal/tui/bar.go`), not read from
+  `recommend.target_utilization` or the notify thresholds; they coincide with the
+  default target by convention only, so changing a threshold in config does not move
+  a bar's colour.
 - Dual bars or toggle: **CPU** vs **memory**; baseline toggle: **vs request**
   vs **vs limit**.
 - **vs last recommendation (P2):** when a `#9b` snapshot exists for the grain
@@ -977,7 +1054,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ---
 
-## 9. Configuration (draft)
+## 9. Configuration (Normative)
 
 ### 9.1 Discovery (kwd-style)
 
@@ -990,17 +1067,30 @@ Lowest → highest (later wins):
 1. Built-in **defaults**
 2. **YAML** file (`--config`)
 3. Environment **`KPM_*`** (`AutomaticEnv` / `BindEnv`; `.` → `_`)
-4. **CLI flags** (only when the flag is explicitly set / `Changed`)
+4. **CLI flags** — where a command implements the override explicitly:
+   `--sort` wins over `tui.default_sort`, `-o` over the default backup path.
 
-Every YAML knob that operators need at runtime must be overridable via ENV and
-CLI (band implementation rule for 0.6.x+). Secrets use `*_env` **names** in
-YAML; values come only from the environment (fail closed if missing when
-required).
+   There is **no general flag→config binding** (no `BindPFlag`): a flag is read by
+   the command that consumes it, not merged into the config tree. So level 4 is a
+   per-command rule, not a layer — a flag that no command reads does nothing, and
+   adding a flag is not adding a configuration knob.
+
+Every YAML knob that operators need at runtime must be overridable via **`KPM_*`**
+(`AutomaticEnv` covers every key through the `.` → `_` replacer). CLI overrides are
+per command and must be documented where they exist — see the note above. Secrets use
+`*_env` **names** in YAML; values come only from the environment (fail closed if
+missing when required).
 
 ### 9.2 Top-level keys
 
 `cluster`, `kube`, `client`, `store`, `sample`, `scope`, `recommend`, `tui`,
 `notifications`, `mcp`, `server`.
+
+**[`configs/kpm.sample.yml`](../configs/kpm.sample.yml) is the complete key
+reference** — every key the binary reads is documented there, in the block where it
+belongs. Optional sections (`notifications`, `mcp`, `server`) ship commented out on
+purpose: the file is packaged as `/etc/kpm/kpm.yaml` by the `.deb`/`.rpm`, and
+installing it must enable nothing.
 
 ### 9.2.1 Client identity (normative today — kwd/pgwd pattern)
 
@@ -1035,15 +1125,27 @@ tui:
 
 ---
 
-## 10. Security posture (draft)
+## 10. Security posture (Normative)
 
 | Area | Rule |
 |------|------|
-| Cluster | Read-only |
-| Secrets | `*_env` / env only |
-| Notify / MCP HTTP / server | Fail closed if enabled and secret missing |
-| MCP / server bind | Localhost default |
-| K8s RBAC deny | Fail closed |
+| Cluster | **Read-only.** No create/update/patch/delete verb is issued against the cluster; the typed client is used for List and Get only. |
+| Secrets | `*_env` **names** in YAML; the values come only from the environment, never from the file. |
+| Notify / MCP HTTP / server | **Fail closed.** A sink whose env var is missing or empty refuses to build (`environment variable X is missing or empty (fail-closed)`); `mcp.token_env` is required when `mcp.listen` is non-loopback; `server.token_env` (or `mcp.token_env`) is required when server auth is on. |
+| MCP / server bind | **`127.0.0.1:9740`** by default. Binding anywhere else requires a token. |
+| K8s RBAC deny | **Fail closed.** A denied List surfaces as exit `2`, never as an empty result. |
+| Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
+| Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
+| Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
+| Malformed allowlist entry | **Startup error, never a skip.** An allowlist that silently drops what it cannot parse admits everyone the moment the only entry has a typo. |
+| SMTP | `use_tls` for implicit TLS (465), otherwise STARTTLS; `require_starttls` refuses a relay that will not upgrade. |
+
+An **empty** `allowlist_cidrs` still means "off" — the distinction the code makes is between nothing
+configured and something configured wrongly.
+
+The smallest role that allows all of the above is in **[docs/rbac.md](docs/rbac.md)**: `get`/`list` on
+`nodes` and `pods`, `get` on `apps` workloads, `list` on `metrics.k8s.io/pods`. No `watch`, no
+`secrets`, no write verbs.
 
 ---
 
@@ -1053,6 +1155,7 @@ tui:
 |---------|-------|--------|----------|--------|
 | `sample` | Core | **Normative** | Yes | Write |
 | `backup` | Core | **Normative** | No | Yes |
+| `restore` | Core | **Normative** | No | Yes |
 | `export` | Core | **Normative** | No | Yes |
 | `recommend` | Adjacent | **Normative** | No | Yes |
 | `capacity` | Adjacent | **Normative** | Yes | No |
@@ -1076,6 +1179,12 @@ tui:
 | `1` | generic failure | **Normative** |
 | `2` | cluster / Metrics API / RBAC | **Normative** |
 | `3` | empty / insufficient store data | **Normative** (recommend) |
+| `4` | answered, and the answer is no: no node can run the workload | **Normative** (capacity fit) |
+
+Code `4` exists so a script can tell "the cluster says no" from "the cluster could not
+be asked" (`2`) and "there is no data" (`3`). A capacity tool that returns a plain
+failure for both is unusable in a pipeline: `if ! kpm capacity fit ...` cannot
+distinguish a genuine negative answer from a broken query.
 
 ---
 
@@ -1191,7 +1300,7 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Topic | Decision |
 |-------|----------|
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
-| Schema | SQLite schema v2: `recommendations` table + indexes |
+| Schema | SQLite schema v2 **at the time**: `recommendations` table + indexes (full history: §2.5) |
 | Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
 | Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A). Full label and band semantics in [§3.1](#31-percentile-min_samples-and---score) |
 | TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |

@@ -65,6 +65,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newDoctorCmd())
 	root.AddCommand(newTUICmd())
 	root.AddCommand(newBackupCmd())
+	root.AddCommand(newRestoreCmd())
 	root.AddCommand(newExportCmd())
 	root.AddCommand(newNotifyTestCmd())
 	root.AddCommand(newMCPCmd())
