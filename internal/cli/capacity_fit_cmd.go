@@ -64,7 +64,11 @@ Use --for to read the requests, tolerations and selectors from a real workload, 
 			if err != nil {
 				return exitcode.New(exitcode.Cluster, err)
 			}
-			return writeFitTable(cmd.OutOrStdout(), pod, fit.Evaluate(pod, nodes))
+			fitting, err := writeFitTable(cmd.OutOrStdout(), pod, fit.Evaluate(pod, nodes))
+			if err != nil {
+				return err
+			}
+			return fitResult(fitting)
 		},
 	}
 
@@ -201,7 +205,19 @@ func fitNodes(ctx context.Context, cs kubernetes.Interface) ([]fit.Node, error) 
 	return out, nil
 }
 
-func writeFitTable(out io.Writer, pod fit.Pod, verdicts []fit.Verdict) error {
+// fitResult turns the number of fitting nodes into the command's outcome.
+//
+// Zero fits is an answer, not a failure to answer: exit 4 tells a script that the
+// cluster was asked and said no, which is different from being unable to ask (2)
+// or having no data (3).
+func fitResult(fitting int) error {
+	if fitting > 0 {
+		return nil
+	}
+	return exitcode.New(exitcode.NoFit, errors.New("no node can run this workload"))
+}
+
+func writeFitTable(out io.Writer, pod fit.Pod, verdicts []fit.Verdict) (int, error) {
 	_, _ = fmt.Fprintf(out, "request: cpu=%s memory=%s\n\n",
 		fit.FormatMilliCPU(pod.CPURequestMcores), fit.FormatBytes(pod.MemRequestBytes))
 	_, _ = fmt.Fprintf(out, "%-30s %-5s %s\n", "NODE", "FITS", "REASON")
@@ -218,5 +234,5 @@ func writeFitTable(out io.Writer, pod fit.Pod, verdicts []fit.Verdict) error {
 
 	_, _ = fmt.Fprintf(out, "\n%d of %d nodes fit\n", fitting, len(verdicts))
 	_, _ = fmt.Fprintf(out, "note: not evaluated: %s\n", fit.Unmodelled)
-	return nil
+	return fitting, nil
 }

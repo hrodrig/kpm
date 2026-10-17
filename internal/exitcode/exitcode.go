@@ -9,6 +9,7 @@ const (
 	Failure = 1 // general failure
 	Cluster = 2 // cluster / Metrics API / RBAC failure
 	Store   = 3 // empty / insufficient store data (recommend later)
+	NoFit   = 4 // the question was answered, and the answer is no (capacity fit)
 )
 
 // codedError wraps an error with an explicit exit code.

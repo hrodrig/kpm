@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(general)` for nodes that have none. No total is filtered by taint. Pool identity is persisted
   per snapshot (schema **v7**: `node_snapshots.taints`, `.unschedulable`) and exposed on
   `GET /api/v1/nodes` ([#111](https://github.com/hrodrig/kpm/issues/111)).
+- `kpm capacity fit` exits **4** when no node can run the workload: the question was answered and the
+  answer is no, which a script must be able to tell from a failed query (`2`) or missing data (`3`)
+  (SPEC §12).
 - `kpm capacity fit`: a placement check that answers "can this workload be scheduled here" rather
   than "how much is free". Evaluates cordon, taints and tolerations, `nodeSelector`, required node
   affinity, and remaining CPU/memory, reading the constraints from a real workload (`--for
