@@ -142,6 +142,15 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 - `suggested_request = round_up(p / <resource>_target_utilization)` — CPU ceil **10m**, mem
   ceil **1 MiB**. Both resolved targets are stored with each recommendation snapshot, so
   `--score` labels post-change utilization against the target the suggestion was built with.
+- **Window coverage is reported, not assumed.** `window_days` is what was asked for;
+  `days_with_samples` is the count of distinct UTC days inside the window holding at least one
+  sample. A grain that passes `min_samples` can still rest on a fraction of the window, so every
+  run prints both and flags coverage below `window_days`. A fully covered rolling window counts
+  `window_days + 1` days, because the window clips the first and last day — exceeding the window
+  length is the signal that coverage is complete, not a bug.
+- Snapshots persist both numbers, and `GET /api/v1/recommendations` exposes them as
+  `window_days` / `days_with_samples`. `days_with_samples: 0` means the row predates the column,
+  i.e. coverage is **unknown** rather than zero.
 - Verdicts vs request **and** limit (oversize / undersize ratios); CPU/mem **separate**.
 - Keys below `min_samples` skipped; **no advice rows → exit `3`**.
 - Output: `--format table` (default) or `tsv`.

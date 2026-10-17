@@ -109,12 +109,19 @@ flowchart TD
 | Idea | Default (SPEC draft) | Meaning |
 |------|----------------------|---------|
 | Window | `window_days: 7` | How much history to trust |
+| Window coverage | `days_with_samples` | How much of that window actually held data. Printed with every run; below `window_days` the percentiles rest on thinner history than the window implies |
 | Percentile | `percentile: 95` | Peak-ish steady use, not max spike alone |
 | Target util | `target_utilization: 0.70` | Shared aim, ~70% of request after rightsize |
 | Per-resource target | `cpu_target_utilization`, `memory_target_utilization` | Override the shared target; **0 or unset = inherit**. CPU throttles under a burst, memory is OOMKilled, so they are often set differently (CPU lower, memory higher) |
 | Suggest | `round_up(p / <resource>_target_utilization)` | Request from observed percentile |
 | CPU vs memory | Separate ratios | Do not mix dimensions |
 | vs request / vs limit | Both verdicts | Limit pressure ≠ request waste |
+
+Window coverage is worth a glance before trusting a percentile. `kpm recommend` prints
+`days_with_samples` next to the window it asked for: a `window_days: 7` run that only found samples
+on 3 days is a p95 built on three days of evidence, and the advice table looks the same either way.
+Coverage counts distinct UTC days, so a fully covered window reports 8 for `window_days: 7` — the
+rolling window clips the first and last day.
 
 **Rule-of-thumb bands** (aligned with recommend / TUI / notify where sensible):
 
