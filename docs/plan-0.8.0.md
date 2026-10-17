@@ -31,7 +31,7 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 
 | Roadmap ID | Issue | Item |
 |------------|-------|------|
-| `#24` | [#87](https://github.com/hrodrig/kpm/issues/87) | Validate `retention_days` ≥ `recommend.window_days` at load |
+| `#24` | [#87](https://github.com/hrodrig/kpm/issues/87) | Warn when `retention_days` < `recommend.window_days` at load |
 | `#30` | [#88](https://github.com/hrodrig/kpm/issues/88) | Group rate-limit buckets by IPv6 `/64` |
 | `#31` | [#89](https://github.com/hrodrig/kpm/issues/89) | Encode SMTP `Subject` (RFC 2047), reject CR/LF, `require_starttls` |
 | `#32` | [#90](https://github.com/hrodrig/kpm/issues/90) | Fail the release unless the tag is on `main`; scope workflow permissions |
@@ -45,10 +45,12 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 ### Docs / planning
 
 - [x] `docs/plan-0.8.0.md` (this file)
-- [ ] ROADMAP Current focus → 0.8.x Honesty; band table + 0.8/0.9 sections updated
-- [ ] SPEC notes for the retention gate and the IPv6 prefix length
-- [ ] `configs/kpm.sample.yml` notes for `require_starttls` and the `/64` grouping
-- [ ] man pages when CLI/help strings change
+- [x] ROADMAP Current focus → 0.8.x Honesty; band table + 0.8/0.9 sections updated
+- [x] SPEC notes: retention guidance unchanged (§2.2 still "prefer"), rate-limit `/64` grouping
+      and the allowlist exception in §7, `require_starttls` + SMTP header handling in §6
+- [x] `configs/kpm.sample.yml` notes for `require_starttls` and the `/64` grouping
+- [x] man pages — n/a, no CLI/help string changed in this batch (the man pages do not enumerate
+      sink or rate-limit sub-keys)
 - [ ] CHANGELOG `[Unreleased]` → `[0.8.0]` on version cut only
 
 ### `#24` — retention vs window (issue #87)
@@ -59,29 +61,45 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 - [x] Warning names both values (via `slog.Warn`, same channel as `httpserver/trusted.go`)
 - [x] Cross-check `SPECIFICATIONS.md:95` and `docs/measurement-and-rightsizing.md:76` still match
 - [x] Config tests: equal values stay silent, thin retention warns and still loads, default (14 vs 7) silent
+- [x] Commit `98821bb`
 
 ### `#30` — IPv6 rate-limit grouping (issue #88)
 
-- [ ] IPv6 buckets keyed by `/64`; IPv4 keeps per-address
-- [ ] IPv4-mapped IPv6 normalised so one host cannot hold two buckets
-- [ ] Allowlist CIDR matching uses the same prefix logic
-- [ ] Tests: two addresses in the same `/64` share a bucket; different `/64` do not
-- [ ] SPEC + sample config document the prefix length
+- [x] IPv6 buckets keyed by `/64`; IPv4 and IPv4-mapped IPv6 stay per-address
+- [x] IPv4-mapped IPv6 normalised so one host cannot hold two buckets
+- [x] Allowlist **left unchanged** — grouping there would *widen* an operator's intent
+      (a `/128` entry would start admitting a whole `/64`), the opposite direction from the
+      rate-limit fix, so the two must not share the prefix logic
+- [x] Tests: two addresses in the same `/64` share a bucket (identity + middleware 429);
+      a different `/64` keeps its own budget
+- [x] SPEC §7 + sample config document the prefix length and the allowlist exception
+- [x] Commit `12e6729`
 
 ### `#31` — SMTP headers and TLS policy (issue #89)
 
-- [ ] `Subject` encoded with `mime.QEncoding`; CR/LF rejected or stripped post-encode
-- [ ] `From` / `To` config values rejected on embedded CR/LF
-- [ ] `require_starttls` option; `UseTLS: false` without it stays opportunistic but says so
-- [ ] Tests: CRLF subject rejected; non-ASCII subject round-trips; STARTTLS required fails closed
+- [x] `Subject` encoded with `mime.QEncoding`; ASCII passes through unchanged
+- [x] CR/LF rejected in `from`, recipients and subject before the transport is reached
+- [x] `require_starttls` option; `use_tls: false` without it stays opportunistic but is documented
+      as such, and `require_starttls` fails closed against a relay that does not advertise it
+- [x] Tests: CRLF subject and header fields rejected; non-ASCII encoded, ASCII untouched;
+      fake relay proves the refusal path *and* that the advertise path attempts the upgrade
+- [x] `sendImplicitTLS` and the STARTTLS-required path share one `deliver()`
+- [x] Commit `0380cd4`
 
 ### `#32` — release guard (issue #90)
 
-- [ ] Guard step fails the run when the tag commit is not an ancestor of `main`
-- [ ] Workflow-level `permissions:` removed or reduced to `contents: read`
-- [ ] cosign (`id-token: write`) and GHCR push behaviour unchanged
-- [ ] **Release prep:** this is a CI workflow change, so VERSION bump + dated version-surface sync
-      (CHANGELOG, README badge, both man `.TH`, BSD ports) land in the same train
+- [x] Guard step fails the run when the tag commit is not an ancestor of `main`
+- [x] Workflow-level `permissions:` reduced to `contents: read`
+- [x] cosign (`id-token: write`) and GHCR push behaviour unchanged (job-level block untouched)
+- [x] **Sizing resolved — NOT release prep.** `go-release-hygiene` treats a Dockerfile / Makefile /
+      `.goreleaser` change as release prep because it changes the produced artifact. `release.yml`
+      is the release *gate*, not an artifact, and the repo's own precedent is a workflow-only commit
+      with no VERSION bump (`581af40 chore(ci): include configs package in unit tests`, the `#67`
+      fix). This change follows that precedent.
+- [x] Verified the guard discriminates: main reachable → pass, develop-only or branch commit → fail,
+      and all seven existing tags (`v0.1.0` … `v0.7.0`) are reachable from `main`, so no past
+      release would have been blocked
+- [x] Commit `c69e151`
 
 ### Native band items (not yet filed)
 
@@ -92,8 +110,8 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 
 ### Gates / band exit
 
-- [ ] `make lint` + `make cover-check` ≥ 80%
-- [ ] SPEC Honesty sections updated (status / CLI map as needed)
+- [x] `make lint` + `make cover-check` ≥ 80% (80.6% after the pulled-forward items)
+- [x] SPEC Honesty sections updated (retention wording, rate-limit `/64`, SMTP sink)
 - [ ] Feature PRs → `develop` green
 - [ ] Solo `chore/release-0.8.0` (VERSION, CHANGELOG, badge, both man `.TH`)
 - [ ] `make release-check` green
@@ -104,13 +122,13 @@ correctness gap with a one-file centre of gravity, and leaving them in Freeze ri
 
 ---
 
-## Merge order (suggested)
+## Merge order
 
 1. Docs ROADMAP + this plan
-2. `#24` retention gate — smallest, unblocks nothing but sets the doc/gate agreement
+2. `#24` retention warning — smallest, sets the doc/gate agreement
 3. `#31` SMTP headers — self-contained in `internal/notify`
-4. `#30` IPv6 `/64` — touches rate limit + allowlist + SPEC together
-5. `#32` release guard — **release prep**, carries the VERSION bump with it
+4. `#30` IPv6 `/64` — touches rate limit + SPEC together
+5. `#32` release guard — standalone workflow change, no VERSION bump
 6. Version cut `0.8.0`
 
 [↑ Back to top](#top)

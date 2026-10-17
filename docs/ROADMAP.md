@@ -173,14 +173,14 @@ Plan: [plan-0.8.0.md](./plan-0.8.0.md). **In progress** (opened 2026-10-16).
 
 | ID | Item | Issue | Status |
 |----|------|-------|--------|
-| `#24` | Warn when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Open** |
+| `#24` | Warn when `retention_days` < recommend window | [#87](https://github.com/hrodrig/kpm/issues/87) | **Done** (PR pending) |
 | `#25` | Separate CPU vs memory `target_utilization` | — | Planned |
 | `#26` | Window coverage by days-with-samples | — | Planned |
 | `#27` | Percentile / `--score` docs first-class | — | Planned |
 | `#28` | `kpm doctor` (metrics-server / store / history) | — | Planned |
-| `#30` | Rate-limit buckets grouped by IPv6 `/64` | [#88](https://github.com/hrodrig/kpm/issues/88) | **Open** |
-| `#31` | SMTP `Subject` RFC 2047 + CR/LF rejection + `require_starttls` | [#89](https://github.com/hrodrig/kpm/issues/89) | **Open** |
-| `#32` | Release fails unless the tag is on `main`; scope workflow permissions | [#90](https://github.com/hrodrig/kpm/issues/90) | **Open** |
+| `#30` | Rate-limit buckets grouped by IPv6 `/64` | [#88](https://github.com/hrodrig/kpm/issues/88) | **Done** (PR pending) |
+| `#31` | SMTP `Subject` RFC 2047 + CR/LF rejection + `require_starttls` | [#89](https://github.com/hrodrig/kpm/issues/89) | **Done** (PR pending) |
+| `#32` | Release fails unless the tag is on `main`; scope workflow permissions | [#90](https://github.com/hrodrig/kpm/issues/90) | **Done** (PR pending) |
 
 **Why `#30`–`#32` are here:** pulled forward from the 0.9.x Freeze parked list
 (Claude 2026-10-14 re-audit). Each is a closed-scope correctness gap with a
