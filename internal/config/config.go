@@ -94,6 +94,9 @@ type NotifySink struct {
 	FromEnv       string            `yaml:"from_env" mapstructure:"from_env"`
 	ToEnv         string            `yaml:"to_env" mapstructure:"to_env"`
 	UseTLS        bool              `yaml:"use_tls" mapstructure:"use_tls"`
+	// RequireSTARTTLS refuses to send unless the relay advertises STARTTLS.
+	// Ignored when use_tls is true (that path is TLS from the first byte).
+	RequireSTARTTLS bool `yaml:"require_starttls" mapstructure:"require_starttls"`
 }
 
 // Client is the sampling identity ("who samples"). ID empty resolves via the

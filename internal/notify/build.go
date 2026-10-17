@@ -98,13 +98,14 @@ func buildSMTP(s config.NotifySink) (Sender, error) {
 		}
 	}
 	return &SMTP{
-		Host:     host,
-		Port:     port,
-		Username: user,
-		Password: pass,
-		From:     from,
-		To:       to,
-		UseTLS:   s.UseTLS,
+		Host:            host,
+		Port:            port,
+		Username:        user,
+		Password:        pass,
+		From:            from,
+		To:              to,
+		UseTLS:          s.UseTLS,
+		RequireSTARTTLS: s.RequireSTARTTLS,
 	}, nil
 }
 

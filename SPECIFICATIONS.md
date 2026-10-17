@@ -309,7 +309,7 @@ Fail-closed if any declared sink’s `*_env` is missing or empty.
 |--------|--------|
 | `slack` | Incoming Webhook; `webhook_url_env` → `{"text":...}` |
 | `webhook` | JSON POST; `url_env`; optional `headers_env`; `body`: `generic` (default), `discord`, or `teams` |
-| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465), else STARTTLS |
+| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465); `require_starttls` refuses a relay that does not advertise STARTTLS (the plaintext path is otherwise opportunistic, i.e. silently cleartext). Subject is RFC 2047 encoded; CR/LF in `from_env` / `to_env` / subject is rejected (header injection) |
 
 **Not first-class:** native `pagerduty` / `discord` / `teams` / `loki`.
 PagerDuty and similar: `type: webhook` + `body: generic` (or automation URL).

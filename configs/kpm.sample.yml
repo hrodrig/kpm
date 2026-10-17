@@ -108,6 +108,9 @@ tui:
 #       from_env: KPM_SMTP_FROM
 #       to_env: KPM_SMTP_TO
 #       # use_tls: true   # 465 implicit TLS; omit/false → STARTTLS (587)
+#       # require_starttls: true   # refuse a relay without STARTTLS (fail
+#       #                          # closed; the 587 path is otherwise
+#       #                          # opportunistic and can go cleartext)
 
 # OPTIONAL — read-only MCP (stdio via `kpm mcp`; HTTP via daemon or `kpm serve`).
 # `kpm serve` opens store.path and binds mcp.listen without a sample loop
