@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kpm doctor`: read-only diagnosis of config, store, history coverage and, with `--live`, the
+  cluster Metrics API. Opens the store without creating or migrating it, reports every check instead
+  of stopping at the first problem, and exits non-zero only when something it can verify is broken
+  ([#94](https://github.com/hrodrig/kpm/issues/94)).
+
 ## [0.7.0] - 2026-10-14
 
 ### Added

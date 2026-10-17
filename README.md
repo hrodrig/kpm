@@ -137,6 +137,7 @@ Details (bands, defaults, more diagrams):
 | `kpm capacity` (live table) | **In tree** (`0.3.x #8`/`#10`) |
 | `kpm tui` / `capacity --tui` | **In tree** (`0.3.x #11`; Δ vs recommend — SPEC §5.3.1) |
 | `kpm recommend` (offline) | **In tree** (`0.3.x #9` / `#9b`) |
+| `kpm doctor` (read-only diagnosis) | **In tree** (`0.8.x #28`; SPEC §1.1) |
 | Notifications (multi-sink) | **In tree** (`0.4.x #12`–`#15`; `notify-test`) |
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
 | Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
