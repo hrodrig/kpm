@@ -37,6 +37,33 @@ Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
 
+### What’s new in 0.9 — Capacity truth and restore
+
+- **Numbers that match the scheduler** — `capacity` now counts **init containers**
+  (it never did, which under-reported requests and over-reported headroom) and ignores
+  **`Succeeded`/`Failed` pods** (it counted them, which over-reported demand).
+- **`kpm capacity fit`** — answers *does this workload land here*, not *how much is
+  free*: cordon, taints/tolerations, `nodeSelector`, required affinity, requests. It also
+  prints what it does **not** model — affinity spread, topology constraints, volume zone
+  binding, fragmentation — because a number without that caveat reads as authoritative.
+- **Node pool identity** — persisted (schema v7). A taint partitions *who may use* a node,
+  not whether the node exists, so a dedicated tainted pool keeps contributing capacity
+  instead of vanishing from the report.
+- **`kpm restore`** — replace or `--merge`. Merging dedupes on natural keys, so running it
+  twice adds nothing; an older backup is accepted, a newer schema is refused.
+- **Exit code `4`** — "the question was answered and the answer is no", distinct from `2`
+  (cluster) and `3` (store), so a script can tell *does not fit* from *the query failed*.
+- **Frozen contract** — a store written by a newer build is refused **before any DDL
+  runs**, so an old binary cannot half-migrate a schema it cannot read. SPEC §2.5/§2.6
+  record the schema history and freeze the CLI surface for `1.0.0`.
+- **Docs and packaging** — **[docs/rbac.md](docs/rbac.md)** (the minimal ClusterRole,
+  derived from the calls in the tree), **[docs/mcp.md](docs/mcp.md)**, a Homebrew cask
+  published by GoReleaser, and end-to-end tests that run offline in CI plus
+  `make test-e2e-kind` against a real cluster.
+
+Contract: **[SPEC §4](SPECIFICATIONS.md)** · band notes: **[plan-0.9.0](docs/plan-0.9.0.md)** ·
+path: **[ROADMAP](docs/ROADMAP.md)**.
+
 ### What’s new in 0.8 — Honesty
 
 - **`kpm doctor`** — read-only diagnosis of config, store, history coverage and,
@@ -109,6 +136,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 0.9](#whats-new-in-09--capacity-truth-and-restore)
 - [What’s new in 0.8](#whats-new-in-08--honesty)
 - [What’s new in 0.7](#whats-new-in-07--scale)
 - [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
