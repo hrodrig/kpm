@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `kpm capacity --nodes`: per-node table with each node's pool, then the same numbers grouped by
+  pool. A pool is the set of blocking taints — what decides who may use the capacity — with
+  `(general)` for nodes that have none. No total is filtered by taint. Pool identity is persisted
+  per snapshot (schema **v7**: `node_snapshots.taints`, `.unschedulable`) and exposed on
+  `GET /api/v1/nodes` ([#111](https://github.com/hrodrig/kpm/issues/111)).
 - `kpm capacity fit`: a placement check that answers "can this workload be scheduled here" rather
   than "how much is free". Evaluates cordon, taints and tolerations, `nodeSelector`, required node
   affinity, and remaining CPU/memory, reading the constraints from a real workload (`--for

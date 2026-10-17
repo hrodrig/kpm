@@ -67,7 +67,8 @@ or
 .BR \-\-workload ).
 .TP
 .B capacity
-Live pod CPU/memory table from the Metrics API.
+Live pod CPU/memory table from the Metrics API. The nodes flag adds the per-node
+table and the same numbers grouped by pool (blocking taints; general for the rest).
 .B capacity fit
 checks whether a workload could be scheduled, per node, and names the filters it
 did not evaluate.

@@ -275,6 +275,10 @@ suggestions that were actually applied.
   state as **pool identity**. Capacity that exists is capacity that exists;
   removing a dedicated pool from the totals would erase it from the report of the
   operator who owns it.
+  `capacity --nodes` prints the per-node table and then the same numbers grouped
+  by pool — a pool being the set of blocking taints, `(general)` for nodes that
+  have none. Pool identity persists per snapshot (schema **v7**), so
+  `GET /api/v1/nodes` carries `taints` and `unschedulable` as well.
 - **`kpm capacity fit`** — workload-aware placement check. `--for kind/name`
   (`deployment`, `statefulset`, `daemonset`) or `--cpu` / `--memory`. Per node:
   fits, or why not — cordon, taint not tolerated, `nodeSelector` / required
