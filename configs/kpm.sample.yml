@@ -135,6 +135,8 @@ tui:
 #     requests: 120
 #     period: 1m
 #     burst: 20
+#     # IPv6 buckets group by /64 so a routed /64 cannot refill by rotating
+#     # its source address; IPv4 stays per-address.
 
 # OPTIONAL — JSON API + embedded charts UI. Shares listen with mcp when empty.
 # GET /  → analyze-local charts (workload cards + drawers)
