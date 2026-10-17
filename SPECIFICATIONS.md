@@ -163,6 +163,13 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 ### 2.4 Backup / export
 
 - `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
+- `kpm restore` — install a backup at the store path, or `--merge` the rows it
+  adds. **Replace** copies to a temp file and renames into place, removes stale
+  `-wal`/`-shm` left by the replaced database, and refuses a non-empty store
+  without `--force`. **Merge** opens the backup read-only and dedupes on each
+  table's natural key (`client_id`, `cluster_name`, grain or pod, `container`,
+  timestamp), so repeating it adds nothing. A backup from a newer schema is
+  refused; older backups are accepted, skipping absent tables and columns.
 - `kpm export` — **csv** and **tsv** only for the foreseeable future (json later
   only if demanded). Offline filters: `--since` / `--until` (RFC3339),
   `--namespace`, `--pod`, `--workload` (`owner_name`).
@@ -1062,6 +1069,7 @@ tui:
 |---------|-------|--------|----------|--------|
 | `sample` | Core | **Normative** | Yes | Write |
 | `backup` | Core | **Normative** | No | Yes |
+| `restore` | Core | **Normative** | No | Yes |
 | `export` | Core | **Normative** | No | Yes |
 | `recommend` | Adjacent | **Normative** | No | Yes |
 | `capacity` | Adjacent | **Normative** | Yes | No |

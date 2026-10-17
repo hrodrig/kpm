@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kpm restore`: the missing counterpart to `kpm backup`. By default it installs a backup at the
+  store path (temp file, rename, stale `-wal`/`-shm` removed, `--force` required to replace a
+  non-empty store). With `--merge` it opens the backup read-only and adds only the rows the store
+  does not already hold, matched on each table's natural key — so a second merge of the same file
+  adds nothing. Older backups are accepted (absent tables skipped, newer columns defaulted); a
+  backup from a newer schema is refused
+  ([#110](https://github.com/hrodrig/kpm/issues/110)).
+
 ### Fixed
 
 - `kpm capacity` no longer counts `Succeeded`/`Failed` pods in node requests or in the per-node pod

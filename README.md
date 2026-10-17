@@ -150,7 +150,7 @@ Details (bands, defaults, more diagrams):
 |------|--------|
 | Repo mold (Make, CI, GoReleaser, man, whitelist `.gitignore`) | **Done** (`v0.1.0`) |
 | `kpm version` / `--print-sample-config` | **Done** |
-| Core: sample → SQLite, backup, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
+| Core: sample → SQLite, backup / restore, export | **In tree** — band `0.2.x` (`sample` / `backup` / `export`; [ROADMAP](docs/ROADMAP.md)) |
 | `kubectl kpm` plugin shim | **Done** (`make install-kubectl-plugin` / release binary) |
 | FreeBSD / OpenBSD port skeletons | **In tree** (`contrib/freebsd/`, `contrib/openbsd/`) |
 | VHS `docs/demo.gif` | **In tree** (re-record on VERSION bump) |
@@ -162,6 +162,7 @@ Details (bands, defaults, more diagrams):
 | MCP (`kpm mcp` + daemon HTTP/SSE) | **In tree** (`0.5.x #16a`/`#16`/`#17`) |
 | Server charts / JSON API (`kpm serve`) | **In tree** (`v0.6.0` — [plan-0.6.0](docs/plan-0.6.0.md); SPEC §8) |
 | Honesty (window coverage, per-resource targets, `kpm doctor`, systemd unit) | **In tree** (`v0.8.0` — [plan-0.8.0](docs/plan-0.8.0.md)) |
+| Capacity aggregation + `kpm restore` (terminal pods, init containers, replace/merge) | **In tree** (`0.9.x` — SPEC §2.4 and §4) |
 | Scale (search/filter, node snapshots, store caps) | **In tree** (`v0.7.0` — [plan-0.7.0](docs/plan-0.7.0.md)) |
 | Homebrew / Krew / `kpm-selfhosted` | Deferred |
 
