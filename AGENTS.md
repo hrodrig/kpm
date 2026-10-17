@@ -46,8 +46,9 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - **Unit tests:** `make test` (`go test -race ./...`).
 - **Coverage:** `make cover`; gate **`make cover-check`** (total statement
   coverage **≥ 80%** over `./internal/...`).
-- **Lint:** `make lint` — `check-pins`, `check-man-version`, `gofmt -s`,
-  `go vet ./...`, gocyclo ≤ 14 (`make lint-fix` rewrites formatting).
+- **Lint:** `make lint` — `check-pins`, `check-man-version`,
+  `check-readme-version`, `gofmt -s`, `go vet ./...`, gocyclo ≤ 14
+  (`make lint-fix` rewrites formatting).
 - **Security:** `make security` (govulncheck + gocyclo + grype) and
   `make docker-scan`.
 - **Before release:** **`make release-check`**.
@@ -68,6 +69,10 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
   before `git commit`.
 - **Language:** English only for code, comments, commit messages, docs, and
   UI strings.
+- **Homebrew:** the release publishes the cask to `hrodrig/homebrew-kpm`
+  (`homebrew_casks:` in `.goreleaser.yaml`), so no formula is edited by hand.
+  It needs the `HOMEBREW_TAP_TOKEN` secret — a PAT with `contents:write` on the
+  tap — and the release workflow fails fast when it is missing.
 
 ## Planning docs
 
@@ -99,7 +104,6 @@ checks VHS + SPEC banner so docs never lag the binary.
 
 ## Deferrals (do not invent in code yet)
 
-- Homebrew tap (`homebrew-kpm`)
 - Official FreeBSD/OpenBSD ports submission (skeletons live under `contrib/`)
 - Marketing / webs pins (`kpm-webs` / skill **`kpm-webs-release`**) — landing `kpm.hermesrodriguez.com` + get host (GitLab); pin after published tags when shipping webs
 
