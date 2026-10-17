@@ -52,7 +52,10 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 	if tok == "" && !httpserver.IsLoopbackListen(ops.Addr()) {
 		return fmt.Errorf("mcp HTTP: bearer token required for non-loopback listen %q", ops.Addr())
 	}
-	ac := BuildAccessControl(mcpCfg, tok)
+	ac, err := BuildAccessControl(mcpCfg, tok)
+	if err != nil {
+		return err
+	}
 	if ac.Listen == "" {
 		ac.Listen = ops.Addr()
 	}
@@ -66,14 +69,18 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 // BuildAccessControl builds allowlist + rate-limit middleware from MCP config.
 // Listen is taken from mcpCfg.Listen for Host/Origin browser guard; callers may
 // override with the shared HTTP bind address.
-func BuildAccessControl(mcpCfg config.MCP, bearer string) httpserver.AccessControl {
+func BuildAccessControl(mcpCfg config.MCP, bearer string) (httpserver.AccessControl, error) {
 	trusted := httpserver.ParseTrustedProxies(mcpCfg.TrustedProxies...)
 	ac := httpserver.AccessControl{
 		Trusted:      trusted,
 		Listen:       strings.TrimSpace(mcpCfg.Listen),
 		AllowedHosts: append([]string(nil), mcpCfg.AllowedHosts...),
 	}
-	ac.Allowlist = httpserver.NewAllowlist(mcpCfg.AllowlistCIDRs, bearer, trusted)
+	al, err := httpserver.NewAllowlist(mcpCfg.AllowlistCIDRs, bearer, trusted)
+	if err != nil {
+		return httpserver.AccessControl{}, err
+	}
+	ac.Allowlist = al
 	if mcpCfg.MCPRateLimitEnabled() {
 		req, period, burst := mcpCfg.MCPRateLimitResolved()
 		ac.RateLimit = httpserver.NewRateLimiter(httpserver.RateLimitConfig{
@@ -83,5 +90,5 @@ func BuildAccessControl(mcpCfg config.MCP, bearer string) httpserver.AccessContr
 			Burst:    burst,
 		}, trusted)
 	}
-	return ac
+	return ac, nil
 }

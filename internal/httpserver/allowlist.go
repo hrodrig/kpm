@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -13,10 +14,17 @@ type Allowlist struct {
 	trusted *TrustedProxies
 }
 
-// NewAllowlist parses CIDR/IP entries. Returns nil when none are valid (disabled).
-// bearer, when non-empty, lets Authorization: Bearer <token> bypass the IP check
+// NewAllowlist parses CIDR/IP entries. Returns (nil, nil) when no entries are
+// configured — the allowlist is simply off.
+//
+// A malformed entry is an error, not a skip. Dropping it silently is how an
+// allowlist becomes decorative: the operator writes 10.0.0.0/33, kpm discards it,
+// and if it was the only entry the list ends up empty and admits everyone. Failing
+// at startup is the only answer that matches what the operator meant to do.
+//
+// bearer, when non-empty, lets Authorization: Bearer *** bypass the IP check
 // (MCP routes remain gated by BearerAuth).
-func NewAllowlist(cidrs []string, bearer string, trusted *TrustedProxies) *Allowlist {
+func NewAllowlist(cidrs []string, bearer string, trusted *TrustedProxies) (*Allowlist, error) {
 	a := &Allowlist{bearer: strings.TrimSpace(bearer), trusted: trusted}
 	for _, raw := range cidrs {
 		for _, part := range strings.Split(raw, ",") {
@@ -33,15 +41,15 @@ func NewAllowlist(cidrs []string, bearer string, trusted *TrustedProxies) *Allow
 			}
 			_, n, err := net.ParseCIDR(cidr)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("invalid allowlist entry %q: %w", part, err)
 			}
 			a.cidrs = append(a.cidrs, n)
 		}
 	}
 	if len(a.cidrs) == 0 {
-		return nil
+		return nil, nil
 	}
-	return a
+	return a, nil
 }
 
 // Active reports whether the allowlist will enforce IP checks.

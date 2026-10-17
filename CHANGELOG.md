@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `allowlist_cidrs` **fails closed**: an entry that does not parse is now a startup error instead of
+  being skipped. Skipping meant a typo in the only entry produced an empty list, which the code
+  treated as "no allowlist" and admitted everyone — while the operator believed access was
+  restricted. An empty list still means off; a list that cannot be read is now a refusal to start.
+  `NewAllowlist` and `BuildAccessControl` return errors, so `kpm serve` and the MCP daemon surface it
+  before binding a socket.
 - SPEC §9 documented a configuration precedence the binary does not implement: "CLI flags
   override config when explicitly set" implies a Viper flag binding, and there is no
   `BindPFlag` anywhere in the tree. Flags win only where a command reads them (`--sort` over

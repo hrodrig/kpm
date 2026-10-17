@@ -1137,12 +1137,11 @@ tui:
 | Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
 | Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
 | Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
+| Malformed allowlist entry | **Startup error, never a skip.** An allowlist that silently drops what it cannot parse admits everyone the moment the only entry has a typo. |
 | SMTP | `use_tls` for implicit TLS (465), otherwise STARTTLS; `require_starttls` refuses a relay that will not upgrade. |
 
-**Known gap, tracked as `#22`:** `allowlist_cidrs` entries that fail to parse are skipped, and a list
-with no valid entries disables the allowlist instead of refusing to start. A typo therefore **fails
-open**. Closing it means rejecting the config at load time — a behaviour change, deliberately not
-folded into a documentation freeze.
+An **empty** `allowlist_cidrs` still means "off" — the distinction the code makes is between nothing
+configured and something configured wrongly.
 
 ---
 
