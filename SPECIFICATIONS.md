@@ -65,7 +65,44 @@ copy.
 | `kpm version` | version, commit, build date, branch, Go runtime |
 | `kpm --print-sample-config` | embedded sample YAML → stdout, exit 0 |
 | Bare `kpm` | help, exit 0 |
+| `kpm doctor` | read-only diagnosis of config, store, history coverage and (opt-in) cluster — §1.1 |
 | Exit codes | `0` / `1` / `2` (cluster) via `internal/exitcode` |
+
+### 1.1 `kpm doctor` — read-only diagnosis
+
+Reports every layer that has to work for trustworthy recommendations, and reports **all** of them
+instead of stopping at the first problem:
+
+| Check | Reports |
+|-------|---------|
+| `config.load` | the config file that was read, or the load error |
+| `config.retention` | `retention_days` vs `recommend.window_days` (the §2.2 guidance) |
+| `config.targets` | utilization target, percentile and `min_samples` in effect |
+| `store.path` | resolved store path; fails when it does not exist |
+| `store.schema` | schema version on disk vs the one this build expects |
+| `store.samples` | row count |
+| `store.bounds` | oldest → newest sample |
+| `history.coverage` | days with samples inside the window — the signal `kpm recommend` prints (§3) |
+| `cluster.metrics_api` | Metrics API reachability, **only** with `--live` |
+
+**Read-only, and enforced rather than assumed.** The store is opened through `store.OpenReadOnly`: no
+file creation, no migration. The normal `Open` creates a missing store and migrates an old one, so a
+diagnostic must not use it — a run that created the file would report a healthy store that never
+existed, and one that migrated would "fix" the version it was asked to inspect.
+
+**Statuses** are `ok`, `warn`, `fail`, `skip`. Warnings mean "look at this" and never fail the run:
+thin coverage and a retention shorter than the window are warnings, because both are legal
+configurations with understood consequences.
+
+**Exit codes:** `0` when nothing verifiably broke, `1` for a general failure, `2` when the only
+failures come from the cluster probe.
+
+**No cluster by default.** `kpm serve` and `kpm mcp` are documented as usable offline against a
+copied SQLite file, so an absent cluster is reported as `skip` rather than a broken setup. `--live`
+is the explicit opt-in, and a failure there is a real one.
+
+**Output:** one greppable line per check (`CHECK  STATUS  DETAIL`) plus a summary, or `--format json`
+using the same lower-snake-case field conventions as the server API.
 
 ---
 

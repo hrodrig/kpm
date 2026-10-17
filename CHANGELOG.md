@@ -9,17 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `kpm doctor`: read-only diagnosis of config, store, history coverage and, with `--live`, the
+  cluster Metrics API. Opens the store without creating or migrating it, reports every check instead
+  of stopping at the first problem, and exits non-zero only when something it can verify is broken
+  ([#94](https://github.com/hrodrig/kpm/issues/94)).
 - Window coverage in `kpm recommend`: `days_with_samples` and the oldest sample seen are reported
   alongside `window_days`, so a percentile resting on a fraction of the window is visible instead
   of implied. Persisted per snapshot (schema v6) and exposed as `window_days` /
   `days_with_samples` on `GET /api/v1/recommendations`
   ([#92](https://github.com/hrodrig/kpm/issues/92)).
 
+### Changed
+
+- `recommend.cpu_target_utilization` and `recommend.memory_target_utilization` override the shared
+  `target_utilization` per resource, so CPU and memory can be sized against different targets
+  ([#91](https://github.com/hrodrig/kpm/issues/91)).
+- `kpm recommend` warns when `retention_days` is thinner than `recommend.window_days` instead of
+  silently computing percentiles from pruned history
+  ([#87](https://github.com/hrodrig/kpm/issues/87)).
+
 ### Fixed
 
 - Release workflow fails when the pushed tag is not an ancestor of `main`, and
   drops the redundant workflow-level write permissions
   ([#90](https://github.com/hrodrig/kpm/issues/90)).
+
+### Security
+
+- SMTP subjects are RFC 2047 encoded and CR/LF in headers is rejected, closing a header-injection
+  path; `require_starttls` refuses a relay that does not advertise STARTTLS
+  ([#89](https://github.com/hrodrig/kpm/issues/89)).
+- Rate-limit buckets group IPv6 clients by `/64`, so rotating the source address no longer refills
+  the budget ([#88](https://github.com/hrodrig/kpm/issues/88)).
 
 ## [0.7.0] - 2026-10-14
 
