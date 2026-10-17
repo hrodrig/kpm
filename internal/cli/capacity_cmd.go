@@ -76,6 +76,7 @@ Exit code 2 on cluster/Metrics/RBAC failure. With --tui, enters the interactive 
 	cmd.Flags().StringVar(&sortFlag, "sort", "", "sort key: name, cpu.ratio, cpu.util, mem.ratio, mem.util (default: tui.default_sort or cpu.ratio)")
 	cmd.Flags().BoolVar(&asTUI, "tui", false, "open interactive heatmap (alias for kpm tui)")
 	cmd.Flags().BoolVar(&recordNodes, "record-nodes", false, "persist node allocatable/request/util into node_snapshots")
+	cmd.AddCommand(newCapacityFitCmd())
 	return cmd
 }
 
