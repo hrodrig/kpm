@@ -13,7 +13,7 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 

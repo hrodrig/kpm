@@ -1143,6 +1143,10 @@ tui:
 An **empty** `allowlist_cidrs` still means "off" — the distinction the code makes is between nothing
 configured and something configured wrongly.
 
+The smallest role that allows all of the above is in **[docs/rbac.md](docs/rbac.md)**: `get`/`list` on
+`nodes` and `pods`, `get` on `apps` workloads, `list` on `metrics.k8s.io/pods`. No `watch`, no
+`secrets`, no write verbs.
+
 ---
 
 ## 11. CLI map

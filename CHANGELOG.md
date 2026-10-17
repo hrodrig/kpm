@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [docs/rbac.md](docs/rbac.md): the smallest ClusterRole kpm needs, derived from the API calls in the
+  tree — `get`/`list` on `nodes` and `pods`, `get` on `apps` workloads, `list` on
+  `metrics.k8s.io/pods`; no `watch`, no `secrets`, no writes. It also explains why a ClusterRole
+  rather than a namespaced `Role`: `nodes` is cluster-scoped, and a node view limited to one namespace
+  would undercount what is reserved — the failure the 0.9 aggregation work exists to fix.
 - Man pages now cover **every flag the binary accepts** (22/22, and none documented that no longer
   exist). `capacity fit` is its own entry instead of a paragraph glued onto `capacity`, and
   `--nodes` / `--record-nodes` are named rather than described as "the nodes flag". Two stale claims
