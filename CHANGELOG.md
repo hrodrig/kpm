@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [docs/migrating.md](docs/migrating.md): operator notes for upgrading — back up first, let the store
+  migrate in place, what a refused newer store means, and which releases moved `capacity` numbers.
+- SPEC §2.5 records the full store schema history (v1–v7) and the compatibility rules; §2.6 freezes the
+  CLI surface for `1.0.0` (command/flag names, column order, JSON fields, exit codes) and states that a
+  behaviour correction is not a break (roadmap `#29`).
 - `kpm capacity --nodes`: per-node table with each node's pool, then the same numbers grouped by
   pool. A pool is the set of blocking taints — what decides who may use the capacity — with
   `(general)` for nodes that have none. No total is filtered by taint. Pool identity is persisted
@@ -33,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Opening a store written by a **newer** kpm is now refused **before any migration runs**. The version
+  was read after the DDL, so a downgrade could have added the columns it thought were missing to a
+  schema it cannot interpret. `restore --merge` already refused a newer source; `Open` now applies the
+  same rule, and a test asserts the refused store is left untouched.
 - `kpm capacity` no longer counts `Succeeded`/`Failed` pods in node requests or in the per-node pod
   count. The scheduler releases a pod's reservation when it reaches a terminal phase and the Metrics
   API stops reporting it, so completed Jobs inflated both numbers and read as permanently idle
