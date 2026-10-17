@@ -299,16 +299,26 @@ func (m Model) View() string {
 		if i == m.cursor {
 			cur = ">"
 		}
-		line := fmt.Sprintf("%s %-*s %s %4s",
-			cur,
-			idWidth, FormatIdentity(r.Namespace, r.Pod, idWidth),
-			RenderBar(r.Ratio, r.HasRatio, barWidth),
-			FormatPct(r.Ratio, r.HasRatio),
-		)
+		idText := fmt.Sprintf("%-*s", idWidth, FormatIdentity(r.Namespace, r.Pod, idWidth))
+		valueText := fmt.Sprintf("%4s", FormatPct(r.Ratio, r.HasRatio))
 		if m.cfg.ShowDelta {
-			line += fmt.Sprintf("  Δcpu %6s  Δmem %7s", FormatCPUDelta(r.Delta), FormatMemDelta(r.Delta))
+			valueText += fmt.Sprintf("  Δcpu %6s  Δmem %7s", FormatCPUDelta(r.Delta), FormatMemDelta(r.Delta))
 		}
-		b.WriteString(line)
+		if i == m.cursor {
+			// Highlight the whole row, not just the gutter: with the identity, bar
+			// and value spread across a wide terminal, ">" alone does not say which
+			// bar belongs to this row. Segments are styled individually because the
+			// bar's own SGR reset would cancel a background wrapped around the line.
+			b.WriteString(fmt.Sprintf("%s %s %s %s",
+				styleCursor.Render(cur),
+				styleRowSel.Render(idText),
+				RenderBarOn(r.Ratio, r.HasRatio, barWidth, selBackground),
+				styleRowSel.Render(valueText),
+			))
+		} else {
+			b.WriteString(fmt.Sprintf("%s %s %s %s",
+				cur, idText, RenderBar(r.Ratio, r.HasRatio, barWidth), valueText))
+		}
 		b.WriteByte('\n')
 	}
 	if len(m.rows) == 0 {
