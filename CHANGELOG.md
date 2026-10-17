@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Man pages now cover **every flag the binary accepts** (22/22, and none documented that no longer
+  exist). `capacity fit` is its own entry instead of a paragraph glued onto `capacity`, and
+  `--nodes` / `--record-nodes` are named rather than described as "the nodes flag". Two stale claims
+  removed along the way: `kubectl ... once the sampler is implemented` (it has been since `v0.2.0`)
+  and `node_snapshots (schema v4)` (it is v7).
 - SPEC is now **normative end to end**: the `draft v0.4` banner is gone, §9
   (Configuration) and §10 (Security posture) are promoted, and the remaining `draft`
   markers are gone or historical decision records. Each promotion was audited against
