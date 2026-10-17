@@ -1052,7 +1052,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ---
 
-## 9. Configuration (draft)
+## 9. Configuration (Normative)
 
 ### 9.1 Discovery (kwd-style)
 
@@ -1065,17 +1065,30 @@ Lowest → highest (later wins):
 1. Built-in **defaults**
 2. **YAML** file (`--config`)
 3. Environment **`KPM_*`** (`AutomaticEnv` / `BindEnv`; `.` → `_`)
-4. **CLI flags** (only when the flag is explicitly set / `Changed`)
+4. **CLI flags** — where a command implements the override explicitly:
+   `--sort` wins over `tui.default_sort`, `-o` over the default backup path.
 
-Every YAML knob that operators need at runtime must be overridable via ENV and
-CLI (band implementation rule for 0.6.x+). Secrets use `*_env` **names** in
-YAML; values come only from the environment (fail closed if missing when
-required).
+   There is **no general flag→config binding** (no `BindPFlag`): a flag is read by
+   the command that consumes it, not merged into the config tree. So level 4 is a
+   per-command rule, not a layer — a flag that no command reads does nothing, and
+   adding a flag is not adding a configuration knob.
+
+Every YAML knob that operators need at runtime must be overridable via **`KPM_*`**
+(`AutomaticEnv` covers every key through the `.` → `_` replacer). CLI overrides are
+per command and must be documented where they exist — see the note above. Secrets use
+`*_env` **names** in YAML; values come only from the environment (fail closed if
+missing when required).
 
 ### 9.2 Top-level keys
 
 `cluster`, `kube`, `client`, `store`, `sample`, `scope`, `recommend`, `tui`,
 `notifications`, `mcp`, `server`.
+
+**[`configs/kpm.sample.yml`](../configs/kpm.sample.yml) is the complete key
+reference** — every key the binary reads is documented there, in the block where it
+belongs. Optional sections (`notifications`, `mcp`, `server`) ship commented out on
+purpose: the file is packaged as `/etc/kpm/kpm.yaml` by the `.deb`/`.rpm`, and
+installing it must enable nothing.
 
 ### 9.2.1 Client identity (normative today — kwd/pgwd pattern)
 

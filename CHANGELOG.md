@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `configs/kpm.sample.yml` now documents every key the binary reads. Two were missing:
+  `threshold` (absolute threshold, the alternative to `threshold_ratio`) and `headers_env`
+  (extra webhook headers). SPEC §9 names the sample as the complete key reference, so this
+  file is now the contract, not an example.
 - [docs/migrating.md](docs/migrating.md): operator notes for upgrading — back up first, let the store
   migrate in place, what a refused newer store means, and which releases moved `capacity` numbers.
 - SPEC §2.5 records the full store schema history (v1–v7) and the compatibility rules; §2.6 freezes the
@@ -38,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SPEC §9 documented a configuration precedence the binary does not implement: "CLI flags
+  override config when explicitly set" implies a Viper flag binding, and there is no
+  `BindPFlag` anywhere in the tree. Flags win only where a command reads them (`--sort` over
+  `tui.default_sort`, `-o` over the default backup path), so level 4 of the chain is now
+  described as a per-command rule. The sibling rule "every knob overridable via ENV and CLI"
+  was corrected the same way: `KPM_*` covers every key, CLI does not. §9 is promoted to
+  Normative with the correction in place.
 - Opening a store written by a **newer** kpm is now refused **before any migration runs**. The version
   was read after the DDL, so a downgrade could have added the columns it thought were missing to a
   schema it cannot interpret. `restore --merge` already refused a newer source; `Open` now applies the
