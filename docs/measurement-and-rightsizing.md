@@ -103,15 +103,16 @@ flowchart TD
   P --> V{"Compare to\nrequest / limit"}
   V -->|util/request low| O["Oversized\n→ lower request"]
   V -->|util/request high| U["Undersized\n→ raise request"]
-  V --> S["suggested_request\n= round_up(p / target_utilization)\ndefault target 0.70"]
+  V --> S["suggested_request\n= round_up(p / target_utilization)\ndefault 0.70 (cpu/mem overridable)"]
 ```
 
 | Idea | Default (SPEC draft) | Meaning |
 |------|----------------------|---------|
 | Window | `window_days: 7` | How much history to trust |
 | Percentile | `percentile: 95` | Peak-ish steady use, not max spike alone |
-| Target util | `target_utilization: 0.70` | Aim ~70% of request after rightsize |
-| Suggest | `round_up(p / 0.70)` | Request from observed percentile |
+| Target util | `target_utilization: 0.70` | Shared aim, ~70% of request after rightsize |
+| Per-resource target | `cpu_target_utilization`, `memory_target_utilization` | Override the shared target; **0 or unset = inherit**. CPU throttles under a burst, memory is OOMKilled, so they are often set differently (CPU lower, memory higher) |
+| Suggest | `round_up(p / <resource>_target_utilization)` | Request from observed percentile |
 | CPU vs memory | Separate ratios | Do not mix dimensions |
 | vs request / vs limit | Both verdicts | Limit pressure ≠ request waste |
 

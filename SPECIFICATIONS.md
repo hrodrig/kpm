@@ -135,7 +135,13 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 - `kpm recommend` — **offline** from SQLite (no cluster access).
 - Grains: workload+container **and** pod+container (both emitted).
 - Window / percentile / `min_samples` / `target_utilization` from `recommend.*`.
-- `suggested_request = round_up(p / target_utilization)` — CPU ceil **10m**, mem ceil **1 MiB**.
+- `target_utilization` is the shared default; `cpu_target_utilization` and
+  `memory_target_utilization` override it per resource (**0 or unset = inherit**). CPU is
+  compressible and throttles under a burst, memory is incompressible and is **OOMKilled**, so
+  the two are commonly sized against different targets.
+- `suggested_request = round_up(p / <resource>_target_utilization)` — CPU ceil **10m**, mem
+  ceil **1 MiB**. Both resolved targets are stored with each recommendation snapshot, so
+  `--score` labels post-change utilization against the target the suggestion was built with.
 - Verdicts vs request **and** limit (oversize / undersize ratios); CPU/mem **separate**.
 - Keys below `min_samples` skipped; **no advice rows → exit `3`**.
 - Output: `--format table` (default) or `tsv`.

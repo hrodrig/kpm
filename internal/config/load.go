@@ -188,11 +188,8 @@ func (c *Config) validate() error {
 	if c.Sample.IntervalSeconds < 0 {
 		return fmt.Errorf("sample.interval_seconds must be >= 0 (got %d)", c.Sample.IntervalSeconds)
 	}
-	if c.Recommend.Percentile < 1 || c.Recommend.Percentile > 100 {
-		return fmt.Errorf("recommend.percentile must be in 1..100 (got %d)", c.Recommend.Percentile)
-	}
-	if c.Recommend.TargetUtilization <= 0 || c.Recommend.TargetUtilization > 1 {
-		return fmt.Errorf("recommend.target_utilization must be in (0,1] (got %v)", c.Recommend.TargetUtilization)
+	if err := c.validateRecommend(); err != nil {
+		return err
 	}
 	switch strings.TrimSpace(c.TUI.Baseline) {
 	case "request", "limit":
@@ -210,6 +207,30 @@ func (c *Config) validate() error {
 	}
 	if err := c.validateServer(); err != nil {
 		return err
+	}
+	return nil
+}
+
+// validateRecommend keeps the recommend knobs in one place so validate() stays
+// under the project's gocyclo budget (≤14).
+func (c *Config) validateRecommend() error {
+	if c.Recommend.Percentile < 1 || c.Recommend.Percentile > 100 {
+		return fmt.Errorf("recommend.percentile must be in 1..100 (got %d)", c.Recommend.Percentile)
+	}
+	if c.Recommend.TargetUtilization <= 0 || c.Recommend.TargetUtilization > 1 {
+		return fmt.Errorf("recommend.target_utilization must be in (0,1] (got %v)", c.Recommend.TargetUtilization)
+	}
+	for _, pair := range []struct {
+		key string
+		val float64
+	}{
+		{"recommend.cpu_target_utilization", c.Recommend.CPUTargetUtilization},
+		{"recommend.memory_target_utilization", c.Recommend.MemoryTargetUtilization},
+	} {
+		// 0 means "inherit recommend.target_utilization".
+		if pair.val != 0 && (pair.val < 0 || pair.val > 1) {
+			return fmt.Errorf("%s must be in (0,1] when set (got %v)", pair.key, pair.val)
+		}
 	}
 	return nil
 }
