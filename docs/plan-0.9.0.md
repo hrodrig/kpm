@@ -1,5 +1,7 @@
 # Plan 0.9.0 — Capacity truth + restore (aggregation · backup round-trip · placement)
 
+> **Status: shipped in `v0.9.0`.** Every item below is in the tree; see CHANGELOG `[0.9.0]`.
+
 <a id="top"></a>
 
 Band plan for **0.9.x**. Roadmap IDs: `#20`–`#23` and `#29` (the original Freeze list) plus the
