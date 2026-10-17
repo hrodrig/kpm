@@ -56,7 +56,7 @@ help:
 	@echo "  $(GREEN)test-e2e-kind$(RESET)             End-to-end on a kind cluster + metrics-server (needs Docker)"
 	@echo ""
 	@echo "$(YELLOW)Quality:$(RESET)"
-	@echo "  $(GREEN)lint$(RESET)                      check-pins, check-man-version, gofmt -s, go vet, gocyclo (<=14)"
+	@echo "  $(GREEN)lint$(RESET)                      check-pins, check-man-version, check-readme-version, gofmt -s, go vet, gocyclo (<=14)"
 	@echo "  $(GREEN)lint-fix$(RESET)                  gofmt -s -w"
 	@echo "  $(GREEN)security$(RESET)                  govulncheck + gocyclo + grype"
 	@echo "  $(GREEN)tools$(RESET)                     Install govulncheck, gocyclo and grype"
@@ -79,7 +79,7 @@ help:
 
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
 .PHONY: test test-e2e test-e2e-kind cover cover-check lint lint-fix tools security release-check release snapshot
-.PHONY: check-pins check-man-version check-docker govulncheck gocyclo grype
+.PHONY: check-pins check-man-version check-readme-version check-docker govulncheck gocyclo grype
 .PHONY: hooks
 .PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
 
@@ -171,6 +171,9 @@ check-man-version:
 	done; \
 	exit $$status
 
+check-readme-version:
+	@sh contrib/scripts/check-readme-version.sh
+
 gocyclo:
 	@echo "Running gocyclo (complexity <= 14)..."
 	@go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
@@ -184,7 +187,7 @@ grype:
 	@echo "Running grype (working tree, --fail-on high)..."
 	@PATH="$(GOBIN):$$PATH" grype . -c .grype.yaml --fail-on high
 
-lint: check-pins check-man-version
+lint: check-pins check-man-version check-readme-version
 	@echo "Checking gofmt -s..."
 	@unformatted=$$(gofmt -s -l .); [ -z "$$unformatted" ] || { echo "Files not formatted (run: make lint-fix):"; echo "$$unformatted"; exit 1; }
 	@echo "Running go vet..."

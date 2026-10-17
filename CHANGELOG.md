@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `make lint` gains **`check-readme-version`**: the static version badge must match `VERSION`, and a
+  `What's new in <MAJOR.MINOR>` section must exist for it. Both drift silently at a version cut — the
+  `0.9.0` badge shipped while the table of contents still ended at 0.8 — and neither is caught by a
+  compiler. Verified by mutation: a stale badge and a missing section both exit 1.
 - [docs/mcp.md](docs/mcp.md): how to give an MCP client access to the store — client configuration,
   the four tools with their real argument names, a captured JSON-RPC exchange, and the two things that
   make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
