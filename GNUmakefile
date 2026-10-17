@@ -52,6 +52,7 @@ help:
 	@echo "  $(GREEN)test$(RESET)                      Unit tests (go test -race ./...)"
 	@echo "  $(GREEN)cover$(RESET)                     Unit tests with coverage.out"
 	@echo "  $(GREEN)cover-check$(RESET)               Fail if total statement coverage < $(COVERAGE_MIN)%"
+	@echo "  $(GREEN)test-e2e$(RESET)                  End-to-end smoke: the real binary, no cluster (go test -tags e2e)"
 	@echo ""
 	@echo "$(YELLOW)Quality:$(RESET)"
 	@echo "  $(GREEN)lint$(RESET)                      check-pins, check-man-version, gofmt -s, go vet, gocyclo (<=14)"
@@ -76,7 +77,7 @@ help:
 	@echo "$(CYAN)Current version:$(RESET) $$(cat VERSION 2>/dev/null | tr -d '\n\r' || echo '?') (ldflags $(VERSION), branch $(BRANCH))"
 
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
-.PHONY: test cover cover-check lint lint-fix tools security release-check release snapshot
+.PHONY: test test-e2e cover cover-check lint lint-fix tools security release-check release snapshot
 .PHONY: check-pins check-man-version check-docker govulncheck gocyclo grype
 .PHONY: hooks
 .PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
@@ -134,6 +135,9 @@ install-kubectl-plugin:
 
 test:
 	go test -race ./...
+
+test-e2e:
+	go test -tags e2e ./e2e/ -count=1 -v
 
 cover:
 	go test ./... -coverprofile=coverage.out -covermode=atomic
@@ -252,6 +256,7 @@ release-check:
 	@$(MAKE) lint
 	@$(MAKE) test
 	@$(MAKE) cover-check
+	@$(MAKE) test-e2e
 	@$(MAKE) security
 	@$(MAKE) docker-scan
 	@echo "All release checks passed."
