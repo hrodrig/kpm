@@ -72,7 +72,17 @@ func AggregateNodes(nodes []corev1.Node, containers []ContainerRow) []NodeCapaci
 			MemCapBytes:    bytesQty(cap.Memory()),
 		}
 	}
-	seenPods := map[string]bool{}
+	// Requests are counted once per pod, from the pod's *effective* request
+	// (max of the container sum and init containers), because that is what the
+	// scheduler reserves. Summing container rows directly understates a node
+	// whose pods carry heavy init containers. Utilisation still sums per
+	// container: init containers produce no usage at runtime.
+	type podTotals struct {
+		node           *NodeCapacity
+		sumCPU, sumMem float64
+		podCPU, podMem float64
+	}
+	pods := map[string]*podTotals{}
 	for _, c := range containers {
 		node := strings.TrimSpace(c.Node)
 		if node == "" {
@@ -83,17 +93,40 @@ func AggregateNodes(nodes []corev1.Node, containers []ContainerRow) []NodeCapaci
 			row = &NodeCapacity{Name: node}
 			byName[node] = row
 		}
-		row.CPUReqMcores += c.CPURequestMcores
-		row.MemReqBytes += c.MemRequestBytes
 		if c.HasUtil {
 			row.CPUUtilMcores += c.CPUUtilMcores
 			row.MemUtilBytes += c.MemUtilBytes
 		}
 		pk := c.Namespace + "/" + c.Pod
-		if !seenPods[pk] {
-			seenPods[pk] = true
-			row.Pods++
+		t := pods[pk]
+		if t == nil {
+			t = &podTotals{node: row}
+			pods[pk] = t
 		}
+		t.sumCPU += c.CPURequestMcores
+		t.sumMem += float64(c.MemRequestBytes)
+		if c.PodCPURequestMcores > t.podCPU {
+			t.podCPU = c.PodCPURequestMcores
+		}
+		if float64(c.PodMemRequestBytes) > t.podMem {
+			t.podMem = float64(c.PodMemRequestBytes)
+		}
+	}
+	for _, t := range pods {
+		// max(container sum, effective pod request). The second is authoritative
+		// when the caller populated it; the sum keeps rows built by hand
+		// (existing tests, other callers) behaving as before.
+		cpu := t.sumCPU
+		if t.podCPU > cpu {
+			cpu = t.podCPU
+		}
+		mem := t.sumMem
+		if t.podMem > mem {
+			mem = t.podMem
+		}
+		t.node.CPUReqMcores += cpu
+		t.node.MemReqBytes += int64(mem)
+		t.node.Pods++
 	}
 	out := make([]NodeCapacity, 0, len(byName))
 	for _, r := range byName {
