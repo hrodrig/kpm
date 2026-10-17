@@ -103,17 +103,25 @@ flowchart TD
   P --> V{"Compare to\nrequest / limit"}
   V -->|util/request low| O["Oversized\n→ lower request"]
   V -->|util/request high| U["Undersized\n→ raise request"]
-  V --> S["suggested_request\n= round_up(p / target_utilization)\ndefault target 0.70"]
+  V --> S["suggested_request\n= round_up(p / target_utilization)\ndefault 0.70 (cpu/mem overridable)"]
 ```
 
 | Idea | Default (SPEC draft) | Meaning |
 |------|----------------------|---------|
 | Window | `window_days: 7` | How much history to trust |
+| Window coverage | `days_with_samples` | How much of that window actually held data. Printed with every run; below `window_days` the percentiles rest on thinner history than the window implies |
 | Percentile | `percentile: 95` | Peak-ish steady use, not max spike alone |
-| Target util | `target_utilization: 0.70` | Aim ~70% of request after rightsize |
-| Suggest | `round_up(p / 0.70)` | Request from observed percentile |
+| Target util | `target_utilization: 0.70` | Shared aim, ~70% of request after rightsize |
+| Per-resource target | `cpu_target_utilization`, `memory_target_utilization` | Override the shared target; **0 or unset = inherit**. CPU throttles under a burst, memory is OOMKilled, so they are often set differently (CPU lower, memory higher) |
+| Suggest | `round_up(p / <resource>_target_utilization)` | Request from observed percentile |
 | CPU vs memory | Separate ratios | Do not mix dimensions |
 | vs request / vs limit | Both verdicts | Limit pressure ≠ request waste |
+
+Window coverage is worth a glance before trusting a percentile. `kpm recommend` prints
+`days_with_samples` next to the window it asked for: a `window_days: 7` run that only found samples
+on 3 days is a p95 built on three days of evidence, and the advice table looks the same either way.
+Coverage counts distinct UTC days, so a fully covered window reports 8 for `window_days: 7` — the
+rolling window clips the first and last day.
 
 **Rule-of-thumb bands** (aligned with recommend / TUI / notify where sensible):
 
@@ -123,6 +131,47 @@ flowchart TD
 | ~0.50–0.80 | Reasonable headroom |
 | ≳ ~0.85 | Undersize / throttling risk — raise request |
 | util near **limit** | OOM / throttle risk — do not cut limit blindly |
+
+### Reading a percentile, and reading a score run
+
+**The percentile is a real observed value, not a smoothed estimate.** kpm takes the nearest-rank
+order statistic: sort the samples, take `ceil(p/100 × n)`. With `percentile: 95` over 20 samples you
+get the 19th smallest — one actual measurement. It does not interpolate and it does not extrapolate
+a peak you never observed.
+
+**A workload row pools every pod of the owner.** The workload grain keys on owner + container, so
+all pods of that Deployment feed one sample set; the pod grain keys on namespace + pod + container.
+A workload p95 is the p95 of that **pool**, so it does not track the hottest pod: one bursty replica
+is diluted by its quieter siblings. Two consequences worth remembering:
+
+- If a single pod is the risk (a leak, a noisy neighbour), read the **pod** grain, not the workload
+  one.
+- A calm-looking workload row can hide a pod that is about to be OOMKilled.
+
+**A grain under `min_samples` disappears.** It is skipped, not flagged low-confidence, so an empty
+table means either "no samples in the window" or "every grain under the threshold" — never a
+per-row warning. Check the coverage note (and `kpm doctor`) before concluding nothing is wrong.
+
+**Choosing a percentile.** p95 answers "how hot is it at a busy moment"; p99 is a stricter peak that
+needs more samples to stay stable; p50 sizes to the median and will undersize anything with a burst.
+There is no right answer independent of the consequence: CPU throttling is degradable, memory is not
+(OOMKilled), which is why the two target utilizations are configurable separately.
+
+**Reading `kpm recommend --score`.** Each row compares utilisation *after* a snapshot against the
+request that snapshot suggested:
+
+| Label | What it means |
+|-------|---------------|
+| `hit` | post-change utilisation landed inside target ± 0.15 — the suggestion was right |
+| `miss-low` | utilisation stayed well below the target — the suggestion was still generous |
+| `miss-high` | utilisation rose above the target — the suggestion was too tight |
+| `skip` | not enough holdout samples after the snapshot; nothing to conclude |
+| `no-data` | the snapshot carries no suggested request to compare against |
+
+**The trap: mode A assumes you applied the suggestion.** The score divides by the *suggested*
+request, so scoring a recommendation you never applied measures utilisation against a request the
+cluster does not have. A wall of `miss-low` on unapplied advice is not a broken recommender — it is
+the tool doing exactly what it was asked. Score only what you actually deployed.
 
 ### TUI delta vs last recommend
 

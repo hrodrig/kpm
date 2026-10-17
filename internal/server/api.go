@@ -521,6 +521,11 @@ type RecOut struct {
 	CPUVerdict   string  `json:"cpu_verdict"` // oversized|undersized|ok|n/a
 	MemVerdict   string  `json:"mem_verdict"`
 	TargetUtil   float64 `json:"target_utilization"`
+	// WindowDays is what the snapshot asked for; DaysWithSamples is how much of
+	// it actually held data (#26). DaysWithSamples == 0 means the row predates
+	// the column, so coverage is unknown rather than zero.
+	WindowDays      int `json:"window_days"`
+	DaysWithSamples int `json:"days_with_samples"`
 }
 
 // RecsOut is GET /api/v1/recommendations.
@@ -605,24 +610,26 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 	for _, rec := range recs {
 		cpuV, memV := recommend.SnapshotVerdicts(rec.CPUPMcores, rec.CPUReqMcores, rec.MemPBytes, rec.MemReqBytes, over, under)
 		out.Rows = append(out.Rows, RecOut{
-			RecordedAt:   rec.RecordedAt.UTC().Format(time.RFC3339),
-			Grain:        rec.Grain,
-			GrainKey:     rec.GrainKey,
-			Namespace:    rec.Namespace,
-			OwnerKind:    rec.OwnerKind,
-			OwnerName:    rec.OwnerName,
-			Samples:      rec.Samples,
-			CPUPMcores:   rec.CPUPMcores,
-			MemPBytes:    rec.MemPBytes,
-			CPUSugMcores: rec.CPUSugMcores,
-			MemSugBytes:  rec.MemSugBytes,
-			CPUReqMcores: rec.CPUReqMcores,
-			MemReqBytes:  rec.MemReqBytes,
-			CPUDeltaM:    rec.CPUSugMcores - rec.CPUReqMcores,
-			MemDeltaB:    rec.MemSugBytes - rec.MemReqBytes,
-			CPUVerdict:   string(cpuV),
-			MemVerdict:   string(memV),
-			TargetUtil:   rec.TargetUtilization,
+			RecordedAt:      rec.RecordedAt.UTC().Format(time.RFC3339),
+			Grain:           rec.Grain,
+			GrainKey:        rec.GrainKey,
+			Namespace:       rec.Namespace,
+			OwnerKind:       rec.OwnerKind,
+			OwnerName:       rec.OwnerName,
+			Samples:         rec.Samples,
+			CPUPMcores:      rec.CPUPMcores,
+			MemPBytes:       rec.MemPBytes,
+			CPUSugMcores:    rec.CPUSugMcores,
+			MemSugBytes:     rec.MemSugBytes,
+			CPUReqMcores:    rec.CPUReqMcores,
+			MemReqBytes:     rec.MemReqBytes,
+			CPUDeltaM:       rec.CPUSugMcores - rec.CPUReqMcores,
+			MemDeltaB:       rec.MemSugBytes - rec.MemReqBytes,
+			CPUVerdict:      string(cpuV),
+			MemVerdict:      string(memV),
+			TargetUtil:      rec.TargetUtilization,
+			WindowDays:      rec.WindowDays,
+			DaysWithSamples: rec.DaysWithSamples,
 		})
 	}
 	out.Count = len(out.Rows)

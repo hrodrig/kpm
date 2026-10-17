@@ -65,7 +65,44 @@ copy.
 | `kpm version` | version, commit, build date, branch, Go runtime |
 | `kpm --print-sample-config` | embedded sample YAML → stdout, exit 0 |
 | Bare `kpm` | help, exit 0 |
+| `kpm doctor` | read-only diagnosis of config, store, history coverage and (opt-in) cluster — §1.1 |
 | Exit codes | `0` / `1` / `2` (cluster) via `internal/exitcode` |
+
+### 1.1 `kpm doctor` — read-only diagnosis
+
+Reports every layer that has to work for trustworthy recommendations, and reports **all** of them
+instead of stopping at the first problem:
+
+| Check | Reports |
+|-------|---------|
+| `config.load` | the config file that was read, or the load error |
+| `config.retention` | `retention_days` vs `recommend.window_days` (the §2.2 guidance) |
+| `config.targets` | utilization target, percentile and `min_samples` in effect |
+| `store.path` | resolved store path; fails when it does not exist |
+| `store.schema` | schema version on disk vs the one this build expects |
+| `store.samples` | row count |
+| `store.bounds` | oldest → newest sample |
+| `history.coverage` | days with samples inside the window — the signal `kpm recommend` prints (§3) |
+| `cluster.metrics_api` | Metrics API reachability, **only** with `--live` |
+
+**Read-only, and enforced rather than assumed.** The store is opened through `store.OpenReadOnly`: no
+file creation, no migration. The normal `Open` creates a missing store and migrates an old one, so a
+diagnostic must not use it — a run that created the file would report a healthy store that never
+existed, and one that migrated would "fix" the version it was asked to inspect.
+
+**Statuses** are `ok`, `warn`, `fail`, `skip`. Warnings mean "look at this" and never fail the run:
+thin coverage and a retention shorter than the window are warnings, because both are legal
+configurations with understood consequences.
+
+**Exit codes:** `0` when nothing verifiably broke, `1` for a general failure, `2` when the only
+failures come from the cluster probe.
+
+**No cluster by default.** `kpm serve` and `kpm mcp` are documented as usable offline against a
+copied SQLite file, so an absent cluster is reported as `skip` rather than a broken setup. `--live`
+is the explicit opt-in, and a failure there is a real one.
+
+**Output:** one greppable line per check (`CHECK  STATUS  DETAIL`) plus a summary, or `--format json`
+using the same lower-snake-case field conventions as the server API.
 
 ---
 
@@ -135,11 +172,76 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 - `kpm recommend` — **offline** from SQLite (no cluster access).
 - Grains: workload+container **and** pod+container (both emitted).
 - Window / percentile / `min_samples` / `target_utilization` from `recommend.*`.
-- `suggested_request = round_up(p / target_utilization)` — CPU ceil **10m**, mem ceil **1 MiB**.
+- `target_utilization` is the shared default; `cpu_target_utilization` and
+  `memory_target_utilization` override it per resource (**0 or unset = inherit**). CPU is
+  compressible and throttles under a burst, memory is incompressible and is **OOMKilled**, so
+  the two are commonly sized against different targets.
+- `suggested_request = round_up(p / <resource>_target_utilization)` — CPU ceil **10m**, mem
+  ceil **1 MiB**. Both resolved targets are stored with each recommendation snapshot, so
+  `--score` labels post-change utilization against the target the suggestion was built with.
+- **Window coverage is reported, not assumed.** `window_days` is what was asked for;
+  `days_with_samples` is the count of distinct UTC days inside the window holding at least one
+  sample. A grain that passes `min_samples` can still rest on a fraction of the window, so every
+  run prints both and flags coverage below `window_days`. A fully covered rolling window counts
+  `window_days + 1` days, because the window clips the first and last day — exceeding the window
+  length is the signal that coverage is complete, not a bug.
+- Snapshots persist both numbers, and `GET /api/v1/recommendations` exposes them as
+  `window_days` / `days_with_samples`. `days_with_samples: 0` means the row predates the column,
+  i.e. coverage is **unknown** rather than zero.
 - Verdicts vs request **and** limit (oversize / undersize ratios); CPU/mem **separate**.
 - Keys below `min_samples` skipped; **no advice rows → exit `3`**.
 - Output: `--format table` (default) or `tsv`.
 - **No auto-apply** (read-only). Later: patch/Kustomize export + server `#18b`.
+
+### 3.1 Percentile, `min_samples` and `--score`
+
+**The percentile is a nearest-rank order statistic over observed samples.** For `n` values the rank
+is `ceil(p/100 × n)` and the result is that element of the sorted samples — an actually observed
+utilisation, never an interpolation. `percentile: 95` over 20 samples is the 19th smallest. Empty
+input is `0`; `p` is clamped to `0..100`, and `p: 0` returns the minimum.
+
+**Both grains pool their samples before the percentile.** The workload grain keys on
+`owner_kind/owner_name/container`, so *every pod of that owner and container feeds the same sample
+set*; the pod grain keys on `namespace/pod/container`. A workload p95 is therefore the p95 of the
+pool, **not** the maximum of its pods' p95s — pooling can only pull a top order statistic down, and
+one bursty pod is diluted by its quieter siblings. Sizing an owner from the workload grain sizes the
+aggregate, not the worst pod; use the pod grain when a single pod drives the risk. A row's request,
+limit and verdicts come from the newest sample in its pool.
+
+**A grain below `min_samples` is skipped, not reported as low confidence.** It leaves the table
+entirely and is only counted (`skipped N keys below min_samples`). A quiet table therefore means
+either "no samples in the window" or "every grain below the threshold" — neither is a per-row state.
+Exit code `3` when no row survives.
+
+**Verdicts and the suggestion answer different questions.** The verdict compares the *percentile* to
+the *current* request (and limit) through the oversize/undersize ratios, so it describes what is
+allocated today and is independent of the suggestion. The suggestion is
+`round_up(percentile / target_utilization)`, ceiled to 10m CPU / 1 MiB memory. A row can be
+`oversized` and still carry a suggestion above the current request.
+
+**`--score` (calibration mode A) evaluates a snapshot against the samples that followed it.** For
+each latest snapshot per grain key, samples strictly *after* `recorded_at` are pooled for the same
+grain key; if fewer than `recommend.min_samples` remain, both dimensions are `skip`. Otherwise the
+post-change percentile is compared to the *suggested* request, with
+`ratio = percentile / suggested_request`:
+
+| Label | Condition |
+|-------|-----------|
+| `hit` | `ratio` inside `[target − band, target + band]` |
+| `miss-low` | `ratio` below that band |
+| `miss-high` | `ratio` above it |
+| `skip` | fewer than `min_samples` holdout samples |
+| `no-data` | suggested request is `0`, so there is nothing to compare against |
+
+`band` defaults to **±0.15 absolute** around the target, so `target_utilization: 0.70` accepts
+`0.55–0.85`. The target is the one the suggestion was built with — per resource when
+`cpu_target_utilization` / `memory_target_utilization` are set, otherwise the shared
+`target_utilization`.
+
+**Mode A assumes the suggestion was applied.** The comparison divides by the *suggested* request, so
+a `miss-low` on a suggestion that never landed says nothing about the recommendation: it reports
+utilisation against a request the cluster does not have. Score runs are only meaningful for
+suggestions that were actually applied.
 
 ---
 
@@ -309,7 +411,7 @@ Fail-closed if any declared sink’s `*_env` is missing or empty.
 |--------|--------|
 | `slack` | Incoming Webhook; `webhook_url_env` → `{"text":...}` |
 | `webhook` | JSON POST; `url_env`; optional `headers_env`; `body`: `generic` (default), `discord`, or `teams` |
-| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465), else STARTTLS |
+| `smtp` | Email; `host_env`, `port_env`, `from_env`, `to_env`; optional `user_env` / `password_env`; `use_tls` for implicit TLS (465); `require_starttls` refuses a relay that does not advertise STARTTLS (the plaintext path is otherwise opportunistic, i.e. silently cleartext). Subject is RFC 2047 encoded; CR/LF in `from_env` / `to_env` / subject is rejected (header injection) |
 
 **Not first-class:** native `pagerduty` / `discord` / `teams` / `loki`.
 PagerDuty and similar: `type: webhook` + `body: generic` (or automation URL).
@@ -446,7 +548,7 @@ Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** op
 | `mcp.listen` | `127.0.0.1:9740` | Bind; use `0.0.0.0` only when the operator intentionally exposes the port |
 | `mcp.trusted_proxies` | empty | TCP peers allowed to supply `X-Forwarded-For` / `X-Real-IP` for rate-limit / allowlist identity |
 | `mcp.allowlist_cidrs` | empty (off) | Optional client IP/CIDR allowlist; matching `Authorization: Bearer` bypasses IP check |
-| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables |
+| `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables. IPv6 buckets are grouped by `/64` (the standard subscriber allocation) so a client cannot refill by rotating its source address; IPv4 and IPv4-mapped IPv6 stay per-address (the mapped form normalises to its IPv4 bucket). The allowlist is deliberately **not** grouped this way — it matches exactly the CIDR written |
 
 Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
 When rate limit or allowlist is active and `trusted_proxies` is empty, the process
@@ -1089,7 +1191,7 @@ SQLite history is **core**; optional notify/MCP/server; notify needs daemon.
 | Scope | **In 0.3.x Insights band exit** (with `#11`); not Core / not 0.2.0 |
 | Schema | SQLite schema v2: `recommendations` table + indexes |
 | Persist | `kpm recommend --record` writes snapshot rows (`recorded_at`, grain key, suggested CPU/mem, observed `p`, window/percentile/target, `client_id`, `cluster_name`) |
-| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A) |
+| Score | `kpm recommend --score` — holdout samples after `recorded_at`; hit / miss-high / miss-low vs `target_utilization` ± band (calibration mode A). Full label and band semantics in [§3.1](#31-percentile-min_samples-and---score) |
 | TUI feed | `LatestRecommendation` / `DeltaFromLive` for `#11` delta column (`n/a` if none) — **must ship in P2** |
 | Detail | [docs/plan-0.3.0.md](docs/plan-0.3.0.md) `#9b`; ROADMAP `#9b` |
 

@@ -2,12 +2,41 @@ package httpserver
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 )
+
+// bucketPrefixV6 is the IPv6 prefix length used to group rate-limit buckets.
+// 64 is the standard subscriber allocation, so a client handed a routed /64 has
+// 2^64 source addresses at its disposal.
+const bucketPrefixV6 = 64
+
+// bucketKey normalises an address for rate-limit bucketing.
+//
+// IPv4 and IPv4-mapped IPv6 stay per-address (and normalise to the same key, so
+// ::ffff:a.b.c.d cannot buy a second bucket). A real IPv6 address is grouped by
+// its /64 network: keying on the full /128 lets a client with a routed /64
+// rotate the source address and receive a fresh bucket on every request, which
+// makes the limit decorative.
+//
+// This deliberately does NOT apply to the allowlist. Grouping there would widen
+// an operator's intent — a /128 entry would start admitting a whole /64 — so the
+// allowlist keeps matching exactly the CIDR that was written.
+func bucketKey(ip string) string {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return ip
+	}
+	if v4 := parsed.To4(); v4 != nil {
+		return v4.String()
+	}
+	mask := net.CIDRMask(bucketPrefixV6, 128)
+	return (&net.IPNet{IP: parsed.Mask(mask), Mask: mask}).String()
+}
 
 // RateLimitConfig holds per-IP token-bucket parameters (gghstats mold).
 type RateLimitConfig struct {
@@ -29,7 +58,7 @@ func DefaultRateLimitConfig() RateLimitConfig {
 
 // RateLimiter is a per-IP token-bucket rate limiter.
 type RateLimiter struct {
-	limiters sync.Map // string → *rateLimiterEntry
+	limiters sync.Map // bucket key → *rateLimiterEntry
 	rate     rate.Limit
 	burst    int
 	maxIdle  time.Duration
@@ -99,7 +128,8 @@ func (rl *RateLimiter) Middleware(next http.Handler, skip PathSkip) http.Handler
 }
 
 func (rl *RateLimiter) getOrCreate(ip string) *rateLimiterEntry {
-	if v, ok := rl.limiters.Load(ip); ok {
+	key := bucketKey(ip)
+	if v, ok := rl.limiters.Load(key); ok {
 		e := v.(*rateLimiterEntry)
 		e.mu.Lock()
 		e.lastSeen = time.Now()
@@ -110,7 +140,7 @@ func (rl *RateLimiter) getOrCreate(ip string) *rateLimiterEntry {
 		limiter:  rate.NewLimiter(rl.rate, rl.burst),
 		lastSeen: time.Now(),
 	}
-	actual, _ := rl.limiters.LoadOrStore(ip, e)
+	actual, _ := rl.limiters.LoadOrStore(key, e)
 	got := actual.(*rateLimiterEntry)
 	if got != e {
 		got.mu.Lock()

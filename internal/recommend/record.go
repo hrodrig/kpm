@@ -26,13 +26,18 @@ func SnapshotsFromResult(res Result, clientID, clusterName string, at time.Time)
 			Samples:           a.Samples,
 			Percentile:        res.Percentile,
 			TargetUtilization: res.TargetUtil,
-			WindowDays:        windowDays,
-			CPUPMcores:        a.CPUPercentile,
-			MemPBytes:         int64(a.MemPercentile),
-			CPUSugMcores:      a.CPUSuggested,
-			MemSugBytes:       a.MemSuggested,
-			CPUReqMcores:      a.CPURequest,
-			MemReqBytes:       a.MemRequest,
+			// Persist the resolved per-resource targets so --score labels post-change
+			// utilization against the target the suggestion was actually built with.
+			CPUTargetUtilization:    res.CPUTargetUtil,
+			MemoryTargetUtilization: res.MemTargetUtil,
+			WindowDays:              windowDays,
+			DaysWithSamples:         res.DaysWithSamples,
+			CPUPMcores:              a.CPUPercentile,
+			MemPBytes:               int64(a.MemPercentile),
+			CPUSugMcores:            a.CPUSuggested,
+			MemSugBytes:             a.MemSuggested,
+			CPUReqMcores:            a.CPURequest,
+			MemReqBytes:             a.MemRequest,
 		})
 	}
 	return out
