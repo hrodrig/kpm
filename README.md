@@ -13,7 +13,7 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
@@ -85,9 +85,10 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 
 *`kpm serve` (dark): summary strip and per-workload CPU/Mem verdicts. Advisory only — never applied to the cluster.*
 
-![kpm tui — CPU vs request spectrum across pods](docs/kpm-tui-cpu-request-13pods.png)
+![kpm tui — CPU vs request spectrum across pods](docs/kpm-tui-cpu-request-13pods.gif)
 
-*Live TUI (`kpm tui`): graded util vs request with Δ vs last recommend when recorded.*
+*Live TUI (`kpm tui`): graded util vs request with Δ vs last recommend when recorded. Still image:
+[screenshot](docs/kpm-tui-cpu-request-13pods.png).*
 
 ![kpm flow — sample to SQLite to recommend, serve, MCP](docs/kpm-flow-diagram.png)
 

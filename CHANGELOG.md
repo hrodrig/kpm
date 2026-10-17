@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- [docs/mcp.md](docs/mcp.md): how to give an MCP client access to the store — client configuration,
+  the four tools with their real argument names, a captured JSON-RPC exchange, and the two things that
+  make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
+  store nobody ever sampled. Written from output captured against `v0.9.0`, not from intent.
+
 ## [0.9.0] - 2026-10-17
 
 ### Added
