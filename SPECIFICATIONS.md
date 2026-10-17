@@ -254,6 +254,15 @@ suggestions that were actually applied.
 - Shared read model: `internal/live` (also for TUI/server).
 - Default grain: **one row per pod** — sum util / sum request / sum limit.
 - Pods without Metrics: still listed; util and ratios shown as `n/a`.
+- **Requests are counted the way the scheduler counts them.** A pod's effective
+  request is `max(sum(containers), max(initContainers))`: an init container asking
+  for 2 CPU makes the pod occupy 2 CPU even if its app containers sum to 500m.
+  Node totals use that number. Container rows keep their own per-container
+  request, because rightsizing advice is per container and an init container
+  consumes nothing at runtime.
+- **Pods in a terminal phase are excluded** (`Succeeded`, `Failed`): they no
+  longer hold their reservation and the Metrics API stops reporting them.
+  `Pending` pods still count — they reserve capacity while they wait.
 - Filters: `scope` (+ optional `tui.pod_labels` ANDed). `tui.pods` allowlist is for TUI.
 - Sort: `--sort` or `tui.default_sort` (`cpu.ratio` default, hottest first).
 - Exit code **2** on cluster/Metrics/RBAC failure (same as `sample`).
