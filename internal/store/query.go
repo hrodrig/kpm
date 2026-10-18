@@ -11,7 +11,7 @@ import (
 // Limit, the newest Limit rows are selected then reversed to ascending.
 func (s *Store) ListRecords(ctx context.Context, f ExportFilter) ([]Record, error) {
 	q, args := listRecordsSQL(f)
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list samples: %w", err)
 	}

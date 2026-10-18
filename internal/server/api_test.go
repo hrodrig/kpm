@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -418,5 +419,25 @@ func TestSeriesDownsampleAndRatios(t *testing.T) {
 	rr = authedGet(mux, "/api/v1/series?metric=mem_util_ratio&window=1h", "")
 	if rr.Code != http.StatusOK {
 		t.Fatal(rr.Code)
+	}
+}
+
+func TestAPISeriesBatchRejectsTwentyOneWorkloads(t *testing.T) {
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{
+		Store: fixtureStore(t, now), Version: "v",
+		Now: func() time.Time { return now },
+	}, "secret")
+	var parts []string
+	for i := 0; i < 21; i++ {
+		parts = append(parts, fmt.Sprintf("app/w%d", i))
+	}
+	rr := authedGet(mux, "/api/v1/series/batch?metric=cpu_util_mcores&workloads="+strings.Join(parts, ","), "secret")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "at most 20") {
+		t.Fatalf("body %s", rr.Body.String())
 	}
 }

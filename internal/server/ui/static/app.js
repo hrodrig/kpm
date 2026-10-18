@@ -635,23 +635,34 @@
       byKey[id].push(card);
     });
     if (!keys.length) return Promise.resolve();
-    var params = Object.assign(
-      { metric: state.metric, max_points: "120", workloads: keys.join(",") },
-      windowParams()
-    );
-    return fetchJSON("/api/v1/series/batch", params)
-      .then(function (batch) {
-        (batch.items || []).forEach(function (series) {
-          var id = (series.namespace || "") + "/" + (series.workload || "");
-          (byKey[id] || []).forEach(function (card) {
-            drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
-              request: series.request,
-              limit: series.limit,
+    // Matches maxSeriesBatchWorkloads. One request for every card used to scan
+    // the store on the sampler's only connection.
+    var batchSize = 20;
+    var chunks = [];
+    for (var i = 0; i < keys.length; i += batchSize) {
+      chunks.push(keys.slice(i, i + batchSize));
+    }
+    var chain = Promise.resolve();
+    chunks.forEach(function (chunk) {
+      chain = chain.then(function () {
+        var params = Object.assign(
+          { metric: state.metric, max_points: "120", workloads: chunk.join(",") },
+          windowParams()
+        );
+        return fetchJSON("/api/v1/series/batch", params).then(function (batch) {
+          (batch.items || []).forEach(function (series) {
+            var id = (series.namespace || "") + "/" + (series.workload || "");
+            (byKey[id] || []).forEach(function (card) {
+              drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
+                request: series.request,
+                limit: series.limit,
+              });
             });
           });
         });
-      })
-      .catch(function (err) {
+      });
+    });
+    return chain.catch(function (err) {
         if (err.code === 429) {
           // Fall back to sequential single-series if the batch is limited.
           var chain = Promise.resolve();

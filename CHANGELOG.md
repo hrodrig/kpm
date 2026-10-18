@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
   store nobody ever sampled. Written from output captured against `v0.9.0`, not from intent.
 
+### Changed
+
+- The HTTP server reads the store on a separate SQLite pool, so a series or
+  workload query no longer holds the connection the sampler inserts on. Those
+  three handlers give up after 15s (`503 store query timed out`). A series scan
+  stops at 10,000 rows, and `/api/v1/series/batch` accepts 20 workloads; the
+  page asks for the rest in further batches.
+
 ## [0.9.0] - 2026-10-17
 
 ### Added

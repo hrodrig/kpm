@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -30,7 +31,13 @@ const MaxWindow = 15 * 24 * time.Hour
 const MaxWorkloadsScanRows = store.MaxScanRows
 
 // MaxSeriesScanRows clamps GET /series to the newest N rows before downsample.
-const MaxSeriesScanRows = 50_000
+// 10_000 is enough to downsample a window and small enough that one series
+// cannot pin a SQLite reader for the whole retention.
+const MaxSeriesScanRows = 10_000
+
+// apiReadTimeout bounds one JSON read so a heavy series or workload scan
+// releases its SQLite reader. MCP and SSE are not on this clock.
+const apiReadTimeout = 15 * time.Second
 
 // Deps is the read-only API backend.
 type Deps struct {
@@ -158,13 +165,15 @@ func (a *api) handleWorkloads(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	items, err := listWorkloads(r.Context(), a.deps.Store, f)
+	ctx, cancel := context.WithTimeout(r.Context(), apiReadTimeout)
+	defer cancel()
+	items, err := listWorkloads(ctx, a.deps.Store, f)
 	if err != nil {
 		if strings.Contains(err.Error(), "exceeds") {
 			writeErr(w, http.StatusRequestEntityTooLarge, err.Error())
 			return
 		}
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeReadErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, WorkloadsOut{Count: len(items), Items: items})
@@ -265,9 +274,11 @@ func (a *api) handleSeries(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	out, err := a.buildSeries(r.Context(), metric, maxPts, f)
+	ctx, cancel := context.WithTimeout(r.Context(), apiReadTimeout)
+	defer cancel()
+	out, err := a.buildSeries(ctx, metric, maxPts, f)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeReadErr(w, err)
 		return
 	}
 	if out == nil {
@@ -283,7 +294,7 @@ type SeriesBatchOut struct {
 	Items  []SeriesOut `json:"items"`
 }
 
-const maxSeriesBatchWorkloads = 100
+const maxSeriesBatchWorkloads = 20
 
 func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 	if a.deps.Store == nil {
@@ -304,14 +315,16 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, fmt.Sprintf("at most %d workloads per batch", maxSeriesBatchWorkloads))
 		return
 	}
+	ctx, cancel := context.WithTimeout(r.Context(), apiReadTimeout)
+	defer cancel()
 	items := make([]SeriesOut, 0, len(keys))
 	for _, k := range keys {
 		f := base
 		f.Namespace = k.ns
 		f.Workload = k.wl
-		out, err := a.buildSeries(r.Context(), metric, maxPts, f)
+		out, err := a.buildSeries(ctx, metric, maxPts, f)
 		if err != nil {
-			writeErr(w, http.StatusInternalServerError, err.Error())
+			writeReadErr(w, err)
 			return
 		}
 		if out == nil {
@@ -324,6 +337,14 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 type workloadKey struct{ ns, wl string }
+
+func writeReadErr(w http.ResponseWriter, err error) {
+	if errors.Is(err, context.DeadlineExceeded) {
+		writeErr(w, http.StatusServiceUnavailable, "store query timed out")
+		return
+	}
+	writeErr(w, http.StatusInternalServerError, err.Error())
+}
 
 func parseWorkloadKeys(r *http.Request) []workloadKey {
 	q := r.URL.Query()
