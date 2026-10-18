@@ -55,4 +55,4 @@ jobs:
         run: make install-grype
 
       - name: Run Grype on image
-        run: "$(go env GOPATH)/bin/grype" kpm:scan -c .grype.yaml --fail-on high
+        run: 'grype kpm:scan -c .grype.yaml --fail-on high'
