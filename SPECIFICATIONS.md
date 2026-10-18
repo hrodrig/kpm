@@ -1204,7 +1204,7 @@ distinguish a genuine negative answer from a broken query.
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
 | **P5 — Server** | analyze-local + charts + JSON API | **Shipped** `v0.6.0` (`docs/plan-0.6.0.md`) |
-| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
+| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | **Shipped** across `v0.7.0`–`v0.9.0`; remainder in `docs/plan-1.0.0.md` |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 
