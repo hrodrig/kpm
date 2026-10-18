@@ -13,7 +13,7 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Compare:** [docs/compare.md](docs/compare.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
@@ -141,6 +141,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - [What’s new in 0.7](#whats-new-in-07--scale)
 - [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
 - [How it works](#how-it-works)
+- [Compared to similar tools](#compared-to-similar-tools)
 - [Status](#status)
 - [Roadmap](#roadmap)
 - [Quick start](#quick-start)
@@ -168,6 +169,24 @@ Details (bands, defaults, more diagrams):
 **[docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)** ·  
 **[SPECIFICATIONS.md](SPECIFICATIONS.md)** ·  
 **[docs/ROADMAP.md](docs/ROADMAP.md)**
+
+[↑ Back to top](#top)
+
+---
+
+## Compared to similar tools
+
+kpm keeps **metrics-server samples in a local SQLite file** and recommends from that file. It does not read Prometheus, and it does not change the cluster.
+
+| You need | Start here |
+|----------|------------|
+| Usage right now | `kubectl top` |
+| Requests, limits, and util, live, nothing to store | [kube-capacity](https://github.com/robscott/kube-capacity) |
+| A recommendation from Prometheus you already run | [KRR](https://github.com/robusta-dev/krr) or [VPA](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler) |
+| That recommendation as a page inside the cluster | [Goldilocks](https://github.com/FairwindsOps/goldilocks) |
+| Weeks of samples on a laptop, advice you paste into Git | **kpm** |
+
+The matrix, what kpm is not, and when to leave it are in **[docs/compare.md](docs/compare.md)**.
 
 [↑ Back to top](#top)
 
