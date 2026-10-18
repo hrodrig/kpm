@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hrodrig/kpm/internal/config"
@@ -102,5 +103,15 @@ func TestMountHTTPOpsUnauthenticated(t *testing.T) {
 	mcpCfg3 := config.MCP{Enabled: true, Listen: "0.0.0.0:9740", RateLimit: config.MCPRateLimit{Enabled: &off}}
 	if err := mcp.AttachDaemonHTTP(ops3, d, mcpCfg3); err == nil {
 		t.Fatal("expected non-loopback without token to fail")
+	}
+}
+
+func TestBuildAccessControlRejectsBadTrustedProxy(t *testing.T) {
+	t.Parallel()
+	_, err := mcp.BuildAccessControl(config.MCP{
+		TrustedProxies: []string{"10.0.0.0/8", "10.0.0.0/33"},
+	}, "")
+	if err == nil || !strings.Contains(err.Error(), "10.0.0.0/33") {
+		t.Fatalf("unparseable trusted_proxies must refuse to start: %v", err)
 	}
 }

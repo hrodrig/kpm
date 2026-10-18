@@ -1138,9 +1138,11 @@ tui:
 | Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
 | Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
 | Malformed allowlist entry | **Startup error, never a skip.** An allowlist that silently drops what it cannot parse admits everyone the moment the only entry has a typo. |
+| Malformed `trusted_proxies` entry | **Startup error, never a skip.** Dropping a bad proxy CIDR makes rate-limit and allowlist see the proxy address. An allowlist that covers that address then admits every client behind it. |
 | SMTP | `use_tls` for implicit TLS (465), otherwise STARTTLS; `require_starttls` refuses a relay that will not upgrade. |
 
-An **empty** `allowlist_cidrs` still means "off" — the distinction the code makes is between nothing
+An **empty** `allowlist_cidrs` still means "off", and an **empty** `trusted_proxies` still means
+forwarded client-IP headers are ignored. The distinction the code makes is between nothing
 configured and something configured wrongly.
 
 The smallest role that allows all of the above is in **[docs/rbac.md](docs/rbac.md)**: `get`/`list` on
