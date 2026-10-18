@@ -1,4 +1,6 @@
 # Security scans on PR/push to develop and main (same pattern as kwd).
+# Tool versions live in the GNUmakefile (GOVULNCHECK_VERSION, GRYPE_VERSION).
+# Actions are pinned by commit SHA.
 
 name: Security
 
@@ -16,15 +18,12 @@ jobs:
     name: Go vulnerabilities
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
-
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
       - name: Run govulncheck
         run: make security
@@ -33,13 +32,18 @@ jobs:
     name: Grype (container image)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           load: true
@@ -47,9 +51,8 @@ jobs:
           tags: kpm:scan
           file: ./Dockerfile
 
-      - name: Install Grype
-        run: |
-          curl -sSfL https://get.anchore.io/grype | sh -s -- -b /usr/local/bin
+      - name: Install pinned Grype
+        run: make install-grype
 
       - name: Run Grype on image
-        run: grype kpm:scan -c .grype.yaml --fail-on high
+        run: "$(go env GOPATH)/bin/grype" kpm:scan -c .grype.yaml --fail-on high

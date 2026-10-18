@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
   store nobody ever sampled. Written from output captured against `v0.9.0`, not from intent.
 
+### Security
+
+- CI actions are pinned by commit SHA, including the release job. GoReleaser is
+  `v2.18.3` (the floating `~> v2` is gone). `govulncheck` is `v1.9.0`, gocyclo
+  is `v0.6.0`, and Grype is `v0.120.1` installed as a module — the
+  `curl | sh` installer is gone. Image Dockerfiles pin the multi-arch index
+  digest, and the release image publishes an SBOM.
+
 ## [0.9.0] - 2026-10-17
 
 ### Added

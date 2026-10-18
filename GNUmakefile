@@ -12,6 +12,11 @@ OPENBSD_ARCH ?= amd64
 # Minimum total statement coverage for `make cover-check`.
 COVERAGE_MIN ?= 80
 GOBIN    ?= $(shell go env GOPATH)/bin
+# Pinned scanners. `make lint` and `make security` install these. A moving
+# @latest is a supply-chain input, so the version lives here and CI calls it.
+GOVULNCHECK_VERSION := v1.9.0
+GOCYCLO_VERSION := v0.6.0
+GRYPE_VERSION := v0.120.1
 VERSION  ?= $(shell v=$$(cat VERSION 2>/dev/null | tr -d '\n\r'); [ -n "$$v" ] && echo "v$$v" || echo "v0.0.0")
 COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BRANCH   := $(shell b=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); [ -n "$$b" ] && [ "$$b" != "HEAD" ] && echo "$$b" || echo "unknown")
@@ -79,7 +84,7 @@ help:
 
 .PHONY: build build-all install clean docker-build docker-scan install-man install-kubectl-plugin
 .PHONY: test test-e2e test-e2e-kind cover cover-check lint lint-fix tools security release-check release snapshot
-.PHONY: check-pins check-man-version check-readme-version check-docker govulncheck gocyclo grype
+.PHONY: check-pins check-man-version check-readme-version check-docker govulncheck gocyclo grype install-grype
 .PHONY: hooks
 .PHONY: dist-freebsd dist-openbsd port-freebsd-sync port-openbsd-sync
 
@@ -119,11 +124,8 @@ docker-scan: check-docker
 	@docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) \
 	  --build-arg BUILDDATE=$(BUILDDATE) --build-arg BRANCH=$(BRANCH) \
 	  -t kpm:scan .
-	@if ! command -v grype >/dev/null 2>&1; then \
-	  echo "grype not found — installing into $(GOBIN)..."; \
-	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
-	fi
-	@PATH="$(GOBIN):$$PATH" grype kpm:scan -c .grype.yaml --fail-on high
+	@$(MAKE) --no-print-directory install-grype
+	@"$(GOBIN)/grype" kpm:scan -c .grype.yaml --fail-on high
 
 install-man:
 	@mkdir -p $(DESTDIR)$(MANDIR)/man1
@@ -176,16 +178,15 @@ check-readme-version:
 
 gocyclo:
 	@echo "Running gocyclo (complexity <= 14)..."
-	@go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+	@go install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
 	@"$(shell go env GOPATH)/bin/gocyclo" -over 14 .
 
-grype:
-	@if ! command -v grype >/dev/null 2>&1; then \
-	  echo "grype not found — installing into $(GOBIN)..."; \
-	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
-	fi
+install-grype:
+	go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
+
+grype: install-grype
 	@echo "Running grype (working tree, --fail-on high)..."
-	@PATH="$(GOBIN):$$PATH" grype . -c .grype.yaml --fail-on high
+	@"$(GOBIN)/grype" . -c .grype.yaml --fail-on high
 
 lint: check-pins check-man-version check-readme-version
 	@echo "Checking gofmt -s..."
@@ -198,12 +199,9 @@ lint-fix:
 	gofmt -s -w .
 
 tools:
-	go install golang.org/x/vuln/cmd/govulncheck@latest
-	go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-	@if ! command -v grype >/dev/null 2>&1; then \
-	  echo "Installing grype into $(GOBIN)..."; \
-	  curl -sSfL https://get.anchore.io/grype | sh -s -- -b "$(GOBIN)"; \
-	fi
+	go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	go install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
+	go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
 
 # Local git guard: refuses a direct commit to develop/main. Run once per clone.
 hooks:
@@ -217,7 +215,7 @@ govulncheck:
 	@echo "Running govulncheck..."
 	@tmp=$$(mktemp); \
 	set +e; \
-	go run golang.org/x/vuln/cmd/govulncheck@latest ./... >"$$tmp" 2>&1; \
+	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./... >"$$tmp" 2>&1; \
 	ec=$$?; \
 	set -e; \
 	output=$$(grep -v '^exit status [0-9]*$$' "$$tmp" || true); \
