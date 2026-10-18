@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- `mcp.trusted_proxies` **fails closed**: an entry that does not parse is a startup error instead of
+  being skipped. Skipping a typo left rate-limit and allowlist looking at the proxy's own address, so
+  an allowlist covering that address admitted every client behind the proxy. An empty list still
+  means forwarded client-IP headers are ignored.
+
 ### Added
 
 - `make lint` gains **`check-readme-version`**: the static version badge must match `VERSION`, and a

@@ -189,6 +189,11 @@ without auth (also exempt from allowlist/rate limit), plus MCP
 and
 .B mcp.rate_limit
 follow the gghstats HTTP access mold.
+An entry in
+.B mcp.trusted_proxies
+or
+.B mcp.allowlist_cidrs
+that does not parse refuses to start.
 .TP
 .B serve
 Analyze-local HTTP facade

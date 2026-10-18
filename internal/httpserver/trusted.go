@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"strings"
@@ -12,9 +13,14 @@ type TrustedProxies struct {
 }
 
 // ParseTrustedProxies parses comma-separated or list-style IPs/CIDRs.
-// Bare IPv4 → /32; bare IPv6 → /128. Invalid entries are skipped.
+// Bare IPv4 → /32; bare IPv6 → /128.
 // Empty input returns a non-nil empty set (ContainsIP always false).
-func ParseTrustedProxies(entries ...string) *TrustedProxies {
+//
+// A malformed entry is an error, not a skip. Dropping it silently is how a
+// typo hides the proxy: rate-limit and allowlist then see the proxy's own
+// address, and an allowlist that covers that address admits every client
+// behind it. Failing at startup matches what the operator wrote.
+func ParseTrustedProxies(entries ...string) (*TrustedProxies, error) {
 	tp := &TrustedProxies{}
 	for _, raw := range entries {
 		for _, part := range strings.Split(raw, ",") {
@@ -31,12 +37,12 @@ func ParseTrustedProxies(entries ...string) *TrustedProxies {
 			}
 			_, n, err := net.ParseCIDR(cidr)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("invalid trusted_proxies entry %q: %w", strings.TrimSpace(part), err)
 			}
 			tp.nets = append(tp.nets, n)
 		}
 	}
-	return tp
+	return tp, nil
 }
 
 // ContainsIP reports whether ip is inside any trusted network.

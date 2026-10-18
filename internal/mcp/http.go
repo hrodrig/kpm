@@ -70,7 +70,10 @@ func AttachDaemonHTTP(ops *httpserver.Server, d *Deps, mcpCfg config.MCP) error 
 // Listen is taken from mcpCfg.Listen for Host/Origin browser guard; callers may
 // override with the shared HTTP bind address.
 func BuildAccessControl(mcpCfg config.MCP, bearer string) (httpserver.AccessControl, error) {
-	trusted := httpserver.ParseTrustedProxies(mcpCfg.TrustedProxies...)
+	trusted, err := httpserver.ParseTrustedProxies(mcpCfg.TrustedProxies...)
+	if err != nil {
+		return httpserver.AccessControl{}, err
+	}
 	ac := httpserver.AccessControl{
 		Trusted:      trusted,
 		Listen:       strings.TrimSpace(mcpCfg.Listen),
