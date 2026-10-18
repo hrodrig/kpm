@@ -68,21 +68,21 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
 - `[x]` Taints never change a total (`NodeCapacity.Taints`, `Unschedulable`)
 - `[x]` **Pool grouping in output.** `capacity --nodes` prints per-node pools and the aggregate
       grouped by pool; a pool is the set of blocking taints.
-- `[ ]` **Exit code when nothing fits.** The exit table has only cluster (2) and store (3);
-      inventing a fourth is a SPEC decision. Today the output says `0 of N nodes fit`.
+- `[x]` **Exit code when nothing fits.** Exit **4** (`NoFit`). Shipped in `v0.9.0`.
 
 ### Gates / band exit
 
 - `[x]` `make lint` · `make test` · `make cover-check` green (coverage 80.4%)
 - `[x]` Mutation check per behavioural fix (4/4 red before green)
-- `[ ]` `#20` Integration/E2E smoke
+- `[x]` `#20` Integration/E2E smoke (`make test-e2e`; kind target is opt-in)
 - `[x]` `#21` Docs freeze: SPEC → normative; man pages 22/22 flags; sample config complete
       (72/74 already, the last 2 added)
-- `[ ]` `#22` Security pass; minimal RBAC ClusterRole example in docs (not Helm)
-- `[ ]` `#23` Homebrew tap, if still wanted
+- `[x]` `#22` Allowlist fails closed; minimal RBAC ClusterRole in [rbac.md](./rbac.md). The rest of
+      the security pass moved to [plan-1.0.0.md](./plan-1.0.0.md)
+- `[x]` `#23` Homebrew cask published by GoReleaser
 - `[x]` `#29` CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes — SPEC §2.5/§2.6 and
       [migrating.md](./migrating.md)
-- `[ ]` `make release-check`
+- `[x]` Tagged `v0.9.0`
 
 ## What this band deliberately does not do
 
@@ -98,7 +98,7 @@ Open issues closed by the band: **#110** (`restore`), **#111** (taints / placeme
 
 1. `feat/0.9-capacity-restore` → `develop` (PR #113), 7 commits, four independent slices.
 2. Remaining Freeze items (`#20`–`#23`, `#29`) as their own PRs against `develop`.
-3. `develop` → `main` + annotated tag when the Freeze list is empty — **never without explicit
-   operator approval**.
+3. `develop` → `main` + annotated tag `v0.9.0` (done). The unfinished security tail is
+   [plan-1.0.0.md](./plan-1.0.0.md).
 
 [↑ Back to top](#top)

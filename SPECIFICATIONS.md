@@ -42,11 +42,12 @@ export/backup, rightsizing, interactive **TUI**, and optional daemon facades
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 0.3 Position vs kube-capacity
+### 0.3 Position vs similar tools
 
-Live tables/TUI borrow the *quantities* (request/limit/util) and filters;
-**persistence + history workflows** are the product center. No upstream source
-copy.
+Live tables and the TUI borrow kube-capacity *quantities* (request, limit,
+util) and filters. **Persistence and the offline recommendation** are the
+product center. No upstream source copy. The short README table and the full
+matrix are in [docs/compare.md](docs/compare.md).
 
 ### 0.4 Repo split
 
@@ -133,6 +134,10 @@ without CHANGELOG.
   `retention_days` ≥ `recommend.window_days`. Default sample **14**;
   **production: recommend > 45 days** (often 60–90 if disk allows). Short
   retention → noisier p95.
+- The writer uses one connection. SELECTs from the HTTP API, export, recommend,
+  and probes use a separate read-only pool on the same file, so a chart or
+  export scan does not hold the connection the sampler inserts on. A store
+  opened read-only (restore `--merge`) keeps a single read-only connection.
 
 ### 2.3 Sample loop / daemon
 
@@ -942,7 +947,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
   `server.enabled`); `/readyz` is store-only (kube optional).
 - **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
-  `/series`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/series`, `/series/batch`, `/recommendations`, `/live` (503 JSON if kube unavailable),
   `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
@@ -983,7 +988,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   7d / 15d) + custom range. Maximum window span is **15d** (including free Go
   durations and `since`/`until`). Store queries use index
   `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
-  50k matching rows (`truncated: true` when clamped); `GET /workloads` fails
+  **10,000** matching rows (`truncated: true` when clamped). `GET /series/batch`
+  accepts at most **20** workloads (HTTP 400 above that); the charts page
+  requests further batches of 20. `GET /series`, `GET /series/batch`, and
+  `GET /workloads` each bound the store read to **15s** and return HTTP 503
+  `store query timed out` when that elapses. `GET /workloads` fails
   closed (HTTP 413) above 100k rows in the window.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
@@ -1206,7 +1215,7 @@ distinguish a genuine negative answer from a broken query.
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
 | **P5 — Server** | analyze-local + charts + JSON API | **Shipped** `v0.6.0` (`docs/plan-0.6.0.md`) |
-| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
+| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | **Shipped** across `v0.7.0`–`v0.9.0`; remainder in `docs/plan-1.0.0.md` |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 

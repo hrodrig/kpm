@@ -42,10 +42,25 @@ type Record struct {
 	MemLimitBytes    int64
 }
 
+// readPoolConns is how many concurrent SELECTs may run beside the writer.
+// The writer keeps its own connection (MaxOpenConns 1) so a long API scan
+// cannot hold the sampler's insert.
+const readPoolConns = 4
+
 // Store wraps an open SQLite database.
 type Store struct {
-	db   *sql.DB
+	db   *sql.DB // writes and migrations; one connection
+	read *sql.DB // SELECTs; nil on OpenReadOnly, which has only db
 	path string
+}
+
+// reads returns the connection pool for SELECTs. OpenReadOnly has no separate
+// pool, so those calls stay on the single read-only connection.
+func (s *Store) reads() *sql.DB {
+	if s.read != nil {
+		return s.read
+	}
+	return s.db
 }
 
 // Open creates parent dirs, opens the DB, and migrates schema.
@@ -82,6 +97,13 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	read, err := sql.Open("sqlite", sqliteReadDSN(path))
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("open sqlite read pool: %w", err)
+	}
+	read.SetMaxOpenConns(readPoolConns)
+	s.read = read
 	return s, nil
 }
 
@@ -89,6 +111,15 @@ func sqliteDSN(path string) string {
 	// file: URL so paths containing ? or # do not break pragma query parsing.
 	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
 	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	return u.String()
+}
+
+// sqliteReadDSN opens the same file for SELECTs only. journal_mode is not set
+// here: that pragma writes, and the writer in sqliteDSN already put the file
+// in WAL mode, which is what lets this pool run beside an insert.
+func sqliteReadDSN(path string) string {
+	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	u.RawQuery = "mode=ro&_pragma=busy_timeout(5000)&_pragma=query_only(1)"
 	return u.String()
 }
 
@@ -103,10 +134,19 @@ func chmodStoreFiles(path string) error {
 
 // Close closes the database.
 func (s *Store) Close() error {
-	if s == nil || s.db == nil {
+	if s == nil {
 		return nil
 	}
-	return s.db.Close()
+	var err error
+	if s.read != nil {
+		err = s.read.Close()
+	}
+	if s.db != nil {
+		if cerr := s.db.Close(); err == nil {
+			err = cerr
+		}
+	}
+	return err
 }
 
 // Path returns the on-disk path.
@@ -236,7 +276,7 @@ func (s *Store) InsertRecords(ctx context.Context, records []Record) error {
 // Count returns the number of sample rows.
 func (s *Store) Count(ctx context.Context) (int64, error) {
 	var n int64
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM samples`).Scan(&n)
+	err := s.reads().QueryRowContext(ctx, `SELECT COUNT(*) FROM samples`).Scan(&n)
 	return n, err
 }
 

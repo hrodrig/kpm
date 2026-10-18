@@ -198,7 +198,7 @@ homebrew_casks:
 
 dockers_v2:
   - disable: "{{ .IsSnapshot }}"
-    sbom: false
+    sbom: true
     dockerfile: Dockerfile.release
     ids:
       - kpm
