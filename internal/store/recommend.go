@@ -195,7 +195,7 @@ func (s *Store) InsertRecommendations(ctx context.Context, rows []Recommendation
 
 // LatestRecommendation returns the newest snapshot for grain+key, or nil.
 func (s *Store) LatestRecommendation(ctx context.Context, grain, grainKey string) (*Recommendation, error) {
-	row := s.db.QueryRowContext(ctx, `
+	row := s.reads().QueryRowContext(ctx, `
 		SELECT id, `+recommendationColumns+`
 		FROM recommendations
 		WHERE grain = ? AND grain_key = ?
@@ -233,7 +233,7 @@ func (s *Store) LatestRecommendations(ctx context.Context, grain string) ([]Reco
 			GROUP BY grain, grain_key
 		) latest ON r.grain = latest.grain AND r.grain_key = latest.grain_key AND r.recorded_at = latest.max_at
 		ORDER BY r.grain, r.grain_key`
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list latest recommendations: %w", err)
 	}

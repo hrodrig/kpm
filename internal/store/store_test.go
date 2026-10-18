@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,5 +242,36 @@ func TestFixedWidthTimestampOrder(t *testing.T) {
 	}
 	if len(win) != 1 || !win[0].SampledAt.Equal(early) {
 		t.Fatalf("window: %+v", win)
+	}
+}
+
+func TestListRecordsWhileWriterTransactionOpen(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "split.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	at := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	if err := st.InsertRecords(t.Context(), []Record{
+		{SampledAt: at, Namespace: "app", Pod: "p", Container: "c", CPUUtilMcores: 7},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := st.db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(t.Context(), `SELECT 1`); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	got, err := st.ListRecords(ctx, ExportFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].CPUUtilMcores != 7 {
+		t.Fatalf("got %+v", got)
 	}
 }
