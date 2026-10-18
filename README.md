@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -13,14 +13,12 @@
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
 
-**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+**Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Compare:** [docs/compare.md](docs/compare.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
 <a id="early-development-disclaimer"></a>
 
-> **Early development (pre-1.0).** kpm is under active development.
-> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core, Insights,
-> notifications, MCP (§1–7), and server charts (§8) are **normative in-tree**.
-> Recommendations are **advisory** — you own production resource changes.
+> **1.0.** [SPECIFICATIONS.md](SPECIFICATIONS.md) is **normative** for this
+> release. Recommendations are **advisory** — you own production resource changes.
 > **Use at your own risk.** The software is provided under the
 > [MIT License](./LICENSE) **“AS IS”**, without warranty of any kind
 > (see [LICENSE](./LICENSE)).
@@ -36,6 +34,18 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 1.0 — Harden
+
+No new commands, flags, or schema. The frozen contract is what ships.
+
+- **`trusted_proxies` fails closed** — an entry that does not parse refuses to start.
+- **HTTP reads leave the sampler’s connection free** — a separate SQLite pool, a 15s cap on series and workload queries, batches of 20.
+- **Supply chain** — Actions by commit SHA, pinned govulncheck / Grype / GoReleaser, image digests, image SBOM.
+- **Where kpm sits** — [docs/compare.md](docs/compare.md).
+
+Contract: **[SPECIFICATIONS.md](SPECIFICATIONS.md)** · band notes: **[plan-1.0.0](docs/plan-1.0.0.md)** ·
+path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.9 — Capacity truth and restore
 
@@ -136,11 +146,13 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 1.0](#whats-new-in-10--harden)
 - [What’s new in 0.9](#whats-new-in-09--capacity-truth-and-restore)
 - [What’s new in 0.8](#whats-new-in-08--honesty)
 - [What’s new in 0.7](#whats-new-in-07--scale)
 - [What’s new in 0.6](#whats-new-in-06--analyze-local-charts)
 - [How it works](#how-it-works)
+- [Compared to similar tools](#compared-to-similar-tools)
 - [Status](#status)
 - [Roadmap](#roadmap)
 - [Quick start](#quick-start)
@@ -168,6 +180,24 @@ Details (bands, defaults, more diagrams):
 **[docs/measurement-and-rightsizing.md](docs/measurement-and-rightsizing.md)** ·  
 **[SPECIFICATIONS.md](SPECIFICATIONS.md)** ·  
 **[docs/ROADMAP.md](docs/ROADMAP.md)**
+
+[↑ Back to top](#top)
+
+---
+
+## Compared to similar tools
+
+kpm keeps **metrics-server samples in a local SQLite file** and recommends from that file. It does not read Prometheus, and it does not change the cluster.
+
+| You need | Start here |
+|----------|------------|
+| Usage right now | `kubectl top` |
+| Requests, limits, and util, live, nothing to store | [kube-capacity](https://github.com/robscott/kube-capacity) |
+| A recommendation from Prometheus you already run | [KRR](https://github.com/robusta-dev/krr) or [VPA](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler) |
+| That recommendation as a page inside the cluster | [Goldilocks](https://github.com/FairwindsOps/goldilocks) |
+| Weeks of samples on a laptop, advice you paste into Git | **kpm** |
+
+The matrix, what kpm is not, and when to leave it are in **[docs/compare.md](docs/compare.md)**.
 
 [↑ Back to top](#top)
 

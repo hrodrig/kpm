@@ -1,10 +1,10 @@
 # SPECIFICATIONS — kpm
 
-> **Status: normative — describes the `v0.9.0` tree.** Every section below is
+> **Status: normative — describes the `v1.0.0` tree.** Every section below is
 > implemented and must not regress without a CHANGELOG entry. The CLI surface and the
-> store schema are frozen for `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
+> store schema are frozen at `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
 > `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
-> `v0.8.0`, capacity truth + `restore` `v0.9.0`.
+> `v0.8.0`, capacity truth + `restore` `v0.9.0`, harden `v1.0.0`.
 
 | Term | Meaning |
 |------|---------|
@@ -42,11 +42,12 @@ export/backup, rightsizing, interactive **TUI**, and optional daemon facades
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 0.3 Position vs kube-capacity
+### 0.3 Position vs similar tools
 
-Live tables/TUI borrow the *quantities* (request/limit/util) and filters;
-**persistence + history workflows** are the product center. No upstream source
-copy.
+Live tables and the TUI borrow kube-capacity *quantities* (request, limit,
+util) and filters. **Persistence and the offline recommendation** are the
+product center. No upstream source copy. The short README table and the full
+matrix are in [docs/compare.md](docs/compare.md).
 
 ### 0.4 Repo split
 
@@ -133,6 +134,10 @@ without CHANGELOG.
   `retention_days` ≥ `recommend.window_days`. Default sample **14**;
   **production: recommend > 45 days** (often 60–90 if disk allows). Short
   retention → noisier p95.
+- The writer uses one connection. SELECTs from the HTTP API, export, recommend,
+  and probes use a separate read-only pool on the same file, so a chart or
+  export scan does not hold the connection the sampler inserts on. A store
+  opened read-only (restore `--merge`) keeps a single read-only connection.
 
 ### 2.3 Sample loop / daemon
 
@@ -942,7 +947,7 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
   `server.enabled`); `/readyz` is store-only (kube optional).
 - **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
-  `/series`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/series`, `/series/batch`, `/recommendations`, `/live` (503 JSON if kube unavailable),
   `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
@@ -983,7 +988,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   7d / 15d) + custom range. Maximum window span is **15d** (including free Go
   durations and `since`/`until`). Store queries use index
   `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
-  50k matching rows (`truncated: true` when clamped); `GET /workloads` fails
+  **10,000** matching rows (`truncated: true` when clamped). `GET /series/batch`
+  accepts at most **20** workloads (HTTP 400 above that); the charts page
+  requests further batches of 20. `GET /series`, `GET /series/batch`, and
+  `GET /workloads` each bound the store read to **15s** and return HTTP 503
+  `store query timed out` when that elapses. `GET /workloads` fails
   closed (HTTP 413) above 100k rows in the window.
 - Collapsible drawer: store recommendations; if kube available, current
   request/limit (+ delta vs suggest when both exist).
@@ -1138,9 +1147,11 @@ tui:
 | Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
 | Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
 | Malformed allowlist entry | **Startup error, never a skip.** An allowlist that silently drops what it cannot parse admits everyone the moment the only entry has a typo. |
+| Malformed `trusted_proxies` entry | **Startup error, never a skip.** Dropping a bad proxy CIDR makes rate-limit and allowlist see the proxy address. An allowlist that covers that address then admits every client behind it. |
 | SMTP | `use_tls` for implicit TLS (465), otherwise STARTTLS; `require_starttls` refuses a relay that will not upgrade. |
 
-An **empty** `allowlist_cidrs` still means "off" — the distinction the code makes is between nothing
+An **empty** `allowlist_cidrs` still means "off", and an **empty** `trusted_proxies` still means
+forwarded client-IP headers are ignored. The distinction the code makes is between nothing
 configured and something configured wrongly.
 
 The smallest role that allows all of the above is in **[docs/rbac.md](docs/rbac.md)**: `get`/`list` on
@@ -1204,7 +1215,7 @@ distinguish a genuine negative answer from a broken query.
 | **P3 — Notify** | sustained thresholds + multi-sink (slack/webhook/smtp) | **Shipped** `v0.4.0` |
 | **P4 — MCP** | stdio + HTTP/SSE + ops mux + access control | **Shipped** `v0.5.0` |
 | **P5 — Server** | analyze-local + charts + JSON API | **Shipped** `v0.6.0` (`docs/plan-0.6.0.md`) |
-| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | Planned (`docs/ROADMAP.md`) |
+| **P6 — Harden** | nodes snap + UI search + E2E/docs/security → 1.0 | **Shipped** across `v0.7.0`–`v0.9.0`; remainder in `docs/plan-1.0.0.md` |
 
 **Core must not depend** on P3–P5. TUI is P2 (with capacity), not blocked on server.
 

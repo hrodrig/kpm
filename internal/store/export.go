@@ -81,7 +81,7 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 	}
 	q += ` ORDER BY sampled_at ASC, id ASC`
 
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
 		return 0, err
 	}

@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-10-17" "kpm v0.9.0" "User Commands"
+.TH KPM 1 "2026-10-18" "kpm v1.0.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -189,6 +189,11 @@ without auth (also exempt from allowlist/rate limit), plus MCP
 and
 .B mcp.rate_limit
 follow the gghstats HTTP access mold.
+An entry in
+.B mcp.trusted_proxies
+or
+.B mcp.allowlist_cidrs
+that does not parse refuses to start.
 .TP
 .B serve
 Analyze-local HTTP facade
@@ -229,6 +234,17 @@ may be
 checks the store only; kube is optional
 .RB ( /api/v1/live
 returns 503 JSON when unavailable).
+JSON store reads use a separate SQLite pool from the sampler.
+.B GET /api/v1/series
+returns at most the newest 10,000 rows
+.RB ( truncated ).
+.B GET /api/v1/series/batch
+accepts at most 20 workloads.
+Those two routes and
+.B GET /api/v1/workloads
+return 503 when a store read exceeds 15 seconds.
+.B /workloads
+returns 413 above 100,000 rows in the window.
 Drawer
 .B export/patch
 is GitOps copy/download only (never applied by kpm).

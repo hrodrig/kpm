@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-18
+
+### Security
+
+- `mcp.trusted_proxies` **fails closed**: an entry that does not parse is a startup error instead of
+  being skipped. Skipping a typo left rate-limit and allowlist looking at the proxy's own address, so
+  an allowlist covering that address admitted every client behind the proxy. An empty list still
+  means forwarded client-IP headers are ignored.
+
 ### Added
 
 - `make lint` gains **`check-readme-version`**: the static version badge must match `VERSION`, and a
@@ -17,6 +26,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the four tools with their real argument names, a captured JSON-RPC exchange, and the two things that
   make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
   store nobody ever sampled. Written from output captured against `v0.9.0`, not from intent.
+- [docs/compare.md](docs/compare.md): where kpm sits next to `kubectl top`, kube-capacity,
+  KRR, Goldilocks, and VPA. The README keeps the one-screen table; the doc has the
+  matrix and when to leave kpm. Snapshot of upstream releases dated 2026-10-17.
+
+### Changed
+
+- The HTTP server reads the store on a separate SQLite pool, so a series or
+  workload query no longer holds the connection the sampler inserts on. Those
+  three handlers give up after 15s (`503 store query timed out`). A series scan
+  stops at 10,000 rows, and `/api/v1/series/batch` accepts 20 workloads; the
+  page asks for the rest in further batches.
+
+### Security
+
+- CI actions are pinned by commit SHA, including the release job. GoReleaser is
+  `v2.18.3` (the floating `~> v2` is gone). `govulncheck` is `v1.9.0`, gocyclo
+  is `v0.6.0`, and Grype is `v0.120.1` installed as a module — the
+  `curl | sh` installer is gone. Image Dockerfiles pin the multi-arch index
+  digest, and the release image publishes an SBOM.
 
 ## [0.9.0] - 2026-10-17
 
@@ -411,7 +439,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/hrodrig/kpm/compare/v0.9.0...v1.0.0
+[0.9.0]: https://github.com/hrodrig/kpm/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/hrodrig/kpm/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/hrodrig/kpm/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/hrodrig/kpm/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/hrodrig/kpm/compare/v0.4.0...v0.5.0

@@ -39,7 +39,7 @@ func OpenReadOnly(path string) (*Store, error) {
 // SchemaVersionOf reports the schema revision recorded in the open database.
 func (s *Store) SchemaVersionOf(ctx context.Context) (int, error) {
 	var ver int
-	if err := s.db.QueryRowContext(ctx, `SELECT version FROM schema_meta LIMIT 1`).Scan(&ver); err != nil {
+	if err := s.reads().QueryRowContext(ctx, `SELECT version FROM schema_meta LIMIT 1`).Scan(&ver); err != nil {
 		return 0, fmt.Errorf("read schema version: %w", err)
 	}
 	return ver, nil
@@ -49,7 +49,7 @@ func (s *Store) SchemaVersionOf(ctx context.Context) (int, error) {
 // zero when the store holds no samples.
 func (s *Store) SampleBounds(ctx context.Context) (time.Time, time.Time, error) {
 	var oldest, newest *string
-	err := s.db.QueryRowContext(ctx,
+	err := s.reads().QueryRowContext(ctx,
 		`SELECT MIN(sampled_at), MAX(sampled_at) FROM samples`).Scan(&oldest, &newest)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("read sample bounds: %w", err)
@@ -77,7 +77,7 @@ func (s *Store) SampleBounds(ctx context.Context) (time.Time, time.Time, error) 
 // loading the records themselves.
 func (s *Store) DaysWithSamplesSince(ctx context.Context, since time.Time) (int, error) {
 	var days int
-	err := s.db.QueryRowContext(ctx,
+	err := s.reads().QueryRowContext(ctx,
 		`SELECT COUNT(DISTINCT substr(sampled_at, 1, 10)) FROM samples WHERE sampled_at >= ?`,
 		FormatUTC(since),
 	).Scan(&days)
