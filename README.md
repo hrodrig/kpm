@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
@@ -17,10 +17,8 @@
 
 <a id="early-development-disclaimer"></a>
 
-> **Early development (pre-1.0).** kpm is under active development.
-> [SPECIFICATIONS.md](SPECIFICATIONS.md) is **draft v0.4**: Core, Insights,
-> notifications, MCP (§1–7), and server charts (§8) are **normative in-tree**.
-> Recommendations are **advisory** — you own production resource changes.
+> **1.0.** [SPECIFICATIONS.md](SPECIFICATIONS.md) is **normative** for this
+> release. Recommendations are **advisory** — you own production resource changes.
 > **Use at your own risk.** The software is provided under the
 > [MIT License](./LICENSE) **“AS IS”**, without warranty of any kind
 > (see [LICENSE](./LICENSE)).
@@ -36,6 +34,18 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 1.0 — Harden
+
+No new commands, flags, or schema. The frozen contract is what ships.
+
+- **`trusted_proxies` fails closed** — an entry that does not parse refuses to start.
+- **HTTP reads leave the sampler’s connection free** — a separate SQLite pool, a 15s cap on series and workload queries, batches of 20.
+- **Supply chain** — Actions by commit SHA, pinned govulncheck / Grype / GoReleaser, image digests, image SBOM.
+- **Where kpm sits** — [docs/compare.md](docs/compare.md).
+
+Contract: **[SPECIFICATIONS.md](SPECIFICATIONS.md)** · band notes: **[plan-1.0.0](docs/plan-1.0.0.md)** ·
+path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.9 — Capacity truth and restore
 
@@ -136,6 +146,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 1.0](#whats-new-in-10--harden)
 - [What’s new in 0.9](#whats-new-in-09--capacity-truth-and-restore)
 - [What’s new in 0.8](#whats-new-in-08--honesty)
 - [What’s new in 0.7](#whats-new-in-07--scale)

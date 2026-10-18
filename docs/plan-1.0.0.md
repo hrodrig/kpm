@@ -1,6 +1,6 @@
 # Plan 1.0.0 — Harden and tag (no new surface)
 
-> **Status: open.** Product surface through `v0.9.0` is frozen. This band does not add commands,
+> **Status: cutting.** Product surface through `v0.9.0` is frozen. This band does not add commands,
 > flags, or schema. It closes the security tail that `#22` marked done after only the allowlist
 > and the RBAC example, then cuts `v1.0.0`.
 
@@ -27,10 +27,10 @@ token on loopback after the tag would be a breaking config change.
 
 | # | Work unit | Status |
 |---|-----------|--------|
-| 1 | `#33` `trusted_proxies` fails closed on an unparseable entry | `[ ]` on `fix/trusted-proxies-fail-closed`, not on `develop` |
-| 2 | `#34` `kpm doctor` RunE returns the report exit code when `Broken()` | `[ ]` same branch; behavior already shipped, the CLI test did not |
-| 3 | `#35` Sampler not starved by API reads (read pool, per-request timeout, lower batch cap) | `[ ]` |
-| 4 | `#36` CI and release pins (Action SHAs, Grype without `curl \| sh`, pinned govulncheck, image digests, GoReleaser not `~> v2`, image SBOM) | `[ ]` |
+| 1 | `#33` `trusted_proxies` fails closed on an unparseable entry | `[x]` on `develop` |
+| 2 | `#34` `kpm doctor` RunE returns the report exit code when `Broken()` | `[x]` on `develop` |
+| 3 | `#35` Sampler not starved by API reads (read pool, per-request timeout, lower batch cap) | `[x]` on `develop` |
+| 4 | `#36` CI and release pins (Action SHAs, Grype without `curl \| sh`, pinned govulncheck, image digests, GoReleaser not `~> v2`, image SBOM) | `[x]` on `develop` |
 | 5 | `#37` Defense in depth that does not change the frozen CLI | `[ ]` |
 
 `#33`–`#37` continue the roadmap sequence. They are not GitHub issues until filed.
@@ -41,20 +41,20 @@ token on loopback after the tag would be a breaking config change.
 ### Before the tag
 
 - `[x]` Bearer contract recorded in SPEC §7.2 (required off loopback, optional on loopback)
-- `[ ]` `#33` Invalid `mcp.trusted_proxies` entry refuses to start; empty list still ignores forwarded client-IP headers
-- `[ ]` `#34` `internal/cli` test: missing store exits 1 after printing the report; warnings exit 0; cluster-only failure exits 2
-- `[ ]` `#35` HTTP reads do not hold the sampler's only SQLite connection for a 100 × 50 000-row batch
+- `[x]` `#33` Invalid `mcp.trusted_proxies` entry refuses to start; empty list still ignores forwarded client-IP headers
+- `[x]` `#34` `internal/cli` test: missing store exits 1 after printing the report; warnings exit 0; cluster-only failure exits 2
+- `[x]` `#35` HTTP reads do not hold the sampler's only SQLite connection. Series scan stops at 10,000 rows; a batch accepts 20 workloads
 - `[x]` `docs/plan-0.9.0.md` checklist matches what `v0.9.0` shipped
 - `[x]` SPEC §14 P6 no longer says Planned
 
 ### `#36` — supply chain (same train as the tag, or the first 1.0.x if the tag cannot wait)
 
-- `[ ]` Actions pinned by SHA, including the release job
-- `[ ]` Grype installed without `curl | sh`
-- `[ ]` `govulncheck` not `@latest`
-- `[ ]` GoReleaser not a floating `~> v2`
-- `[ ]` Dockerfiles by digest
-- `[ ]` Image SBOM enabled (`.goreleaser.yaml` is `sbom: false`)
+- `[x]` Actions pinned by SHA, including the release job
+- `[x]` Grype installed without `curl | sh`
+- `[x]` `govulncheck` not `@latest`
+- `[x]` GoReleaser not a floating `~> v2`
+- `[x]` Dockerfiles by digest
+- `[x]` Image SBOM enabled (`.goreleaser.yaml` `sbom: true`)
 
 ### `#37` — lows, safe as 1.0.x
 
