@@ -42,11 +42,12 @@ export/backup, rightsizing, interactive **TUI**, and optional daemon facades
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 0.3 Position vs kube-capacity
+### 0.3 Position vs similar tools
 
-Live tables/TUI borrow the *quantities* (request/limit/util) and filters;
-**persistence + history workflows** are the product center. No upstream source
-copy.
+Live tables and the TUI borrow kube-capacity *quantities* (request, limit,
+util) and filters. **Persistence and the offline recommendation** are the
+product center. No upstream source copy. The short README table and the full
+matrix are in [docs/compare.md](docs/compare.md).
 
 ### 0.4 Repo split
 

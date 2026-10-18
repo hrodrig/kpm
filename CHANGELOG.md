@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the four tools with their real argument names, a captured JSON-RPC exchange, and the two things that
   make it "do nothing": a config path that is not absolute (nothing expands `~` in a client) and a
   store nobody ever sampled. Written from output captured against `v0.9.0`, not from intent.
+- [docs/compare.md](docs/compare.md): where kpm sits next to `kubectl top`, kube-capacity,
+  KRR, Goldilocks, and VPA. The README keeps the one-screen table; the doc has the
+  matrix and when to leave kpm. Snapshot of upstream releases dated 2026-10-17.
 
 ### Changed
 
