@@ -11,7 +11,7 @@ Product path from scaffold to **v1.0.0**. Behavior contract:
 multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
 normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
-**Last reviewed:** 2026-10-16
+**Last reviewed:** 2026-10-17
 
 ---
 
@@ -20,7 +20,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 | Band | Focus | Plan |
 |------|-------|------|
 | **0.2.x–0.9.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty → Capacity truth + restore | shipped `v0.2.0`–`v0.9.0` |
-| **Current** | **1.0.0** — the freeze holds; no new surface before it | — |
+| **Current** | **1.0.0** — harden and tag; no new surface | [plan-1.0.0.md](./plan-1.0.0.md) |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -52,7 +52,7 @@ flowchart LR
 | **0.7.x** Scale | nodes snap `#20b` + UI search `#20c` + store caps + serve harden | **Shipped** `v0.7.0` |
 | **0.8.x** Honesty | retention/coverage/target/doctor (`#24`–`#28`) + pulled-forward `#30`–`#32` | **Shipped** `v0.8.0` |
 | **0.9.x** Truth + restore | Aggregation, `restore`, `capacity fit` (`#110`/`#111`), then E2E/docs/security/packaging (`#20`–`#23`, `#29`) | **Shipped** `v0.9.0` |
-| **1.0.0** Stable | Full SPEC surface normative | Planned |
+| **1.0.0** Stable | Full SPEC surface normative; harden tail, no new surface | **Open** — [plan-1.0.0.md](./plan-1.0.0.md) |
 
 [↑ Back to top](#top)
 
@@ -199,7 +199,7 @@ tag that publishes a non-`main` state.
 | `#111` | `capacity fit`, node pool identity, scheduler-shaped aggregation | **In tree** |
 | `#20` | Integration/E2E smoke: `make test-e2e` (binary, no cluster) + `make test-e2e-kind` (kind + metrics-server) | **In tree** |
 | `#21` | Docs freeze: SPEC → normative v1.0; man pages; sample config complete | **In tree** |
-| `#22` | Security pass; minimal RBAC ClusterRole example in docs (not Helm) | **In tree** |
+| `#22` | Security pass. Allowlist fail-closed + RBAC example shipped in `v0.9.0`. Remainder is [plan-1.0.0.md](./plan-1.0.0.md) (`#33`–`#37`) | **Partial** |
 | `#23` | Homebrew tap: cask published by GoReleaser to `hrodrig/homebrew-kpm`; needs the `HOMEBREW_TAP_TOKEN` secret | **In tree** |
 | `#29` | CLI + SQLite schema freeze notes; 0.x → 1.0 migration notes | **In tree** |
 
@@ -210,9 +210,13 @@ tag that publishes a non-`main` state.
 
 ### 1.0.0 — Stable
 
-- Version cut + annotated tag on `main` (may skip a public `v0.9.0` tag after freeze lands).
-- Semver promise: no breaking CLI/config without major.
-- **Post-1.0 (not blocking):** json export, mTLS, `kpm-selfhosted`, history-in-TUI.
+Plan: [plan-1.0.0.md](./plan-1.0.0.md). **Open.**
+
+- No new commands, flags, or schema. Bearer stays optional on loopback (SPEC §7.2).
+- Close the `#22` tail (`#33`–`#37`): `trusted_proxies` fail-closed, doctor exit test, sampler vs API reads, CI/release pins, defense-in-depth lows.
+- Version cut + annotated tag on `main`. `v0.9.0` is already tagged.
+- Semver promise: no breaking CLI/config without a major.
+- **1.x after the tag (not blocking):** capacity-table items `#38`–`#44` in [plan-1.0.0.md](./plan-1.0.0.md) (init/sidecar rows, util denominator, node-vs-pod util). json export, mTLS, `kpm-selfhosted`, history-in-TUI stay later.
 
 [↑ Back to top](#top)
 
@@ -221,7 +225,7 @@ tag that publishes a non-`main` state.
 ## Process
 
 1. Work on topic branches from `develop`; PR into `develop`.
-2. Large bands get `docs/plan-0.Y.Z.md` (merge order + success criteria).
+2. Large bands get `docs/plan-0.Y.Z.md` (1.0: [plan-1.0.0.md](./plan-1.0.0.md)): merge order + success criteria.
 3. Promote SPEC sections to **Normative** as each band ships.
 4. Never tag `main` / run GoReleaser without explicit operator approval.
 
