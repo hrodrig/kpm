@@ -11,7 +11,7 @@ Product path from scaffold to **v1.0.0**. Behavior contract:
 multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
 normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
-**Last reviewed:** 2026-10-17
+**Last reviewed:** 2026-10-18
 
 ---
 
@@ -210,11 +210,11 @@ tag that publishes a non-`main` state.
 
 ### 1.0.0 — Stable
 
-Plan: [plan-1.0.0.md](./plan-1.0.0.md). **Open.**
+Plan: [plan-1.0.0.md](./plan-1.0.0.md). **Cutting.**
 
 - No new commands, flags, or schema. Bearer stays optional on loopback (SPEC §7.2).
-- Close the `#22` tail (`#33`–`#37`): `trusted_proxies` fail-closed, doctor exit test, sampler vs API reads, CI/release pins, defense-in-depth lows.
-- Version cut + annotated tag on `main`. `v0.9.0` is already tagged.
+- `#33`–`#36` are on `develop`: `trusted_proxies` fail-closed, doctor exit test, sampler vs API reads, CI/release pins. `#37` stays a 1.0.x.
+- This commit is the version cut. The annotated tag lands on `main` after `develop` → `main`.
 - Semver promise: no breaking CLI/config without a major.
 - **1.x after the tag (not blocking):** capacity-table items `#38`–`#44` in [plan-1.0.0.md](./plan-1.0.0.md) (init/sidecar rows, util denominator, node-vs-pod util). json export, mTLS, `kpm-selfhosted`, history-in-TUI stay later.
 
