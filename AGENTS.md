@@ -38,7 +38,7 @@ Pods Metrics). See [agents.md](https://agents.md/) for the format.
 - Build: **`make build`** (reads **`VERSION`**, ldflags for
   version/commit/date/branch). Root **`GNUmakefile`** is canonical; on
   **FreeBSD** use **`gmake`** via the BSD **`Makefile`** stub.
-- Toolchain: pinned in **`go.mod`** (currently `go 1.27.2`); CI follows
+- Toolchain: pinned in **`go.mod`** (currently `go 1.27.3`); CI follows
   `go-version-file`.
 
 ## Test and quality commands

@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
+[![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
 [![CI](https://github.com/hrodrig/kpm/actions/workflows/ci.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/ci.yml)
 [![Security](https://github.com/hrodrig/kpm/actions/workflows/security.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/security.yml)
 [![CodeQL](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml)
