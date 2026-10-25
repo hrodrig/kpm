@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Go 1.27.2](https://img.shields.io/badge/Go-1.27.2-00ADD8.svg)](https://go.dev/dl/)
+[![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
 [![CI](https://github.com/hrodrig/kpm/actions/workflows/ci.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/ci.yml)
 [![Security](https://github.com/hrodrig/kpm/actions/workflows/security.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/security.yml)
 [![CodeQL](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml)
@@ -224,7 +224,9 @@ The matrix, what kpm is not, and when to leave it are in **[docs/compare.md](doc
 | Capacity aggregation + `kpm restore` (terminal pods, init containers, replace/merge) | **In tree** (`0.9.x` — SPEC §2.4 and §4) |
 | `kpm capacity fit` (workload-aware placement check) | **In tree** (`0.9.x` — SPEC §4) |
 | Scale (search/filter, node snapshots, store caps) | **In tree** (`v0.7.0` — [plan-0.7.0](docs/plan-0.7.0.md)) |
-| Homebrew / Krew / `kpm-selfhosted` | Deferred |
+| Homebrew cask | **Published** (`brew install --cask hrodrig/kpm/kpm` → [hrodrig/homebrew-kpm](https://github.com/hrodrig/homebrew-kpm); the release writes the cask) |
+| Krew | Deferred |
+| [`kpm-selfhosted`](https://github.com/hrodrig/kpm-selfhosted) | Separate operator repo |
 
 [↑ Back to top](#top)
 

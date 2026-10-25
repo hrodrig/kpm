@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `GET /livez` is liveness, the same handler as `GET /healthz`. Probes, allowlist, and rate limit treat both as ops paths. `/healthz` stays.
+
+### Security
+
+- Toolchain `go 1.27.3`. [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) (`crypto/x509` trusts a compromised intermediate) is fixed in that release. `go 1.27.2` was affected.
+
 ## [1.0.0] - 2026-10-18
 
 ### Security

@@ -148,7 +148,7 @@ func mergeAllowedHosts(a, b []string) []string {
 }
 
 func logOpsListen(errW io.Writer, cfg *config.Config, addr string) {
-	_, _ = fmt.Fprintf(errW, "httpserver: listening on %s (/healthz /readyz /metrics", addr)
+	_, _ = fmt.Fprintf(errW, "httpserver: listening on %s (/livez /healthz /readyz /metrics", addr)
 	if cfg.MCP.Enabled {
 		_, _ = fmt.Fprintf(errW, "; MCP %s + %s", mcp.PathSSE, mcp.PathMCP)
 	}

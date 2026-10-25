@@ -21,7 +21,7 @@ func newServeCmd() *cobra.Command {
 		Use:   "serve",
 		Short: "Serve ops + MCP/JSON HTTP against an existing store (no sample loop)",
 		Long: `Analyze-local HTTP facade: open store.path, bind shared listen, serve
-/healthz /readyz /metrics plus MCP and/or JSON /api/v1 until SIGINT/SIGTERM.
+/livez /healthz /readyz /metrics plus MCP and/or JSON /api/v1 until SIGINT/SIGTERM.
 
 Requires mcp.enabled and/or server.enabled. Does not scrape Metrics or write
 samples — use for laptop analysis of a copied SQLite DB

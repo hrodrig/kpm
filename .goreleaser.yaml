@@ -1,7 +1,7 @@
 # GoReleaser for kpm — same flow as kwd: merge develop → main, tag vX.Y.Z,
 # push tag (CI runs release). Local: make release-check && make release (on main only).
 # Snapshot: make snapshot → artifacts under dist/
-# Homebrew tap (homebrew-kpm) deferred until first public release.
+# Homebrew tap (homebrew-kpm): GoReleaser writes Casks/kpm.rb on each release.
 
 version: 2
 
