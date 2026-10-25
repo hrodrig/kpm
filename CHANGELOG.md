@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-25
+
 ### Added
 
 - `GET /livez` is liveness, the same handler as `GET /healthz`. Probes, allowlist, and rate limit treat both as ops paths. `/healthz` stays.
@@ -447,7 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/hrodrig/kpm/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/hrodrig/kpm/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/hrodrig/kpm/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/hrodrig/kpm/compare/v0.7.0...v0.8.0

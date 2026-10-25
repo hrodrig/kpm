@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
@@ -34,6 +34,13 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 1.1 — Liveness
+
+- **`GET /livez`** — liveness. `GET /healthz` is the same handler, so probes that already call `/healthz` keep working.
+- **Go 1.27.3** — [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809). `crypto/x509` in 1.27.2 trusted a compromised intermediate.
+
+Contract: **[SPEC §7.4](SPECIFICATIONS.md)** · path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 1.0 — Harden
 
@@ -146,6 +153,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 1.1](#whats-new-in-11--liveness)
 - [What’s new in 1.0](#whats-new-in-10--harden)
 - [What’s new in 0.9](#whats-new-in-09--capacity-truth-and-restore)
 - [What’s new in 0.8](#whats-new-in-08--honesty)
