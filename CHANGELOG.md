@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `GET /livez` is liveness, the same handler as `GET /healthz`. Probes, allowlist, and rate limit treat both as ops paths. `/healthz` stays.
+
 ## [1.0.0] - 2026-10-18
 
 ### Security

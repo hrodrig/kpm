@@ -12,7 +12,7 @@ type PathSkip struct {
 // allowlist checks (liveness, readiness, Prometheus scrape, embedded UI static).
 func OpsSkip() PathSkip {
 	return PathSkip{
-		Exact:    []string{"/healthz", "/readyz", "/metrics"},
+		Exact:    []string{"/livez", "/healthz", "/readyz", "/metrics"},
 		Prefixes: []string{"/static/"},
 	}
 }
