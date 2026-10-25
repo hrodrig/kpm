@@ -1,6 +1,6 @@
 # Plan 1.0.0 — Harden and tag (no new surface)
 
-> **Status: cutting.** Product surface through `v0.9.0` is frozen. This band does not add commands,
+> **Status: shipped in `v1.0.0`.** Product surface through `v0.9.0` is frozen. This band does not add commands,
 > flags, or schema. It closes the security tail that `#22` marked done after only the allowlist
 > and the RBAC example, then cuts `v1.0.0`.
 

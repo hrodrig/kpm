@@ -128,7 +128,8 @@ tui:
 # (analyze-local; interval_seconds may be 0). Daemon path unchanged when
 # interval_seconds > 0 and mcp.enabled.
 # Listen also serves:
-#   ops:  /healthz /readyz /metrics  (no auth; exempt from allowlist/rate limit)
+#   ops:  /livez /healthz /readyz /metrics  (no auth; exempt from allowlist/rate limit)
+#         /healthz is the same liveness handler as /livez
 #   MCP:  /sse (SSE) and /mcp (streamable HTTP); bearer if token_env set
 # /readyz checks store only; kube is optional for serve.
 # Default bind is loopback (same idea as gghstats). Use 0.0.0.0 only behind a

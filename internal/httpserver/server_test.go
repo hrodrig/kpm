@@ -15,13 +15,15 @@ import (
 
 func TestHealthz(t *testing.T) {
 	s := httpserver.New("127.0.0.1:0", nil, nil)
-	rr := httptest.NewRecorder()
-	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/healthz", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status %d", rr.Code)
-	}
-	if body := rr.Body.String(); body != "ok\n" {
-		t.Fatalf("body %q", body)
+	for _, path := range []string{"/livez", "/healthz"} {
+		rr := httptest.NewRecorder()
+		s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status %d", path, rr.Code)
+		}
+		if body := rr.Body.String(); body != "ok\n" {
+			t.Fatalf("%s body %q", path, body)
+		}
 	}
 }
 

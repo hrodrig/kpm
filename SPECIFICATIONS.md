@@ -1,10 +1,10 @@
 # SPECIFICATIONS — kpm
 
-> **Status: normative — describes the `v1.0.0` tree.** Every section below is
+> **Status: normative — describes the `v1.1.0` tree.** Every section below is
 > implemented and must not regress without a CHANGELOG entry. The CLI surface and the
 > store schema are frozen at `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
 > `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
-> `v0.8.0`, capacity truth + `restore` `v0.9.0`, harden `v1.0.0`.
+> `v0.8.0`, capacity truth + `restore` `v0.9.0`, harden `v1.0.0`, liveness `/livez` `v1.1.0`.
 
 | Term | Meaning |
 |------|---------|
@@ -634,7 +634,7 @@ Daemon HTTP mux access control (gghstats mold; applies to MCP mounts, **not** op
 | `mcp.allowlist_cidrs` | empty (off) | Optional client IP/CIDR allowlist; matching `Authorization: Bearer` bypasses IP check |
 | `mcp.rate_limit` | enabled, 120/1m burst 20 | Per-IP token bucket; `enabled: false` disables. IPv6 buckets are grouped by `/64` (the standard subscriber allocation) so a client cannot refill by rotating its source address; IPv4 and IPv4-mapped IPv6 stay per-address (the mapped form normalises to its IPv4 bucket). The allowlist is deliberately **not** grouped this way — it matches exactly the CIDR written |
 
-Exempt from allowlist and rate limit: `GET /healthz`, `/readyz`, `/metrics`.
+Exempt from allowlist and rate limit: `GET /livez`, `/healthz`, `/readyz`, `/metrics`.
 When rate limit or allowlist is active and `trusted_proxies` is empty, the process
 logs a one-shot warning that forwarded client-IP headers are ignored.
 
@@ -668,7 +668,7 @@ When the sample daemon runs with `mcp.enabled: true`, the process listens on
 
 | Path | Role |
 |------|------|
-| `GET /healthz` | Liveness (process up) |
+| `GET /livez` | Liveness (process up). `GET /healthz` is the same handler. |
 | `GET /readyz` | Readiness (store open; kube/Metrics reachable when sampling) |
 | `GET /metrics` | **Process** Prometheus text (daemon/ops counters) — **not** a re-export of cluster pod metrics |
 
@@ -1144,7 +1144,7 @@ tui:
 | MCP / server bind | **`127.0.0.1:9740`** by default. Binding anywhere else requires a token. |
 | K8s RBAC deny | **Fail closed.** A denied List surfaces as exit `2`, never as an empty result. |
 | Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
-| Ops paths | `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. |
+| Ops paths | `/livez`, `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. `/healthz` is an alias of `/livez`. |
 | Allowlist vs bearer | A valid `Authorization: Bearer` bypasses the IP check; MCP routes stay gated by bearer auth. |
 | Malformed allowlist entry | **Startup error, never a skip.** An allowlist that silently drops what it cannot parse admits everyone the moment the only entry has a typo. |
 | Malformed `trusted_proxies` entry | **Startup error, never a skip.** Dropping a bad proxy CIDR makes rate-limit and allowlist see the proxy address. An allowlist that covers that address then admits every client behind it. |

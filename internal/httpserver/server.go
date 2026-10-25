@@ -48,6 +48,7 @@ func New(addr string, ready ReadyFunc, metrics *Counters) *Server {
 		metrics = &Counters{}
 	}
 	s := &Server{addr: addr, ready: ready, metrics: metrics, mux: http.NewServeMux()}
+	s.mux.HandleFunc("GET /livez", s.handleHealthz)
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /readyz", s.handleReadyz)
 	s.mux.HandleFunc("GET /metrics", s.handleMetrics)
