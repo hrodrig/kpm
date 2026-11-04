@@ -16,7 +16,7 @@ GOBIN    ?= $(shell go env GOPATH)/bin
 # @latest is a supply-chain input, so the version lives here and CI calls it.
 GOVULNCHECK_VERSION := v1.9.0
 GOCYCLO_VERSION := v0.6.0
-GRYPE_VERSION := v0.120.1
+GRYPE_VERSION := v0.121.1
 VERSION  ?= $(shell v=$$(cat VERSION 2>/dev/null | tr -d '\n\r'); [ -n "$$v" ] && echo "v$$v" || echo "v0.0.0")
 COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BRANCH   := $(shell b=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); [ -n "$$b" ] && [ "$$b" != "HEAD" ] && echo "$$b" || echo "unknown")
@@ -184,9 +184,12 @@ gocyclo:
 install-grype:
 	go install github.com/anchore/grype/cmd/grype@$(GRYPE_VERSION)
 
-grype: install-grype
-	@echo "Running grype (working tree, --fail-on high)..."
-	@"$(GOBIN)/grype" . -c .grype.yaml --fail-on high
+# Scan the built binary (same artifact shape as the image), not the working
+# tree: `grype .` catalogs stale go.sum / module-cache noise (e.g. old x/net
+# and stdlib versions) that `go list -m` and `grype ./bin/kpm` do not see.
+grype: build install-grype
+	@echo "Running grype (bin/$(BINARY), --fail-on high)..."
+	@"$(GOBIN)/grype" ./bin/$(BINARY) -c .grype.yaml --fail-on high
 
 lint: check-pins check-man-version check-readme-version
 	@echo "Checking gofmt -s..."

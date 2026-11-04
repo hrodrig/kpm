@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-04
+
 ### Security
 
 - Bump `golang.org/x/net` to **v0.62.0** (GO-2026-6866 / GO-2026-6860) and raise
   the `check-pins` floor to match.
+- Pin Grype to **v0.121.1** (`GRYPE_VERSION` in the GNUmakefile / Security workflow).
+- `make grype` / `make security` scan **`./bin/kpm`** (after `make build`), not the
+  working tree — directory scans were reporting stale `x/net` / stdlib versions
+  absent from `go list -m` and from the release image.
 
 ### Changed
 
@@ -460,7 +466,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/hrodrig/kpm/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/hrodrig/kpm/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/hrodrig/kpm/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/hrodrig/kpm/compare/v0.8.0...v0.9.0
