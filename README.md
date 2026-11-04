@@ -12,6 +12,7 @@
 [![gghstats clones](https://gghstats.hermesrodriguez.com/api/v1/badge/hrodrig/kpm?metric=clones)](https://gghstats.hermesrodriguez.com/hrodrig/kpm)
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hrodrig/kpm)](https://pkg.go.dev/github.com/hrodrig/kpm)
 [![deps.dev](https://img.shields.io/badge/deps.dev-go%20module-blue)](https://deps.dev/go/github.com%2Fhrodrig%2Fkpm)
+[![M8ven Score](https://m8ven.ai/badge/mcp/hrodrig-kpm-13s1g3?v=68d024ec21673c75674e24cbc82c98cb)](https://m8ven.ai/mcp/hrodrig-kpm-13s1g3?s=readme)
 
 **Repo:** [github.com/hrodrig/kpm](https://github.com/hrodrig/kpm) · **Releases:** [GitHub Releases](https://github.com/hrodrig/kpm/releases) · **Spec:** [SPECIFICATIONS.md](SPECIFICATIONS.md) · **Compare:** [docs/compare.md](docs/compare.md) · **Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md) · **RBAC:** [docs/rbac.md](docs/rbac.md) · **MCP:** [docs/mcp.md](docs/mcp.md) · **Operator:** [kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted) · **Changelog:** [CHANGELOG.md](CHANGELOG.md) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
