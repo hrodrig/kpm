@@ -38,12 +38,49 @@ func TestServerToolsInMemory(t *testing.T) {
 	}}); err != nil {
 		t.Fatal(err)
 	}
+	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
+		RecordedAt: now, Grain: "pod", GrainKey: "app/p", Namespace: "app",
+		Samples: 1, Percentile: 95, TargetUtilization: 0.7, WindowDays: 7,
+		CPUSugMcores: 60, MemSugBytes: 1, CPUReqMcores: 100, MemReqBytes: 1,
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	cfg := &config.Config{}
 	cfg.MCP.Enabled = true
 	cfg.Sample.IntervalSeconds = 60
 	d := &mcp.Deps{Store: st, Config: cfg, Version: "v-test"}
 	session := connectMCP(t, d)
 	defer session.Close()
+
+	listed, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTools := map[string]bool{
+		"get_status": true, "list_samples": true,
+		"summarize_window": true, "list_recommendations": true,
+	}
+	if len(listed.Tools) != len(wantTools) {
+		t.Fatalf("tools count: got %d want %d", len(listed.Tools), len(wantTools))
+	}
+	for _, tool := range listed.Tools {
+		if !wantTools[tool.Name] {
+			t.Fatalf("unexpected tool %q", tool.Name)
+		}
+		ann := tool.Annotations
+		if ann == nil {
+			t.Fatalf("%s: missing annotations", tool.Name)
+		}
+		if !ann.ReadOnlyHint || !ann.IdempotentHint {
+			t.Fatalf("%s: readOnly/idempotent: %+v", tool.Name, ann)
+		}
+		if ann.DestructiveHint == nil || *ann.DestructiveHint {
+			t.Fatalf("%s: destructiveHint want false: %+v", tool.Name, ann)
+		}
+		if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
+			t.Fatalf("%s: openWorldHint want false: %+v", tool.Name, ann)
+		}
+	}
 
 	res, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{Name: "get_status"})
 	if err != nil {
@@ -66,6 +103,28 @@ func TestServerToolsInMemory(t *testing.T) {
 	}
 	if res2.IsError {
 		t.Fatalf("list_samples: %s", toolText(res2))
+	}
+
+	res3, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{
+		Name:      "summarize_window",
+		Arguments: map[string]any{"namespace": "app"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res3.IsError {
+		t.Fatalf("summarize_window: %s", toolText(res3))
+	}
+
+	res4, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{
+		Name:      "list_recommendations",
+		Arguments: map[string]any{"grain": "pod"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res4.IsError {
+		t.Fatalf("list_recommendations: %s", toolText(res4))
 	}
 }
 
