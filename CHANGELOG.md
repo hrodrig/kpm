@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Bump `golang.org/x/net` to **v0.62.0** (GO-2026-6866 / GO-2026-6860) and raise
+  the `check-pins` floor to match.
+
 ### Changed
 
 - MCP tools declare all four annotations (`readOnlyHint`, `destructiveHint`,
