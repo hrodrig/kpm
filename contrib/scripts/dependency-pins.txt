@@ -9,5 +9,5 @@
 # positive.
 #
 # Aligned with family (kwd) when client-go landed.
-golang.org/x/net v0.60.0
+golang.org/x/net v0.62.0
 golang.org/x/text v0.42.0
