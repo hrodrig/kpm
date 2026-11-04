@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- MCP tools declare all four annotations (`readOnlyHint`, `destructiveHint`,
+  `idempotentHint`, `openWorldHint`) as explicit booleans so directory scanners
+  and hosts can classify the store-only surface.
+
 ## [1.1.0] - 2026-10-25
 
 ### Added

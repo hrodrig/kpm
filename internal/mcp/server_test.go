@@ -24,17 +24,25 @@ func toolText(res *mcpsdk.CallToolResult) string {
 	return msg
 }
 
-func TestServerToolsInMemory(t *testing.T) {
+func openServerFixture(t *testing.T) *mcpsdk.ClientSession {
+	t.Helper()
 	dir := t.TempDir()
 	st, err := store.Open(filepath.Join(dir, "m.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	t.Cleanup(func() { _ = st.Close() })
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	if err := st.InsertRecords(context.Background(), []store.Record{{
 		SampledAt: now, Namespace: "app", Pod: "p", Container: "c",
 		CPUUtilMcores: 50, CPURequestMcores: 100,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
+		RecordedAt: now, Grain: "pod", GrainKey: "app/p", Namespace: "app",
+		Samples: 1, Percentile: 95, TargetUtilization: 0.7, WindowDays: 7,
+		CPUSugMcores: 60, MemSugBytes: 1, CPUReqMcores: 100, MemReqBytes: 1,
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -43,30 +51,73 @@ func TestServerToolsInMemory(t *testing.T) {
 	cfg.Sample.IntervalSeconds = 60
 	d := &mcp.Deps{Store: st, Config: cfg, Version: "v-test"}
 	session := connectMCP(t, d)
-	defer session.Close()
+	t.Cleanup(func() { _ = session.Close() })
+	return session
+}
 
-	res, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{Name: "get_status"})
+func assertStoreAnnotations(t *testing.T, tool *mcpsdk.Tool) {
+	t.Helper()
+	ann := tool.Annotations
+	if ann == nil {
+		t.Fatalf("%s: missing annotations", tool.Name)
+	}
+	if !ann.ReadOnlyHint || !ann.IdempotentHint {
+		t.Fatalf("%s: readOnly/idempotent: %+v", tool.Name, ann)
+	}
+	if ann.DestructiveHint == nil || *ann.DestructiveHint {
+		t.Fatalf("%s: destructiveHint want false: %+v", tool.Name, ann)
+	}
+	if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
+		t.Fatalf("%s: openWorldHint want false: %+v", tool.Name, ann)
+	}
+}
+
+func TestServerToolAnnotations(t *testing.T) {
+	session := openServerFixture(t)
+	listed, err := session.ListTools(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.IsError {
-		t.Fatalf("tool error: %s", toolText(res))
+	want := map[string]bool{
+		"get_status": true, "list_samples": true,
+		"summarize_window": true, "list_recommendations": true,
 	}
-	b, _ := json.Marshal(res.StructuredContent)
-	if !json.Valid(b) || len(b) < 10 {
-		t.Fatalf("structured: %s", b)
+	if len(listed.Tools) != len(want) {
+		t.Fatalf("tools count: got %d want %d", len(listed.Tools), len(want))
 	}
+	for _, tool := range listed.Tools {
+		if !want[tool.Name] {
+			t.Fatalf("unexpected tool %q", tool.Name)
+		}
+		assertStoreAnnotations(t, tool)
+	}
+}
 
-	res2, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{
-		Name:      "list_samples",
-		Arguments: map[string]any{},
+func mustCallTool(t *testing.T, session *mcpsdk.ClientSession, name string, args map[string]any) {
+	t.Helper()
+	res, err := session.CallTool(context.Background(), &mcpsdk.CallToolParams{
+		Name: name, Arguments: args,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res2.IsError {
-		t.Fatalf("list_samples: %s", toolText(res2))
+	if res.IsError {
+		t.Fatalf("%s: %s", name, toolText(res))
 	}
+	if name == "get_status" {
+		b, _ := json.Marshal(res.StructuredContent)
+		if !json.Valid(b) || len(b) < 10 {
+			t.Fatalf("structured: %s", b)
+		}
+	}
+}
+
+func TestServerCallAllTools(t *testing.T) {
+	session := openServerFixture(t)
+	mustCallTool(t, session, "get_status", nil)
+	mustCallTool(t, session, "list_samples", map[string]any{})
+	mustCallTool(t, session, "summarize_window", map[string]any{"namespace": "app"})
+	mustCallTool(t, session, "list_recommendations", map[string]any{"grain": "pod"})
 }
 
 func connectMCP(t *testing.T, d *mcp.Deps) *mcpsdk.ClientSession {
