@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
@@ -40,6 +40,7 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 
 - **`GET /livez`** — liveness. `GET /healthz` is the same handler, so probes that already call `/healthz` keep working.
 - **Go 1.27.3** — [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809). `crypto/x509` in 1.27.2 trusted a compromised intermediate.
+- **1.1.1** — MCP tools advertise all four annotations; `golang.org/x/net` **v0.62.0** (GO-2026-6866 / GO-2026-6860).
 
 Contract: **[SPEC §7.4](SPECIFICATIONS.md)** · path: **[ROADMAP](docs/ROADMAP.md)**.
 
