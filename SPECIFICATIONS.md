@@ -654,6 +654,10 @@ Tools: read-only query/summarize only; no cluster or SQLite mutations.
 Same surface on **stdio** and **HTTP/SSE**. No cluster mutations; no SQLite writes.
 Live Metrics / `internal/live` tools are **deferred**.
 
+Each tool advertises MCP annotations with explicit booleans: `readOnlyHint` and
+`idempotentHint` **true**; `destructiveHint` and `openWorldHint` **false**
+(store-only closed world).
+
 | Tool | Reads | Notes |
 |------|-------|-------|
 | `list_samples` | Store samples | Namespace / workload / time window filters; hard row cap applied in SQL (`LIMIT`, newest rows) before materialization |

@@ -62,6 +62,9 @@ even though the same string works when you type it in a terminal. Run `which kpm
 | `summarize_window` | `namespace`, `workload`, `since`, `until` | util ratios aggregated over a window, from the store — **not** the live Metrics API |
 | `list_recommendations` | `grain` (`workload` or `pod`) | the latest rightsizing snapshots already recorded |
 
+Every tool sets MCP annotations explicitly: `readOnlyHint` and `idempotentHint` true;
+`destructiveHint` and `openWorldHint` false (local SQLite only — no cluster mutation, no live API).
+
 `get_status` is cheap and answers "is this wired up at all", which is the first question worth asking.
 
 ## A real exchange
