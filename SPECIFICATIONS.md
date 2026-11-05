@@ -952,16 +952,19 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
   `server.enabled`); `/readyz` is store-only (kube optional).
 - **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
-  `/series`, `/series/batch`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/series`, `/series/batch`, `/recommendations`, `/members` (store-backed
+  pod/container rows for a namespace+workload at the latest sample in the
+  window; requires both query params), `/live` (503 JSON if kube unavailable),
   `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
 - **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
   (no SPA/npm). Workload cards fetch `/api/v1/series` and join latest
-  recommendations for verdict badges; drawers show recommendations + optional
-  live + copy/download patch. Summary strip counts oversized / undersized /
-  ok / no-req. Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock
-  form stores bearer for API calls when required.
+  recommendations for verdict badges; drawers show recommendations, store
+  members (`/members`), optional live enrichment, and copy/download patch.
+  Summary strip counts oversized / undersized / ok / no-req. Window presets
+  1h/24h/48h/7d/15d + custom range. Browser unlock form stores bearer for API
+  calls when required.
 
 ### 8.2 Relationship to capacity / TUI (Normative)
 
@@ -999,8 +1002,10 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `GET /workloads` each bound the store read to **15s** and return HTTP 503
   `store query timed out` when that elapses. `GET /workloads` fails
   closed (HTTP 413) above 100k rows in the window.
-- Collapsible drawer: store recommendations; if kube available, current
-  request/limit (+ delta vs suggest when both exist).
+- Collapsible drawer: store recommendations; **Pods (store)** from
+  `/api/v1/members` (all containers at the latest sample for the card grain);
+  if kube available, **Live** current util/request (+ delta vs suggest when
+  both exist). Live never replaces the store member list.
 - Mode chip from `status.kube_live`: **`live`** when the Metrics client was
   wired at process start; **`analyze-local`** when store-only (`/live` 503).
 - Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
@@ -1026,11 +1031,17 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.6 Status / recommendations examples (anonymized)
 
-`GET /api/v1/status` (no secrets):
+`GET /api/v1/status` (no secrets). Includes ldflags build metadata and runtime
+platform (also printed on `kpm serve` startup and in the UI footer):
 
 ```json
 {
   "version": "v0.6.0",
+  "commit": "abc1234",
+  "build_date": "2026-11-05T00:00:00Z",
+  "branch": "develop",
+  "go_version": "go1.27.3",
+  "platform": "linux/amd64",
   "store_path": "/var/lib/kpm/example.db",
   "sample_interval_seconds": 0,
   "server_enabled": true,

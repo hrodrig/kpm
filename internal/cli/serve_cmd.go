@@ -3,6 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -61,6 +64,7 @@ checks the store. GET /api/v1/live returns 503 JSON when kube is unavailable.`,
 				return fmt.Errorf("kpm serve: HTTP facade not built")
 			}
 
+			writeServeStartupBanner(cmd.OutOrStdout())
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(),
 				"kpm serve: store=%s listen=%s", st.Path(), srv.Addr())
 			if cfg.MCP.Enabled {
@@ -77,6 +81,23 @@ checks the store. GET /api/v1/live returns 503 JSON when kube is unavailable.`,
 	cmd.Flags().StringVar(&configPath, "config", config.DefaultConfigPath, "path to kpm YAML config")
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "optional kubeconfig for /api/v1/live")
 	return cmd
+}
+
+// writeServeStartupBanner prints version/build metadata like sibling CLIs (pgwd/gghstats).
+func writeServeStartupBanner(w io.Writer) {
+	ver := orDefault(Version, "dev")
+	commit := orDefault(Commit, "unknown")
+	built := orDefault(BuildDate, "unknown")
+	branch := orDefault(Branch, "unknown")
+	_, _ = fmt.Fprintf(w, "kpm %s | commit %s | built %s | branch %s | %s/%s | %s\n",
+		ver, commit, built, branch, runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
+func orDefault(s, fallback string) string {
+	if strings.TrimSpace(s) == "" {
+		return fallback
+	}
+	return strings.TrimSpace(s)
 }
 
 // optionalLive returns a live capture func when kube + metrics clients work.
