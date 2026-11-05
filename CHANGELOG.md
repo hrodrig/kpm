@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Analyze-local Details drawer lists **Pods (store)** from
+  `GET /api/v1/members?namespace=&workload=` (latest sample cohort), so replica
+  counts come from SQLite even when `/live` is down or incomplete
+  ([#156](https://github.com/hrodrig/kpm/issues/156)).
+- `kpm serve` prints a startup banner with version, commit, build date, branch,
+  platform, and Go runtime (same idea as pgwd/gghstats). `GET /api/v1/status`
+  and the UI footer expose the same build metadata.
+
 ## [1.1.1] - 2026-11-04
 
 ### Security

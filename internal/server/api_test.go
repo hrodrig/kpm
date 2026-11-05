@@ -93,6 +93,9 @@ func TestAPIStatus(t *testing.T) {
 	if stOut.KubeLive {
 		t.Fatal("kube_live want false without Live fn")
 	}
+	if stOut.GoVersion == "" || stOut.Platform == "" || !strings.Contains(stOut.Platform, "/") {
+		t.Fatalf("build meta %+v", stOut)
+	}
 }
 
 func TestAPISeriesRefs(t *testing.T) {
@@ -349,7 +352,12 @@ func TestAPIErrorPaths(t *testing.T) {
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	mux := http.NewServeMux()
 	server.Mount(mux, &server.Deps{Version: "v", Now: func() time.Time { return now }}, "")
-	for _, path := range []string{"/api/v1/workloads", "/api/v1/series?window=1h", "/api/v1/recommendations"} {
+	for _, path := range []string{
+		"/api/v1/workloads",
+		"/api/v1/series?window=1h",
+		"/api/v1/recommendations",
+		"/api/v1/members?namespace=app&workload=worker",
+	} {
 		rr := authedGet(mux, path, "")
 		if rr.Code != http.StatusServiceUnavailable {
 			t.Fatalf("%s want 503 got %d", path, rr.Code)
@@ -439,5 +447,164 @@ func TestAPISeriesBatchRejectsTwentyOneWorkloads(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "at most 20") {
 		t.Fatalf("body %s", rr.Body.String())
+	}
+}
+
+func membersFixture(t *testing.T, now time.Time) *store.Store {
+	t.Helper()
+	st, err := store.Open(filepath.Join(t.TempDir(), "members.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	older := now.Add(-2 * time.Hour)
+	latest := now.Add(-5 * time.Minute)
+	recs := []store.Record{
+		// Older sample: only two pods — must not appear when latest has four.
+		{
+			SampledAt: older, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-0", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 10, CPURequestMcores: 100, CPULimitMcores: 500,
+			MemUtilBytes: 100, MemRequestBytes: 200, MemLimitBytes: 400,
+		},
+		{
+			SampledAt: older, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-1", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 11, CPURequestMcores: 100, CPULimitMcores: 500,
+			MemUtilBytes: 110, MemRequestBytes: 200, MemLimitBytes: 400,
+		},
+		// Latest sample: four pods for worker.
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-0", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 50, CPURequestMcores: 200, CPULimitMcores: 1000,
+			MemUtilBytes: 500, MemRequestBytes: 1000, MemLimitBytes: 2000,
+		},
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-1", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 51, CPURequestMcores: 200, CPULimitMcores: 1000,
+			MemUtilBytes: 510, MemRequestBytes: 1000, MemLimitBytes: 2000,
+		},
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-2", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 52, CPURequestMcores: 200, CPULimitMcores: 1000,
+			MemUtilBytes: 520, MemRequestBytes: 1000, MemLimitBytes: 2000,
+		},
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "worker-3", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 53, CPURequestMcores: 200, CPULimitMcores: 1000,
+			MemUtilBytes: 530, MemRequestBytes: 1000, MemLimitBytes: 2000,
+		},
+		// Other workload at same timestamp — must not leak.
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "other-0", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "other",
+			CPUUtilMcores: 1, CPURequestMcores: 10,
+		},
+		// Same worker name, different namespace.
+		{
+			SampledAt: latest, ClientID: "c", ClusterName: "x",
+			Namespace: "otherns", Pod: "worker-0", Container: "main",
+			OwnerKind: "StatefulSet", OwnerName: "worker",
+			CPUUtilMcores: 9, CPURequestMcores: 90,
+		},
+	}
+	if err := st.InsertRecords(context.Background(), recs); err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
+func membersMux(t *testing.T, now time.Time) *http.ServeMux {
+	t.Helper()
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{
+		Store: membersFixture(t, now), Version: "v",
+		Now: func() time.Time { return now },
+	}, "")
+	return mux
+}
+
+func TestAPIMembersRequiresParams(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	mux := membersMux(t, now)
+	assertCode(t, authedGet(mux, "/api/v1/members", ""), http.StatusBadRequest)
+	assertCode(t, authedGet(mux, "/api/v1/members?namespace=app", ""), http.StatusBadRequest)
+	assertCode(t, authedGet(mux, "/api/v1/members?workload=worker", ""), http.StatusBadRequest)
+}
+
+func TestAPIMembersStoreNil(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{Version: "v", Now: func() time.Time { return now }}, "")
+	assertCode(t, authedGet(mux, "/api/v1/members?namespace=app&workload=worker", ""), http.StatusServiceUnavailable)
+}
+
+func TestAPIMembersLatestPods(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	rr := authedGet(membersMux(t, now), "/api/v1/members?namespace=app&workload=worker&window=24h", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+	}
+	var out server.MembersOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	assertFourWorkerMembers(t, out)
+}
+
+func TestAPIMembersEmpty(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	rr := authedGet(membersMux(t, now), "/api/v1/members?namespace=app&workload=missing&window=24h", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d", rr.Code)
+	}
+	var out server.MembersOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Count != 0 || len(out.Rows) != 0 {
+		t.Fatalf("want empty %+v", out)
+	}
+}
+
+func assertFourWorkerMembers(t *testing.T, out server.MembersOut) {
+	t.Helper()
+	if out.Count != 4 || len(out.Rows) != 4 {
+		t.Fatalf("want 4 members got count=%d rows=%d", out.Count, len(out.Rows))
+	}
+	if out.CapturedAt == "" {
+		t.Fatal("captured_at required")
+	}
+	wantPods := map[string]bool{"worker-0": true, "worker-1": true, "worker-2": true, "worker-3": true}
+	for _, row := range out.Rows {
+		assertWorkerMemberRow(t, row, wantPods)
+	}
+	if len(wantPods) != 0 {
+		t.Fatalf("missing pods %v", wantPods)
+	}
+}
+
+func assertWorkerMemberRow(t *testing.T, row server.MemberRow, wantPods map[string]bool) {
+	t.Helper()
+	if row.Namespace != "app" || row.OwnerName != "worker" || row.Container != "main" {
+		t.Fatalf("unexpected row %+v", row)
+	}
+	if !wantPods[row.Pod] {
+		t.Fatalf("unexpected pod %q", row.Pod)
+	}
+	delete(wantPods, row.Pod)
+	if row.CPURequestMcores != 200 {
+		t.Fatalf("want latest req 200 got %+v", row)
 	}
 }

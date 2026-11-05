@@ -31,6 +31,7 @@
     backdrop: document.getElementById("drawer-backdrop"),
     drawerTitle: document.getElementById("drawer-title"),
     drawerBody: document.getElementById("drawer-body"),
+    buildMeta: document.getElementById("build-meta"),
   };
 
   var recByGrain = {};
@@ -474,6 +475,22 @@
     return "v" + v;
   }
 
+  function shortCommit(c) {
+    c = String(c || "").trim();
+    if (!c || c === "unknown") return c || "";
+    return c.length > 12 ? c.slice(0, 12) : c;
+  }
+
+  function formatBuildMeta(st) {
+    var parts = ["kpm " + formatVersion(st.version)];
+    if (st.commit) parts.push("commit " + shortCommit(st.commit));
+    if (st.build_date) parts.push("built " + st.build_date);
+    if (st.branch) parts.push("branch " + st.branch);
+    if (st.platform) parts.push(st.platform);
+    if (st.go_version) parts.push(st.go_version);
+    return parts.join(" · ");
+  }
+
   function formatClusterTarget(st) {
     var name = (st.cluster_name || "").trim() || "unnamed-cluster";
     var env = (st.cluster_environment || "").trim();
@@ -507,6 +524,10 @@
         if (el.clusterTarget) {
           el.clusterTarget.textContent = formatClusterTarget(st);
           el.clusterTarget.title = formatClusterTarget(st);
+        }
+        if (el.buildMeta) {
+          el.buildMeta.textContent = formatBuildMeta(st);
+          el.buildMeta.title = formatBuildMeta(st);
         }
         el.status.textContent =
           "store " +
@@ -705,18 +726,24 @@
     el.backdrop.classList.add("open");
     el.drawer.setAttribute("aria-hidden", "false");
 
+    var memberParams = Object.assign({ namespace: ns, workload: wl }, windowParams());
     Promise.all([
       fetchJSON("/api/v1/recommendations", { grain: "workload" }).catch(function () {
         return { rows: [] };
       }),
+      fetchJSON("/api/v1/members", memberParams).catch(function (e) {
+        return { count: 0, rows: [], error: e.message };
+      }),
       fetchJSON("/api/v1/live").catch(function (e) {
         return { available: false, error: e.message, rows: [] };
       }),
-    ]).then(function (pair) {
-      var recs = (pair[0].rows || []).filter(function (r) {
+    ]).then(function (triple) {
+      var recs = (triple[0].rows || []).filter(function (r) {
         return r.grain_key === grain || (r.namespace === ns && r.owner_name === wl);
       });
-      var live = pair[1];
+      var members = triple[1];
+      var memberRows = members.rows || [];
+      var live = triple[2];
       var liveRows = (live.rows || []).filter(function (r) {
         return r.namespace === ns && (r.owner_name === wl || !wl);
       });
@@ -760,6 +787,33 @@
           "</div>";
         html += '<pre class="meta" id="patch-preview" hidden></pre>';
       }
+      html += "</section><section><h3>Pods (store)</h3>";
+      if (members.error) {
+        html += "<p class=\"meta\">" + escapeHTML(members.error) + "</p>";
+      } else if (!memberRows.length) {
+        html += "<p class=\"meta\">No store members for this workload in the window.</p>";
+      } else {
+        if (members.captured_at) {
+          html +=
+            '<p class="meta">Latest sample ' +
+            escapeHTML(members.captured_at) +
+            " · " +
+            memberRows.length +
+            " container(s)</p>";
+        }
+        html += "<dl>";
+        memberRows.forEach(function (r) {
+          html +=
+            "<dt>" +
+            escapeHTML(r.pod + "/" + r.container) +
+            "</dt><dd>cpu " +
+            r.cpu_util_mcores +
+            " / req " +
+            r.cpu_request_mcores +
+            " m</dd>";
+        });
+        html += "</dl>";
+      }
       html += "</section><section><h3>Live</h3>";
       if (!live.available) {
         html += "<p class=\"meta\">" + escapeHTML(live.error || "Kube unavailable") + "</p>";
@@ -767,7 +821,7 @@
         html += "<p class=\"meta\">No live rows for this workload.</p>";
       } else {
         html += "<dl>";
-        liveRows.slice(0, 8).forEach(function (r) {
+        liveRows.forEach(function (r) {
           html +=
             "<dt>" +
             escapeHTML(r.pod + "/" + r.container) +
