@@ -1,6 +1,6 @@
 # kpm — minimal runtime image (build from repo root: make docker-build)
-# Digest is the multi-arch index, checked 2026-10-25.
-FROM golang:1.27.3-alpine3.24@sha256:b8c9b82affbbb82a020bbcf998dad2ba9516944ac7e883524642a481a9505e9c AS build
+# Digest is the multi-arch index, checked 2026-11-13.
+FROM golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS build
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILDDATE=unknown

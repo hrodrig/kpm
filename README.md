@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
+[![Go 1.27.4](https://img.shields.io/badge/Go-1.27.4-00ADD8.svg)](https://go.dev/dl/)
 [![CI](https://github.com/hrodrig/kpm/actions/workflows/ci.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/ci.yml)
 [![Security](https://github.com/hrodrig/kpm/actions/workflows/security.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/security.yml)
 [![CodeQL](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml)
@@ -41,6 +41,7 @@ operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github
 - **`GET /livez`** — liveness. `GET /healthz` is the same handler, so probes that already call `/healthz` keep working.
 - **Go 1.27.3** — [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809). `crypto/x509` in 1.27.2 trusted a compromised intermediate.
 - **1.1.1** — MCP tools advertise all four annotations; `golang.org/x/net` **v0.62.0** (GO-2026-6866 / GO-2026-6860).
+- **Unreleased toolchain** — Go **1.27.4** ([GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859) / CVE-2026-97054: `net/http` MaxBytesReader header race).
 
 Contract: **[SPEC §7.4](SPECIFICATIONS.md)** · path: **[ROADMAP](docs/ROADMAP.md)**.
 
@@ -166,6 +167,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - [Status](#status)
 - [Roadmap](#roadmap)
 - [Quick start](#quick-start)
+- [TCP listeners and MPTCP](#tcp-listeners-and-mptcp)
 - [Development](#development)
 - [License](#license)
 
@@ -273,6 +275,38 @@ kubectl kpm sample --config ./kpm.yml
 ```
 
 GoReleaser ships both `kpm` and `kubectl-kpm`. Krew index deferred.
+
+[↑ Back to top](#top)
+
+---
+
+## TCP listeners and MPTCP
+
+Go 1.24+ enables Multipath TCP by default on Linux listen sockets. MPTCP
+listeners are the exposure path for **CVE-2026-98432**, a use-after-free in the
+kernel's IPv4 TCP stack reachable before the connection is accepted. kpm opts
+out at two levels (same approach as [gghstats](https://github.com/hrodrig/gghstats)):
+
+- `godebug multipathtcp=0` in `go.mod`, so every socket the binary opens
+  defaults to plain TCP;
+- `net.ListenConfig.SetMultipathTCP(false)` on the shared HTTP listener
+  (`kpm serve` and the sample daemon when MCP/server listen), which a
+  `GODEBUG` change in the environment cannot re-enable.
+
+This hardens the process; it does **not** fix the kernel. Patch the host
+kernel (see your distribution's advisory). Default bind is still
+`127.0.0.1:9740` — keep it that way behind a reverse proxy when your scraper
+allows it, but note a loopback bind alone does **not** disable MPTCP.
+
+Until you upgrade past this change, older Linux binaries can set
+`GODEBUG=multipathtcp=0` in the process environment (fragile; still not a
+kernel fix). To confirm the build default:
+
+```bash
+go list -f '{{.DefaultGODEBUG}}' ./cmd/kpm
+```
+
+The output must include `multipathtcp=0`.
 
 [↑ Back to top](#top)
 

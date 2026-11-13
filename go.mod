@@ -1,6 +1,8 @@
 module github.com/hrodrig/kpm
 
-go 1.27.3
+go 1.27.4
+
+godebug multipathtcp=0
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10

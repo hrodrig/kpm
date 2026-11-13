@@ -1040,7 +1040,7 @@ platform (also printed on `kpm serve` startup and in the UI footer):
   "commit": "abc1234",
   "build_date": "2026-11-05T00:00:00Z",
   "branch": "develop",
-  "go_version": "go1.27.3",
+  "go_version": "go1.27.4",
   "platform": "linux/amd64",
   "store_path": "/var/lib/kpm/example.db",
   "sample_interval_seconds": 0,
@@ -1158,6 +1158,7 @@ tui:
 | Secrets | `*_env` **names** in YAML; the values come only from the environment, never from the file. |
 | Notify / MCP HTTP / server | **Fail closed.** A sink whose env var is missing or empty refuses to build (`environment variable X is missing or empty (fail-closed)`); `mcp.token_env` is required when `mcp.listen` is non-loopback; `server.token_env` (or `mcp.token_env`) is required when server auth is on. |
 | MCP / server bind | **`127.0.0.1:9740`** by default. Binding anywhere else requires a token. |
+| TCP listeners (MPTCP) | **Plain TCP.** Module `godebug multipathtcp=0` plus `ListenConfig.SetMultipathTCP(false)` on the shared HTTP listen path — mitigates the Go 1.24+ MPTCP listen default that is the demonstrated exposure for **CVE-2026-98432**. Does **not** replace a patched host kernel. Loopback bind alone does not disable MPTCP. |
 | K8s RBAC deny | **Fail closed.** A denied List surfaces as exit `2`, never as an empty result. |
 | Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
 | Ops paths | `/livez`, `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. `/healthz` is an alias of `/livez`. |

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Toolchain **`go 1.27.4`**. Clears [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859)
+  (CVE-2026-97054: HTTP/1 server crash via `MaxBytesReader` header race in
+  `net/http`). `go 1.27.3` was affected.
+- **Multipath TCP disabled on Linux:** Go 1.24+ enables MPTCP on listen sockets
+  by default, the exposure path for **CVE-2026-98432** (IPv4 TCP use-after-free
+  in the Linux kernel). `go.mod` now sets `godebug multipathtcp=0` and the
+  shared HTTP listener (`kpm serve` / sample daemon MCP+server) calls
+  `SetMultipathTCP(false)`, so the setting cannot be re-enabled from the
+  environment. Patching the kernel remains the actual fix
+  ([#158](https://github.com/hrodrig/kpm/issues/158)).
+
 ### Added
 
 - Analyze-local Details drawer lists **Pods (store)** from
