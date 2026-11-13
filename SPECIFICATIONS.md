@@ -1040,7 +1040,7 @@ platform (also printed on `kpm serve` startup and in the UI footer):
   "commit": "abc1234",
   "build_date": "2026-11-05T00:00:00Z",
   "branch": "develop",
-  "go_version": "go1.27.3",
+  "go_version": "go1.27.4",
   "platform": "linux/amd64",
   "store_path": "/var/lib/kpm/example.db",
   "sample_interval_seconds": 0,
