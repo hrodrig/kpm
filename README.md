@@ -166,6 +166,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - [Status](#status)
 - [Roadmap](#roadmap)
 - [Quick start](#quick-start)
+- [TCP listeners and MPTCP](#tcp-listeners-and-mptcp)
 - [Development](#development)
 - [License](#license)
 
@@ -273,6 +274,38 @@ kubectl kpm sample --config ./kpm.yml
 ```
 
 GoReleaser ships both `kpm` and `kubectl-kpm`. Krew index deferred.
+
+[↑ Back to top](#top)
+
+---
+
+## TCP listeners and MPTCP
+
+Go 1.24+ enables Multipath TCP by default on Linux listen sockets. MPTCP
+listeners are the exposure path for **CVE-2026-98432**, a use-after-free in the
+kernel's IPv4 TCP stack reachable before the connection is accepted. kpm opts
+out at two levels (same approach as [gghstats](https://github.com/hrodrig/gghstats)):
+
+- `godebug multipathtcp=0` in `go.mod`, so every socket the binary opens
+  defaults to plain TCP;
+- `net.ListenConfig.SetMultipathTCP(false)` on the shared HTTP listener
+  (`kpm serve` and the sample daemon when MCP/server listen), which a
+  `GODEBUG` change in the environment cannot re-enable.
+
+This hardens the process; it does **not** fix the kernel. Patch the host
+kernel (see your distribution's advisory). Default bind is still
+`127.0.0.1:9740` — keep it that way behind a reverse proxy when your scraper
+allows it, but note a loopback bind alone does **not** disable MPTCP.
+
+Until you upgrade past this change, older Linux binaries can set
+`GODEBUG=multipathtcp=0` in the process environment (fragile; still not a
+kernel fix). To confirm the build default:
+
+```bash
+go list -f '{{.DefaultGODEBUG}}' ./cmd/kpm
+```
+
+The output must include `multipathtcp=0`.
 
 [↑ Back to top](#top)
 

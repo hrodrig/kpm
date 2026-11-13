@@ -35,6 +35,11 @@ Wants=network.target
 Type=simple
 ExecStart=/usr/bin/kpm sample --config /etc/kpm/kpm.yaml
 Environment=KPM_STORE_PATH=/var/lib/kpm/metrics.db
+# Builds with go.mod godebug multipathtcp=0 + SetMultipathTCP(false) already
+# listen as plain TCP. For older binaries on Linux until you upgrade, or as a
+# belt-and-suspenders env for CVE-2026-98432 exposure until the kernel is
+# patched (fragile; kernel patch is the real fix):
+# Environment=GODEBUG=multipathtcp=0
 StateDirectory=kpm
 Restart=on-failure
 RestartSec=30

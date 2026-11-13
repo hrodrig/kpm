@@ -126,10 +126,24 @@ kpm_sample_writes_total %d
 `, ticks, sampleErrs, notifyErrs, avgSec, writeN)
 }
 
+// listenTCP opens a TCP listener with Multipath TCP explicitly disabled.
+//
+// Go 1.24+ enables MPTCP on Linux listen sockets by default (GODEBUG
+// multipathtcp). MPTCP listeners are the exposure path behind CVE-2026-98432: a
+// use-after-free in the Linux kernel IPv4 TCP stack, reachable before the
+// process accepts the connection. The per-socket setting overrides GODEBUG, so
+// an operator environment cannot re-enable MPTCP for this listener; the kernel
+// still has to be patched. On non-Linux platforms this is a no-op.
+func listenTCP(ctx context.Context, addr string) (net.Listener, error) {
+	var lc net.ListenConfig
+	lc.SetMultipathTCP(false)
+	return lc.Listen(ctx, "tcp", addr)
+}
+
 // ListenAndServe binds addr and serves until ctx is cancelled.
 // It returns nil on graceful shutdown; other errors are returned.
 func (s *Server) ListenAndServe(ctx context.Context) error {
-	ln, err := net.Listen("tcp", s.addr)
+	ln, err := listenTCP(ctx, s.addr)
 	if err != nil {
 		return fmt.Errorf("httpserver listen %s: %w", s.addr, err)
 	}
