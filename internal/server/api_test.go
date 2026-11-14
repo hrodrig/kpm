@@ -360,14 +360,19 @@ func multiContainerFixture(t *testing.T, now time.Time) *store.Store {
 	return st
 }
 
-func TestAPIPerContainerCards(t *testing.T) {
-	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
-	st := multiContainerFixture(t, now)
+func multiContainerMux(t *testing.T, now time.Time) *http.ServeMux {
+	t.Helper()
 	mux := http.NewServeMux()
 	server.Mount(mux, &server.Deps{
-		Store: st, Version: "v",
+		Store: multiContainerFixture(t, now), Version: "v",
 		Now: func() time.Time { return now },
 	}, "")
+	return mux
+}
+
+func TestAPIPerContainerWorkloads(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
 
 	rr := authedGet(mux, "/api/v1/workloads?window=24h", "")
 	var wl server.WorkloadsOut
@@ -387,38 +392,44 @@ func TestAPIPerContainerCards(t *testing.T) {
 	if byC["app"].Samples < 1 || byC["nginx"].Samples < 1 {
 		t.Fatalf("missing containers %+v", wl.Items)
 	}
+}
 
-	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=foo&container=app&metric=cpu_util_mcores&window=24h", "")
-	var appSeries server.SeriesOut
-	_ = json.Unmarshal(rr.Body.Bytes(), &appSeries)
-	if rr.Code != http.StatusOK || appSeries.Request == nil || *appSeries.Request != 50 {
-		t.Fatalf("app series req want 50: %d %+v", rr.Code, appSeries)
+func assertSeriesReqLim(t *testing.T, mux *http.ServeMux, container string, wantReq, wantLim float64) {
+	t.Helper()
+	path := "/api/v1/series?namespace=app&workload=foo&container=" + container + "&metric=cpu_util_mcores&window=24h"
+	rr := authedGet(mux, path, "")
+	var out server.SeriesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &out)
+	if rr.Code != http.StatusOK || out.Request == nil || *out.Request != wantReq {
+		t.Fatalf("%s series req want %g: %d %+v", container, wantReq, rr.Code, out)
 	}
-	if appSeries.Limit == nil || *appSeries.Limit != 1000 {
-		t.Fatalf("app series lim %+v", appSeries.Limit)
+	if out.Limit == nil || *out.Limit != wantLim {
+		t.Fatalf("%s series lim want %g got %+v", container, wantLim, out.Limit)
 	}
-	if appSeries.Container != "app" {
-		t.Fatalf("app series container %q", appSeries.Container)
+	if out.Container != container {
+		t.Fatalf("%s series container %q", container, out.Container)
 	}
+}
 
-	rr = authedGet(mux, "/api/v1/series?namespace=app&workload=foo&container=nginx&metric=cpu_util_mcores&window=24h", "")
-	var ngxSeries server.SeriesOut
-	_ = json.Unmarshal(rr.Body.Bytes(), &ngxSeries)
-	if rr.Code != http.StatusOK || ngxSeries.Request == nil || *ngxSeries.Request != 10 {
-		t.Fatalf("nginx series req want 10: %d %+v", rr.Code, ngxSeries)
-	}
-	if ngxSeries.Limit == nil || *ngxSeries.Limit != 50 {
-		t.Fatalf("nginx series lim %+v", ngxSeries.Limit)
-	}
+func TestAPIPerContainerSeries(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
+	assertSeriesReqLim(t, mux, "app", 50, 1000)
+	assertSeriesReqLim(t, mux, "nginx", 10, 50)
 
-	rr = authedGet(mux, "/api/v1/series/batch?workloads=app/foo/app,app/foo/nginx&metric=cpu_util_mcores&window=24h", "")
+	rr := authedGet(mux, "/api/v1/series/batch?workloads=app/foo/app,app/foo/nginx&metric=cpu_util_mcores&window=24h", "")
 	var batch server.SeriesBatchOut
 	_ = json.Unmarshal(rr.Body.Bytes(), &batch)
 	if rr.Code != http.StatusOK || len(batch.Items) != 2 {
 		t.Fatalf("batch %d %+v", rr.Code, batch)
 	}
+}
 
-	rr = authedGet(mux, "/api/v1/recommendations?grain=workload", "")
+func TestAPIPerContainerRecs(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
+
+	rr := authedGet(mux, "/api/v1/recommendations?grain=workload", "")
 	var recs server.RecsOut
 	_ = json.Unmarshal(rr.Body.Bytes(), &recs)
 	if rr.Code != http.StatusOK || recs.Count != 2 {

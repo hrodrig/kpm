@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 // ListRecords returns samples matching the filter (same selectors as Export).
@@ -35,31 +34,7 @@ func listRecordsSQL(f ExportFilter) (string, []any) {
 		cpu_request_mcores, mem_request_bytes,
 		cpu_limit_mcores, mem_limit_bytes
 		FROM samples WHERE 1=1`
-	var args []any
-	if !f.Since.IsZero() {
-		q += ` AND sampled_at >= ?`
-		args = append(args, FormatUTC(f.Since))
-	}
-	if !f.Until.IsZero() {
-		q += ` AND sampled_at < ?`
-		args = append(args, FormatUTC(f.Until))
-	}
-	if ns := strings.TrimSpace(f.Namespace); ns != "" {
-		q += ` AND namespace = ?`
-		args = append(args, ns)
-	}
-	if pod := strings.TrimSpace(f.Pod); pod != "" {
-		q += ` AND pod = ?`
-		args = append(args, pod)
-	}
-	if wl := strings.TrimSpace(f.Workload); wl != "" {
-		q += ` AND owner_name = ?`
-		args = append(args, wl)
-	}
-	if c := strings.TrimSpace(f.Container); c != "" {
-		q += ` AND container = ?`
-		args = append(args, c)
-	}
+	q, args := appendSampleFilters(q, nil, f)
 	if f.Newest && f.Limit > 0 {
 		q += ` ORDER BY sampled_at DESC, id DESC`
 	} else {
