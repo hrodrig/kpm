@@ -35,7 +35,17 @@
   };
 
   var recByGrain = {};
-  var recByOwner = {};
+  var recByContainer = {};
+
+  /** Thousands separators for counts (en-US: 376,059). */
+  function formatCount(n) {
+    n = Number(n) || 0;
+    try {
+      return n.toLocaleString("en-US");
+    } catch (e) {
+      return String(n);
+    }
+  }
 
   function apiURL(path, params) {
     var u = new URL(path, window.location.origin);
@@ -332,12 +342,14 @@
     }
   }
 
+  function containerRecKey(ns, owner, container) {
+    return (ns || "") + "/" + (owner || "") + "/" + (container || "");
+  }
+
   function lookupRec(item) {
-    return (
-      recByGrain[item.grain_key] ||
-      recByOwner[item.namespace + "/" + (item.owner_name || "")] ||
-      null
-    );
+    var byC = recByContainer[containerRecKey(item.namespace, item.owner_name, item.container)];
+    if (byC) return byC;
+    return recByGrain[item.grain_key] || null;
   }
 
   function fmtDeltaM(d) {
@@ -413,17 +425,24 @@
 
   function indexRecommendations(rows) {
     recByGrain = {};
-    recByOwner = {};
+    recByContainer = {};
     (rows || []).forEach(function (r) {
       if (r.grain_key) recByGrain[r.grain_key] = r;
-      if (r.namespace && r.owner_name) {
-        recByOwner[r.namespace + "/" + r.owner_name] = r;
+      if (r.namespace && r.owner_name && r.container) {
+        recByContainer[containerRecKey(r.namespace, r.owner_name, r.container)] = r;
       }
     });
   }
 
   function cardHTML(item) {
-    var title = item.owner_name || item.grain_key;
+    var owner = item.owner_name || "";
+    var container = item.container || "";
+    var title = owner;
+    if (container) {
+      title = owner ? owner + " / " + container : container;
+    } else if (!title) {
+      title = item.grain_key;
+    }
     var id = encodeURIComponent(item.grain_key);
     var meta = metricInfo(state.metric);
     return (
@@ -432,7 +451,9 @@
       '" data-ns="' +
       escapeAttr(item.namespace) +
       '" data-wl="' +
-      escapeAttr(item.owner_name || "") +
+      escapeAttr(owner) +
+      '" data-container="' +
+      escapeAttr(container) +
       '">' +
       "<h2>" +
       escapeHTML(title) +
@@ -440,7 +461,7 @@
       '<div class="meta">' +
       escapeHTML(item.grain_key) +
       " · " +
-      item.samples +
+      formatCount(item.samples) +
       " samples</div>" +
       cardVerdictHTML(item) +
       '<div class="chart-stats">' +
@@ -533,7 +554,7 @@
           "store " +
           (st.store_path || "?") +
           " · samples " +
-          (st.sample_count || 0) +
+          formatCount(st.sample_count || 0) +
           " · " +
           (st.kube_live ? "kube live" : "store only") +
           " · " +
@@ -647,8 +668,9 @@
     Array.prototype.forEach.call(cards, function (card) {
       var ns = card.getAttribute("data-ns") || "";
       var wl = card.getAttribute("data-wl") || "";
+      var c = card.getAttribute("data-container") || "";
       if (!ns || !wl) return;
-      var id = ns + "/" + wl;
+      var id = ns + "/" + wl + (c ? "/" + c : "");
       if (!byKey[id]) {
         byKey[id] = [];
         keys.push(id);
@@ -672,7 +694,11 @@
         );
         return fetchJSON("/api/v1/series/batch", params).then(function (batch) {
           (batch.items || []).forEach(function (series) {
-            var id = (series.namespace || "") + "/" + (series.workload || "");
+            var id =
+              (series.namespace || "") +
+              "/" +
+              (series.workload || "") +
+              (series.container ? "/" + series.container : "");
             (byKey[id] || []).forEach(function (card) {
               drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
                 request: series.request,
@@ -703,6 +729,7 @@
       {
         namespace: card.getAttribute("data-ns"),
         workload: card.getAttribute("data-wl"),
+        container: card.getAttribute("data-container") || "",
         metric: state.metric,
         max_points: "120",
       },
@@ -719,8 +746,9 @@
   function openDrawer(card) {
     var ns = card.getAttribute("data-ns");
     var wl = card.getAttribute("data-wl");
+    var container = card.getAttribute("data-container") || "";
     var grain = decodeURIComponent(card.getAttribute("data-grain"));
-    el.drawerTitle.textContent = wl || grain;
+    el.drawerTitle.textContent = container ? (wl || "") + " / " + container : wl || grain;
     el.drawerBody.innerHTML = '<div class="loading">Loading…</div>';
     el.drawer.classList.add("open");
     el.backdrop.classList.add("open");
@@ -739,7 +767,10 @@
       }),
     ]).then(function (triple) {
       var recs = (triple[0].rows || []).filter(function (r) {
-        return r.grain_key === grain || (r.namespace === ns && r.owner_name === wl);
+        if (r.grain_key === grain) return true;
+        if (r.namespace !== ns || r.owner_name !== wl) return false;
+        if (container) return r.container === container;
+        return true;
       });
       var members = triple[1];
       var memberRows = members.rows || [];

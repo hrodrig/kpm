@@ -161,11 +161,12 @@ func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// WorkloadOut is one grain with activity in the window.
+// WorkloadOut is one container grain with activity in the window.
 type WorkloadOut struct {
 	Namespace string `json:"namespace"`
 	OwnerKind string `json:"owner_kind,omitempty"`
 	OwnerName string `json:"owner_name,omitempty"`
+	Container string `json:"container,omitempty"`
 	GrainKey  string `json:"grain_key"`
 	Samples   int64  `json:"samples"`
 	FirstAt   string `json:"first_at,omitempty"`
@@ -209,19 +210,22 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 		return nil, err
 	}
 	if len(recs) > MaxWorkloadsScanRows {
-		return nil, fmt.Errorf("sample window exceeds %d rows; narrow namespace, workload, or window", MaxWorkloadsScanRows)
+		return nil, fmt.Errorf("sample window exceeds %s rows; narrow namespace, workload, or window", formatIntCommas(MaxWorkloadsScanRows))
 	}
 	type agg struct {
-		ns, kind, name string
-		n              int64
-		first, last    time.Time
+		ns, kind, name, container string
+		n                         int64
+		first, last               time.Time
 	}
 	m := map[string]*agg{}
 	for _, r := range recs {
-		key := grainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Pod)
+		key := grainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Pod, r.Container)
 		a := m[key]
 		if a == nil {
-			a = &agg{ns: r.Namespace, kind: r.OwnerKind, name: r.OwnerName, first: r.SampledAt, last: r.SampledAt}
+			a = &agg{
+				ns: r.Namespace, kind: r.OwnerKind, name: r.OwnerName,
+				container: r.Container, first: r.SampledAt, last: r.SampledAt,
+			}
 			if a.name == "" {
 				a.name = r.Pod
 			}
@@ -247,6 +251,7 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 			Namespace: a.ns,
 			OwnerKind: a.kind,
 			OwnerName: a.name,
+			Container: a.container,
 			GrainKey:  k,
 			Samples:   a.n,
 			FirstAt:   a.first.UTC().Format(time.RFC3339),
@@ -256,14 +261,21 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 	return out, nil
 }
 
-func grainKey(ns, kind, name, pod string) string {
+func grainKey(ns, kind, name, pod, container string) string {
+	c := strings.TrimSpace(container)
 	if strings.TrimSpace(name) != "" {
 		if kind == "" {
 			kind = "Workload"
 		}
-		return ns + "/" + kind + "/" + name
+		if c == "" {
+			return ns + "/" + kind + "/" + name
+		}
+		return ns + "/" + kind + "/" + name + "/" + c
 	}
-	return ns + "/Pod/" + pod
+	if c == "" {
+		return ns + "/Pod/" + pod
+	}
+	return ns + "/Pod/" + pod + "/" + c
 }
 
 // SeriesPoint is one downsampled metric sample.
@@ -277,6 +289,7 @@ type SeriesOut struct {
 	Metric      string        `json:"metric"`
 	Namespace   string        `json:"namespace,omitempty"`
 	Workload    string        `json:"workload,omitempty"`
+	Container   string        `json:"container,omitempty"`
 	Count       int           `json:"count"`
 	Downsampled bool          `json:"downsampled"`
 	Truncated   bool          `json:"truncated,omitempty"`
@@ -331,7 +344,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 	}
 	keys := parseWorkloadKeys(r)
 	if len(keys) == 0 {
-		writeErr(w, http.StatusBadRequest, "workloads required (ns/name,ns/name or repeated workload=)")
+		writeErr(w, http.StatusBadRequest, "workloads required (ns/name[/container],… or repeated workload=)")
 		return
 	}
 	if len(keys) > maxSeriesBatchWorkloads {
@@ -345,6 +358,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 		f := base
 		f.Namespace = k.ns
 		f.Workload = k.wl
+		f.Container = k.container
 		out, err := a.buildSeries(ctx, metric, maxPts, f)
 		if err != nil {
 			writeReadErr(w, err)
@@ -359,7 +373,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, SeriesBatchOut{Metric: metric, Items: items})
 }
 
-type workloadKey struct{ ns, wl string }
+type workloadKey struct{ ns, wl, container string }
 
 func writeReadErr(w http.ResponseWriter, err error) {
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -378,16 +392,24 @@ func parseWorkloadKeys(r *http.Request) []workloadKey {
 		if raw == "" {
 			return
 		}
-		ns, wl, ok := strings.Cut(raw, "/")
-		if !ok || ns == "" || wl == "" {
+		parts := strings.SplitN(raw, "/", 3)
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return
 		}
+		ns, wl := parts[0], parts[1]
+		container := ""
+		if len(parts) == 3 {
+			container = parts[2]
+		}
 		id := ns + "/" + wl
+		if container != "" {
+			id += "/" + container
+		}
 		if seen[id] {
 			return
 		}
 		seen[id] = true
-		keys = append(keys, workloadKey{ns: ns, wl: wl})
+		keys = append(keys, workloadKey{ns: ns, wl: wl, container: container})
 	}
 	for _, w := range q["workload"] {
 		add(w)
@@ -446,6 +468,7 @@ func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f stor
 		Metric:      metric,
 		Namespace:   f.Namespace,
 		Workload:    f.Workload,
+		Container:   f.Container,
 		Count:       len(pts),
 		Downsampled: down,
 		Truncated:   truncated,
@@ -553,6 +576,7 @@ type RecOut struct {
 	Namespace    string  `json:"namespace,omitempty"`
 	OwnerKind    string  `json:"owner_kind,omitempty"`
 	OwnerName    string  `json:"owner_name,omitempty"`
+	Container    string  `json:"container,omitempty"`
 	Samples      int     `json:"samples"`
 	CPUPMcores   float64 `json:"cpu_p_mcores"`
 	MemPBytes    int64   `json:"mem_p_bytes"`
@@ -667,6 +691,7 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 			Namespace:       rec.Namespace,
 			OwnerKind:       rec.OwnerKind,
 			OwnerName:       rec.OwnerName,
+			Container:       rec.Container,
 			Samples:         rec.Samples,
 			CPUPMcores:      rec.CPUPMcores,
 			MemPBytes:       rec.MemPBytes,
@@ -894,6 +919,7 @@ func filterFromQuery(r *http.Request, now time.Time) (store.ExportFilter, error)
 		Namespace: strings.TrimSpace(q.Get("namespace")),
 		Workload:  strings.TrimSpace(q.Get("workload")),
 		Pod:       strings.TrimSpace(q.Get("pod")),
+		Container: strings.TrimSpace(q.Get("container")),
 	}
 	since := strings.TrimSpace(q.Get("since"))
 	until := strings.TrimSpace(q.Get("until"))

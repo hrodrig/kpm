@@ -56,6 +56,10 @@ func listRecordsSQL(f ExportFilter) (string, []any) {
 		q += ` AND owner_name = ?`
 		args = append(args, wl)
 	}
+	if c := strings.TrimSpace(f.Container); c != "" {
+		q += ` AND container = ?`
+		args = append(args, c)
+	}
 	if f.Newest && f.Limit > 0 {
 		q += ` ORDER BY sampled_at DESC, id DESC`
 	} else {

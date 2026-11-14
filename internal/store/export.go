@@ -16,6 +16,7 @@ type ExportFilter struct {
 	Namespace string
 	Pod       string
 	Workload  string // matches owner_name
+	Container string // matches container name
 	// Limit caps rows returned (0 = unlimited). When Newest is true, the
 	// newest Limit rows are chosen (SQL DESC) then returned in ascending order.
 	Limit  int
@@ -78,6 +79,10 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 	if wl := strings.TrimSpace(f.Workload); wl != "" {
 		q += ` AND owner_name = ?`
 		args = append(args, wl)
+	}
+	if c := strings.TrimSpace(f.Container); c != "" {
+		q += ` AND container = ?`
+		args = append(args, c)
 	}
 	q += ` ORDER BY sampled_at ASC, id ASC`
 

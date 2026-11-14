@@ -959,12 +959,13 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
 - **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
-  (no SPA/npm). Workload cards fetch `/api/v1/series` and join latest
-  recommendations for verdict badges; drawers show recommendations, store
-  members (`/members`), optional live enrichment, and copy/download patch.
-  Summary strip counts oversized / undersized / ok / no-req. Window presets
-  1h/24h/48h/7d/15d + custom range. Browser unlock form stores bearer for API
-  calls when required.
+  (no SPA/npm). Per-container cards fetch `/api/v1/series` (with `container`)
+  and join latest recommendations by namespace+owner+container for verdict
+  badges; drawers show that container's recommendations, store members
+  (`/members` for the owner), optional live enrichment, and copy/download
+  patch. Summary strip counts oversized / undersized / ok / no-req per card.
+  Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock form stores
+  bearer for API calls when required.
 
 ### 8.2 Relationship to capacity / TUI (Normative)
 
@@ -992,18 +993,23 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.4 Analyze-local UX (Normative)
 
-- Per-workload chart cards from store series; window presets (1h / 24h / 48h /
-  7d / 15d) + custom range. Maximum window span is **15d** (including free Go
-  durations and `since`/`until`). Store queries use index
-  `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
+- **Per-container** chart cards from store series (one card per
+  `namespace/owner_kind/owner_name/container`, or `namespace/Pod/pod/container`
+  when unowned). Multi-container Deployments do **not** collapse into a single
+  owner card. Window presets (1h / 24h / 48h / 7d / 15d) + custom range.
+  Maximum window span is **15d** (including free Go durations and
+  `since`/`until`). Store queries use index `(namespace, owner_name, sampled_at)`.
+  `GET /series` accepts optional `container=` and clamps to the newest
   **10,000** matching rows (`truncated: true` when clamped). `GET /series/batch`
-  accepts at most **20** workloads (HTTP 400 above that); the charts page
-  requests further batches of 20. `GET /series`, `GET /series/batch`, and
+  accepts at most **20** keys (HTTP 400 above that); keys are `ns/name` or
+  `ns/name/container`; the charts page requests further batches of 20 and always
+  sends the container segment. `GET /series`, `GET /series/batch`, and
   `GET /workloads` each bound the store read to **15s** and return HTTP 503
   `store query timed out` when that elapses. `GET /workloads` fails
-  closed (HTTP 413) above 100k rows in the window.
-- Collapsible drawer: store recommendations; **Pods (store)** from
-  `/api/v1/members` (all containers at the latest sample for the card grain);
+  closed (HTTP 413) above 100k rows in the window; each item includes
+  `container` and a grain_key that ends with that container.
+- Collapsible drawer: recommendations for the card’s container; **Pods (store)**
+  from `/api/v1/members` (all containers at the latest sample for the owner);
   if kube available, **Live** current util/request (+ delta vs suggest when
   both exist). Live never replaces the store member list.
 - Mode chip from `status.kube_live`: **`live`** when the Metrics client was
@@ -1018,13 +1024,14 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
 
-- `GET /api/v1/recommendations` includes `cpu_verdict` / `mem_verdict`
-  (`oversized|undersized|ok|n/a`) from p-util vs current request
+- `GET /api/v1/recommendations` includes `container`, `cpu_verdict` /
+  `mem_verdict` (`oversized|undersized|ok|n/a`) from p-util vs current request
   (`SnapshotVerdicts` / `Classify` with config oversize/undersize ratios),
   plus `cpu_delta_mcores` / `mem_delta_bytes` (suggested − request).
-- Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
-  (undersized beats oversized beats ok; `n/a` = no request; missing row =
-  no recommend).
+- Cards show CPU/Mem badges joined on `namespace` + `owner_name` + `container`
+  (never a silent last-write across sidecars). Page summary counts
+  worst-of-pair **per card** (undersized beats oversized beats ok; `n/a` = no
+  request; missing row = no recommend).
 - Node capacity snapshots (`#20b`): `kpm capacity --record-nodes` writes
   `node_snapshots` (under-demand; not every sample tick). Analyze-local
   `GET /api/v1/nodes` reads the latest batch offline (no kube).
@@ -1061,10 +1068,11 @@ platform (also printed on `kpm serve` startup and in the UI footer):
   "rows": [
     {
       "grain": "workload",
-      "grain_key": "app/Deployment/api",
+      "grain_key": "Deployment/api/main",
       "namespace": "app",
       "owner_kind": "Deployment",
       "owner_name": "api",
+      "container": "main",
       "cpu_p_mcores": 40,
       "cpu_req_mcores": 200,
       "cpu_sug_mcores": 100,

@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   platform, and Go runtime (same idea as pgwd/gghstats). `GET /api/v1/status`
   and the UI footer expose the same build metadata.
 
+### Fixed
+
+- Analyze-local chart cards are **one per container** (`GET /workloads` grain
+  includes container; `/series` and `/series/batch` accept `container`). Req/lim
+  guides and rightsizing badges no longer silently show a sidecar under a
+  Deployment-only title
+  ([#159](https://github.com/hrodrig/kpm/issues/159)).
+
+### Changed
+
+- Analyze-local UI and the `/workloads` scan-limit error use **thousands
+  separators** (`samples 376,059`; `exceeds 100,000 rows`).
+
 ## [1.1.1] - 2026-11-04
 
 ### Security
