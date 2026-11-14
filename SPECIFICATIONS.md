@@ -1,11 +1,12 @@
 # SPECIFICATIONS — kpm
 
-> **Status: normative — describes the `v1.1.1` tree.** Every section below is
+> **Status: normative — describes the `v1.2.0` tree.** Every section below is
 > implemented and must not regress without a CHANGELOG entry. The CLI surface and the
 > store schema are frozen at `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
 > `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
 > `v0.8.0`, capacity truth + `restore` `v0.9.0`, harden `v1.0.0`, liveness `/livez` `v1.1.0`,
-> MCP annotations + `x/net` v0.62.0 `v1.1.1`.
+> MCP annotations + `x/net` v0.62.0 `v1.1.1`, Go 1.27.4 / MPTCP / per-container cards /
+> store-backed members `v1.2.0`.
 
 | Term | Meaning |
 |------|---------|
