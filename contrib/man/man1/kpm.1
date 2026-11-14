@@ -1,5 +1,5 @@
 .\" kpm(1) - Kubernetes Pods Metrics
-.TH KPM 1 "2026-11-04" "kpm v1.1.1" "User Commands"
+.TH KPM 1 "2026-11-14" "kpm v1.2.0" "User Commands"
 .SH NAME
 kpm \- Kubernetes Pods Metrics (sample CPU/mem, recommend rightsizing)
 .SH SYNOPSIS
@@ -49,6 +49,19 @@ Safe SQLite copy via
 .B VACUUM INTO
 .RB ( \-\-config ,
 .BR \-\-output , \-o ).
+Use this before taking the store to another host for
+.B kpm serve
+/
+.B kpm mcp
+analyze-local.
+Do not
+.BR cp / scp / rsync
+a live
+.B store.path
+while the sampler is writing (WAL hot copies often fail
+.BR integrity_check ).
+See
+.BR docs/take\-home\-store.md .
 .TP
 .B restore
 Install a backup at the store path, or merge only the rows the store is missing

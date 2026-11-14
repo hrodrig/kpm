@@ -97,10 +97,13 @@ func mountHTTPFacades(
 	}
 	if cfg.Server.Enabled {
 		server.MountAll(srv.Mux(), &server.Deps{
-			Store:   st,
-			Config:  cfg,
-			Version: Version,
-			Live:    liveFn,
+			Store:     st,
+			Config:    cfg,
+			Version:   Version,
+			Commit:    Commit,
+			BuildDate: BuildDate,
+			Branch:    Branch,
+			Live:      liveFn,
 		}, apiTok)
 	}
 	return nil

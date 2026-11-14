@@ -16,17 +16,20 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	body := mustGetBody(t, mux, "/", "text/html")
 	mustContain(t, body, "analyze-local", "/static/app.js", "theme-toggle",
 		"cluster-target", "recommend-summary", "mode-label", "site-footer",
+		"build-meta", "footer-build",
 		"https://github.com/hrodrig/kpm", "MIT License", "advisory only",
 		"filter-ns", "filter-owner", "filter-grain", "filter-cpu", "filter-mem",
 		"Clear filters", "Filter workloads", "nodes-panel", "Node capacity")
 
 	css := mustGetBody(t, mux, "/static/app.css", "")
-	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel")
+	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel", ".footer-build")
 
 	js := mustGetBody(t, mux, "/static/app.js", "")
 	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
 		"kube_live", "updateModeLabel", "filterItems", "workloadQueryParams",
-		"No workloads match these filters", "/api/v1/nodes", "record-nodes", "renderNodesPanel")
+		"No workloads match these filters", "/api/v1/nodes", "record-nodes", "renderNodesPanel",
+		"/api/v1/members", "Pods (store)", "formatBuildMeta", "build_date", "go_version",
+		"data-container", "recByContainer", "containerRecKey", "formatCount")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {

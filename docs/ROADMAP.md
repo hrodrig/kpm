@@ -2,7 +2,7 @@
 
 <a id="top"></a>
 
-Product path from scaffold through **v1.1.1**. Behavior contract:
+Product path from scaffold through **v1.2.0**. Behavior contract:
 [SPECIFICATIONS.md](../SPECIFICATIONS.md). Shipped history:
 [CHANGELOG.md](../CHANGELOG.md). Band plans (when needed): `docs/plan-0.Y.Z.md`.
 
@@ -11,7 +11,7 @@ Product path from scaffold through **v1.1.1**. Behavior contract:
 multi-sink, MCP stdio+HTTP, server embedded charts) are **stable and
 normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 
-**Last reviewed:** 2026-11-04
+**Last reviewed:** 2026-11-14
 
 ---
 
@@ -21,7 +21,7 @@ normative**. `kpm-selfhosted` (cron/Helm) is out of band — does not block 1.0.
 |------|-------|------|
 | **0.2.x–0.9.x** | Core → Insights → Notify → MCP → Server → Scale → Honesty → Capacity truth + restore | shipped `v0.2.0`–`v0.9.0` |
 | **1.0.0** | Harden and tag; no new surface | shipped `v1.0.0` — [plan-1.0.0.md](./plan-1.0.0.md) |
-| **Current** | **1.1.1** — MCP tool annotations; `golang.org/x/net` v0.62.0 | this release |
+| **Current** | **1.2.0** — Go 1.27.4 / MPTCP; store-backed members; per-container cards; take-home docs | this release |
 
 Scale band detail: [plan-0.7.0.md](./plan-0.7.0.md) (`v0.7.0`).
 
@@ -55,7 +55,8 @@ flowchart LR
 | **0.9.x** Truth + restore | Aggregation, `restore`, `capacity fit` (`#110`/`#111`), then E2E/docs/security/packaging (`#20`–`#23`, `#29`) | **Shipped** `v0.9.0` |
 | **1.0.0** Stable | Full SPEC surface normative; harden tail, no new surface | **Shipped** `v1.0.0` — [plan-1.0.0.md](./plan-1.0.0.md) |
 | **1.1.0** | Liveness `GET /livez` (`/healthz` alias); Go 1.27.3 (`GO-2026-6809`) | **Shipped** `v1.1.0` |
-| **1.1.1** | MCP tool annotations; `golang.org/x/net` v0.62.0 (`GO-2026-6866` / `GO-2026-6860`) | **Cutting** |
+| **1.1.1** | MCP tool annotations; `golang.org/x/net` v0.62.0 (`GO-2026-6866` / `GO-2026-6860`) | **Shipped** `v1.1.1` |
+| **1.2.0** | Go 1.27.4 / MPTCP; store-backed members `#156`; per-container cards `#159`; take-home store docs | **Cutting** |
 
 [↑ Back to top](#top)
 

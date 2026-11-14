@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-14
+
+### Security
+
+- Toolchain **`go 1.27.4`**. Clears [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859)
+  (CVE-2026-97054: HTTP/1 server crash via `MaxBytesReader` header race in
+  `net/http`). `go 1.27.3` was affected.
+- **Multipath TCP disabled on Linux:** Go 1.24+ enables MPTCP on listen sockets
+  by default, the exposure path for **CVE-2026-98432** (IPv4 TCP use-after-free
+  in the Linux kernel). `go.mod` now sets `godebug multipathtcp=0` and the
+  shared HTTP listener (`kpm serve` / sample daemon MCP+server) calls
+  `SetMultipathTCP(false)`, so the setting cannot be re-enabled from the
+  environment. Patching the kernel remains the actual fix
+  ([#158](https://github.com/hrodrig/kpm/issues/158)).
+
+### Added
+
+- Analyze-local Details drawer lists **Pods (store)** from
+  `GET /api/v1/members?namespace=&workload=` (latest sample cohort), so replica
+  counts come from SQLite even when `/live` is down or incomplete
+  ([#156](https://github.com/hrodrig/kpm/issues/156)).
+- `kpm serve` prints a startup banner with version, commit, build date, branch,
+  platform, and Go runtime (same idea as pgwd/gghstats). `GET /api/v1/status`
+  and the UI footer expose the same build metadata.
+
+### Fixed
+
+- Analyze-local chart cards are **one per container** (`GET /workloads` grain
+  includes container; `/series` and `/series/batch` accept `container`). Req/lim
+  guides and rightsizing badges no longer silently show a sidecar under a
+  Deployment-only title
+  ([#159](https://github.com/hrodrig/kpm/issues/159)).
+
+### Changed
+
+- Analyze-local UI and the `/workloads` scan-limit error use **thousands
+  separators** (`samples 376,059`; `exceeds 100,000 rows`).
+
+### Tests
+
+- Cover `grainKey` edge cases, negative short `formatIntCommas`, and the
+  `/workloads` 413 body with `100,000` (patch coverage for #159).
+
+### Docs
+
+- [docs/take-home-store.md](docs/take-home-store.md): take a consistent SQLite
+  snapshot home with **`kpm backup`** (`VACUUM INTO`) before laptop
+  analyze-local / MCP — raw hot `cp`/`scp` of a live `store.path` often fails
+  `integrity_check`. Linked from README §0.6, SPEC §2.4, man `backup`, and
+  [docs/mcp.md](docs/mcp.md). Clarifies **`recommend --record`** (rightsizing
+  rows) vs **`capacity --record-nodes`** (node snapshots).
+
 ## [1.1.1] - 2026-11-04
 
 ### Security
@@ -466,7 +518,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README family header (badges, nav, disclaimer, Related tools) + overview Mermaid.
 - `.gitignore`: drop duplicate `!.goreleaser.yaml` whitelist entry.
 
-[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/hrodrig/kpm/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/hrodrig/kpm/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/hrodrig/kpm/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/hrodrig/kpm/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/hrodrig/kpm/compare/v0.9.0...v1.0.0

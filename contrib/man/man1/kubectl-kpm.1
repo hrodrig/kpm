@@ -1,5 +1,5 @@
 .\" kubectl-kpm(1) - kubectl plugin shim for kpm
-.TH KUBECTL-KPM 1 "2026-11-04" "kpm v1.1.1" "User Commands"
+.TH KUBECTL-KPM 1 "2026-11-14" "kpm v1.2.0" "User Commands"
 .SH NAME
 kubectl-kpm \- kubectl plugin entrypoint for kpm
 .SH SYNOPSIS
@@ -40,7 +40,9 @@ Sample pod CPU/memory into SQLite (one-shot or daemon).
 .TP
 .B backup
 Safe SQLite copy via
-.BR VACUUM\ INTO .
+.BR VACUUM\ INTO
+(use before take-home analyze-local; see
+.BR docs/take\-home\-store.md ).
 .TP
 .B export
 Export samples as csv or tsv.

@@ -2,10 +2,10 @@
 
 <a id="top"></a>
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](https://github.com/hrodrig/kpm/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/hrodrig/kpm/releases)
 [![GitHub release](https://img.shields.io/github/v/release/hrodrig/kpm)](https://github.com/hrodrig/kpm/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Go 1.27.3](https://img.shields.io/badge/Go-1.27.3-00ADD8.svg)](https://go.dev/dl/)
+[![Go 1.27.4](https://img.shields.io/badge/Go-1.27.4-00ADD8.svg)](https://go.dev/dl/)
 [![CI](https://github.com/hrodrig/kpm/actions/workflows/ci.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/ci.yml)
 [![Security](https://github.com/hrodrig/kpm/actions/workflows/security.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/security.yml)
 [![CodeQL](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml/badge.svg)](https://github.com/hrodrig/kpm/actions/workflows/codeql.yml)
@@ -35,6 +35,17 @@ plus capacity/TUI and optional notify/MCP/**server charts** — see the SPEC.
 Bastion-first; in-cluster packaging later via
 **[kpm-selfhosted](https://github.com/hrodrig/kpm-selfhosted)** (same product vs
 operator split as [kwd](https://github.com/hrodrig/kwd) / [kzero](https://github.com/hrodrig/kzero) / [groot](https://github.com/hrodrig/groot)).
+
+### What’s new in 1.2 — Toolchain and analyze-local grain
+
+- **Go 1.27.4** — [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859) / CVE-2026-97054 (`net/http` MaxBytesReader header race).
+- **MPTCP disabled** on HTTP listeners ([#158](https://github.com/hrodrig/kpm/issues/158) / CVE-2026-98432 exposure path).
+- **Store-backed drawer members** — Pods list from SQLite when `/live` is down ([#156](https://github.com/hrodrig/kpm/issues/156)).
+- **One chart card per container** — req/lim and badges no longer mix sidecars ([#159](https://github.com/hrodrig/kpm/issues/159)).
+- **Thousands separators** in analyze-local sample counts; **`kpm serve`** startup banner with build metadata.
+- **[docs/take-home-store.md](docs/take-home-store.md)** — `kpm backup` before laptop analyze; `recommend --record` vs `capacity --record-nodes`.
+
+Contract: **[SPECIFICATIONS.md](SPECIFICATIONS.md)** · path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 1.1 — Liveness
 
@@ -113,8 +124,11 @@ path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.6 — analyze-local charts
 
-Copy the SQLite store to a laptop, run **`kpm serve`**, open charts —
-**no sample loop required**. Optional live Metrics when kubeconfig works.
+Take a **consistent** store home with **`kpm backup`**, run **`kpm serve`**, open
+charts — **no sample loop required**. Do **not** `cp`/`scp` the live `.db` while
+the sampler writes (WAL hot copies often look “malformed”). Guide:
+**[docs/take-home-store.md](docs/take-home-store.md)**. Optional live Metrics when
+kubeconfig works.
 
 - Workload cards + time windows; oversized / undersized badges from stored recommend
 - JSON `GET /api/v1/*` · GitOps patch copy/download (**never** applied)
@@ -155,6 +169,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 ## Table of contents
 
 - [Early development disclaimer](#early-development-disclaimer)
+- [What’s new in 1.2](#whats-new-in-12--toolchain-and-analyze-local-grain)
 - [What’s new in 1.1](#whats-new-in-11--liveness)
 - [What’s new in 1.0](#whats-new-in-10--harden)
 - [What’s new in 0.9](#whats-new-in-09--capacity-truth-and-restore)
@@ -166,6 +181,7 @@ shipped list: **[CHANGELOG](CHANGELOG.md)**
 - [Status](#status)
 - [Roadmap](#roadmap)
 - [Quick start](#quick-start)
+- [TCP listeners and MPTCP](#tcp-listeners-and-mptcp)
 - [Development](#development)
 - [License](#license)
 
@@ -258,7 +274,9 @@ make build
 ./bin/kpm version
 ./bin/kpm --print-sample-config > kpm.yml
 ./bin/kpm --help
-# After samples (or a copied store): analyze-local charts — see SPEC §8
+# After samples: safe snapshot for a laptop (not a hot cp of store.path)
+# ./bin/kpm backup --config ./kpm.yml -o ./metrics-home.db
+# Analyze-local charts / MCP — see docs/take-home-store.md and SPEC §8
 # ./bin/kpm serve --config ./kpm.yml
 ```
 
@@ -273,6 +291,38 @@ kubectl kpm sample --config ./kpm.yml
 ```
 
 GoReleaser ships both `kpm` and `kubectl-kpm`. Krew index deferred.
+
+[↑ Back to top](#top)
+
+---
+
+## TCP listeners and MPTCP
+
+Go 1.24+ enables Multipath TCP by default on Linux listen sockets. MPTCP
+listeners are the exposure path for **CVE-2026-98432**, a use-after-free in the
+kernel's IPv4 TCP stack reachable before the connection is accepted. kpm opts
+out at two levels (same approach as [gghstats](https://github.com/hrodrig/gghstats)):
+
+- `godebug multipathtcp=0` in `go.mod`, so every socket the binary opens
+  defaults to plain TCP;
+- `net.ListenConfig.SetMultipathTCP(false)` on the shared HTTP listener
+  (`kpm serve` and the sample daemon when MCP/server listen), which a
+  `GODEBUG` change in the environment cannot re-enable.
+
+This hardens the process; it does **not** fix the kernel. Patch the host
+kernel (see your distribution's advisory). Default bind is still
+`127.0.0.1:9740` — keep it that way behind a reverse proxy when your scraper
+allows it, but note a loopback bind alone does **not** disable MPTCP.
+
+Until you upgrade past this change, older Linux binaries can set
+`GODEBUG=multipathtcp=0` in the process environment (fragile; still not a
+kernel fix). To confirm the build default:
+
+```bash
+go list -f '{{.DefaultGODEBUG}}' ./cmd/kpm
+```
+
+The output must include `multipathtcp=0`.
 
 [↑ Back to top](#top)
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,10 @@ const MaxWorkloadsScanRows = store.MaxScanRows
 // cannot pin a SQLite reader for the whole retention.
 const MaxSeriesScanRows = 10_000
 
+// MaxMembersScanRows bounds GET /members sample scan (newest-first) before
+// picking the latest sampled_at cohort.
+const MaxMembersScanRows = 10_000
+
 // apiReadTimeout bounds one JSON read so a heavy series or workload scan
 // releases its SQLite reader. MCP and SSE are not on this clock.
 const apiReadTimeout = 15 * time.Second
@@ -44,7 +49,11 @@ type Deps struct {
 	Store   *store.Store
 	Config  *config.Config
 	Version string
-	Now     func() time.Time
+	// Commit / BuildDate / Branch are ldflags metadata (optional; empty omitted in JSON).
+	Commit    string
+	BuildDate string
+	Branch    string
+	Now       func() time.Time
 	// Live is optional; nil → GET /live returns 503 JSON.
 	Live func(ctx context.Context) (LiveOut, error)
 }
@@ -69,6 +78,7 @@ func Mount(mux *http.ServeMux, d *Deps, bearerToken string) {
 	mux.Handle("GET "+APIPrefix+"/recommendations", wrap(api.handleRecommendations))
 	mux.Handle("GET "+APIPrefix+"/nodes", wrap(api.handleNodes))
 	mux.Handle("GET "+APIPrefix+"/live", wrap(api.handleLive))
+	mux.Handle("GET "+APIPrefix+"/members", wrap(api.handleMembers))
 	mux.Handle("GET "+APIPrefix+"/export/patch", wrap(api.handleExportPatch))
 }
 
@@ -105,6 +115,11 @@ func writeErr(w http.ResponseWriter, status int, msg string) {
 // StatusOut is GET /api/v1/status (no secrets).
 type StatusOut struct {
 	Version              string `json:"version"`
+	Commit               string `json:"commit,omitempty"`
+	BuildDate            string `json:"build_date,omitempty"`
+	Branch               string `json:"branch,omitempty"`
+	GoVersion            string `json:"go_version,omitempty"`
+	Platform             string `json:"platform,omitempty"` // GOOS/GOARCH
 	StorePath            string `json:"store_path"`
 	SampleIntervalSec    int    `json:"sample_interval_seconds"`
 	NotificationsEnabled bool   `json:"notifications_enabled"`
@@ -119,7 +134,15 @@ type StatusOut struct {
 
 func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 	d := a.deps
-	out := StatusOut{Version: d.Version, KubeLive: d.Live != nil}
+	out := StatusOut{
+		Version:   d.Version,
+		Commit:    strings.TrimSpace(d.Commit),
+		BuildDate: strings.TrimSpace(d.BuildDate),
+		Branch:    strings.TrimSpace(d.Branch),
+		GoVersion: runtime.Version(),
+		Platform:  runtime.GOOS + "/" + runtime.GOARCH,
+		KubeLive:  d.Live != nil,
+	}
 	if d.Store != nil {
 		out.StorePath = d.Store.Path()
 		if n, err := d.Store.Count(r.Context()); err == nil {
@@ -138,11 +161,12 @@ func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// WorkloadOut is one grain with activity in the window.
+// WorkloadOut is one container grain with activity in the window.
 type WorkloadOut struct {
 	Namespace string `json:"namespace"`
 	OwnerKind string `json:"owner_kind,omitempty"`
 	OwnerName string `json:"owner_name,omitempty"`
+	Container string `json:"container,omitempty"`
 	GrainKey  string `json:"grain_key"`
 	Samples   int64  `json:"samples"`
 	FirstAt   string `json:"first_at,omitempty"`
@@ -186,19 +210,22 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 		return nil, err
 	}
 	if len(recs) > MaxWorkloadsScanRows {
-		return nil, fmt.Errorf("sample window exceeds %d rows; narrow namespace, workload, or window", MaxWorkloadsScanRows)
+		return nil, fmt.Errorf("sample window exceeds %s rows; narrow namespace, workload, or window", formatIntCommas(MaxWorkloadsScanRows))
 	}
 	type agg struct {
-		ns, kind, name string
-		n              int64
-		first, last    time.Time
+		ns, kind, name, container string
+		n                         int64
+		first, last               time.Time
 	}
 	m := map[string]*agg{}
 	for _, r := range recs {
-		key := grainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Pod)
+		key := grainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Pod, r.Container)
 		a := m[key]
 		if a == nil {
-			a = &agg{ns: r.Namespace, kind: r.OwnerKind, name: r.OwnerName, first: r.SampledAt, last: r.SampledAt}
+			a = &agg{
+				ns: r.Namespace, kind: r.OwnerKind, name: r.OwnerName,
+				container: r.Container, first: r.SampledAt, last: r.SampledAt,
+			}
 			if a.name == "" {
 				a.name = r.Pod
 			}
@@ -224,6 +251,7 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 			Namespace: a.ns,
 			OwnerKind: a.kind,
 			OwnerName: a.name,
+			Container: a.container,
 			GrainKey:  k,
 			Samples:   a.n,
 			FirstAt:   a.first.UTC().Format(time.RFC3339),
@@ -233,14 +261,21 @@ func listWorkloads(ctx context.Context, st *store.Store, f store.ExportFilter) (
 	return out, nil
 }
 
-func grainKey(ns, kind, name, pod string) string {
+func grainKey(ns, kind, name, pod, container string) string {
+	c := strings.TrimSpace(container)
 	if strings.TrimSpace(name) != "" {
 		if kind == "" {
 			kind = "Workload"
 		}
-		return ns + "/" + kind + "/" + name
+		if c == "" {
+			return ns + "/" + kind + "/" + name
+		}
+		return ns + "/" + kind + "/" + name + "/" + c
 	}
-	return ns + "/Pod/" + pod
+	if c == "" {
+		return ns + "/Pod/" + pod
+	}
+	return ns + "/Pod/" + pod + "/" + c
 }
 
 // SeriesPoint is one downsampled metric sample.
@@ -254,6 +289,7 @@ type SeriesOut struct {
 	Metric      string        `json:"metric"`
 	Namespace   string        `json:"namespace,omitempty"`
 	Workload    string        `json:"workload,omitempty"`
+	Container   string        `json:"container,omitempty"`
 	Count       int           `json:"count"`
 	Downsampled bool          `json:"downsampled"`
 	Truncated   bool          `json:"truncated,omitempty"`
@@ -308,7 +344,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 	}
 	keys := parseWorkloadKeys(r)
 	if len(keys) == 0 {
-		writeErr(w, http.StatusBadRequest, "workloads required (ns/name,ns/name or repeated workload=)")
+		writeErr(w, http.StatusBadRequest, "workloads required (ns/name[/container],… or repeated workload=)")
 		return
 	}
 	if len(keys) > maxSeriesBatchWorkloads {
@@ -322,6 +358,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 		f := base
 		f.Namespace = k.ns
 		f.Workload = k.wl
+		f.Container = k.container
 		out, err := a.buildSeries(ctx, metric, maxPts, f)
 		if err != nil {
 			writeReadErr(w, err)
@@ -336,7 +373,7 @@ func (a *api) handleSeriesBatch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, SeriesBatchOut{Metric: metric, Items: items})
 }
 
-type workloadKey struct{ ns, wl string }
+type workloadKey struct{ ns, wl, container string }
 
 func writeReadErr(w http.ResponseWriter, err error) {
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -355,16 +392,24 @@ func parseWorkloadKeys(r *http.Request) []workloadKey {
 		if raw == "" {
 			return
 		}
-		ns, wl, ok := strings.Cut(raw, "/")
-		if !ok || ns == "" || wl == "" {
+		parts := strings.SplitN(raw, "/", 3)
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return
 		}
+		ns, wl := parts[0], parts[1]
+		container := ""
+		if len(parts) == 3 {
+			container = parts[2]
+		}
 		id := ns + "/" + wl
+		if container != "" {
+			id += "/" + container
+		}
 		if seen[id] {
 			return
 		}
 		seen[id] = true
-		keys = append(keys, workloadKey{ns: ns, wl: wl})
+		keys = append(keys, workloadKey{ns: ns, wl: wl, container: container})
 	}
 	for _, w := range q["workload"] {
 		add(w)
@@ -423,6 +468,7 @@ func (a *api) buildSeries(ctx context.Context, metric string, maxPts int, f stor
 		Metric:      metric,
 		Namespace:   f.Namespace,
 		Workload:    f.Workload,
+		Container:   f.Container,
 		Count:       len(pts),
 		Downsampled: down,
 		Truncated:   truncated,
@@ -530,6 +576,7 @@ type RecOut struct {
 	Namespace    string  `json:"namespace,omitempty"`
 	OwnerKind    string  `json:"owner_kind,omitempty"`
 	OwnerName    string  `json:"owner_name,omitempty"`
+	Container    string  `json:"container,omitempty"`
 	Samples      int     `json:"samples"`
 	CPUPMcores   float64 `json:"cpu_p_mcores"`
 	MemPBytes    int64   `json:"mem_p_bytes"`
@@ -644,6 +691,7 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 			Namespace:       rec.Namespace,
 			OwnerKind:       rec.OwnerKind,
 			OwnerName:       rec.OwnerName,
+			Container:       rec.Container,
 			Samples:         rec.Samples,
 			CPUPMcores:      rec.CPUPMcores,
 			MemPBytes:       rec.MemPBytes,
@@ -662,6 +710,108 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Count = len(out.Rows)
 	writeJSON(w, http.StatusOK, out)
+}
+
+// MemberRow is one store-backed container row at the latest sample for a workload.
+type MemberRow struct {
+	Namespace        string  `json:"namespace"`
+	Pod              string  `json:"pod"`
+	Container        string  `json:"container"`
+	OwnerKind        string  `json:"owner_kind,omitempty"`
+	OwnerName        string  `json:"owner_name,omitempty"`
+	CPUUtilMcores    float64 `json:"cpu_util_mcores"`
+	CPURequestMcores float64 `json:"cpu_request_mcores"`
+	CPULimitMcores   float64 `json:"cpu_limit_mcores"`
+	MemUtilBytes     int64   `json:"mem_util_bytes"`
+	MemRequestBytes  int64   `json:"mem_request_bytes"`
+	MemLimitBytes    int64   `json:"mem_limit_bytes"`
+}
+
+// MembersOut is GET /api/v1/members (store-only; no kube).
+type MembersOut struct {
+	CapturedAt string      `json:"captured_at,omitempty"`
+	Count      int         `json:"count"`
+	Rows       []MemberRow `json:"rows,omitempty"`
+}
+
+func (a *api) handleMembers(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Store == nil {
+		writeErr(w, http.StatusServiceUnavailable, "store not open")
+		return
+	}
+	ns := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	wl := strings.TrimSpace(r.URL.Query().Get("workload"))
+	if ns == "" || wl == "" {
+		writeErr(w, http.StatusBadRequest, "namespace and workload required")
+		return
+	}
+	f, err := filterFromQuery(r, a.deps.now())
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	f.Namespace = ns
+	f.Workload = wl
+	ctx, cancel := context.WithTimeout(r.Context(), apiReadTimeout)
+	defer cancel()
+	out, err := listMembers(ctx, a.deps.Store, f)
+	if err != nil {
+		writeReadErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func listMembers(ctx context.Context, st *store.Store, f store.ExportFilter) (MembersOut, error) {
+	f.Limit = MaxMembersScanRows
+	f.Newest = true
+	recs, err := st.ListRecords(ctx, f)
+	if err != nil {
+		return MembersOut{}, err
+	}
+	if len(recs) == 0 {
+		return MembersOut{Count: 0, Rows: nil}, nil
+	}
+	latest := recs[len(recs)-1].SampledAt
+	byKey := map[string]store.Record{}
+	for i := len(recs) - 1; i >= 0; i-- {
+		r := recs[i]
+		if !r.SampledAt.Equal(latest) {
+			break
+		}
+		key := r.Pod + "\x00" + r.Container
+		if _, ok := byKey[key]; ok {
+			continue
+		}
+		byKey[key] = r
+	}
+	keys := make([]string, 0, len(byKey))
+	for k := range byKey {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := make([]MemberRow, 0, len(keys))
+	for _, k := range keys {
+		r := byKey[k]
+		rows = append(rows, MemberRow{
+			Namespace:        r.Namespace,
+			Pod:              r.Pod,
+			Container:        r.Container,
+			OwnerKind:        r.OwnerKind,
+			OwnerName:        r.OwnerName,
+			CPUUtilMcores:    r.CPUUtilMcores,
+			CPURequestMcores: r.CPURequestMcores,
+			CPULimitMcores:   r.CPULimitMcores,
+			MemUtilBytes:     r.MemUtilBytes,
+			MemRequestBytes:  r.MemRequestBytes,
+			MemLimitBytes:    r.MemLimitBytes,
+		})
+	}
+	return MembersOut{
+		CapturedAt: latest.UTC().Format(time.RFC3339),
+		Count:      len(rows),
+		Rows:       rows,
+	}, nil
 }
 
 // LiveRow is one live container snapshot row.
@@ -769,6 +919,7 @@ func filterFromQuery(r *http.Request, now time.Time) (store.ExportFilter, error)
 		Namespace: strings.TrimSpace(q.Get("namespace")),
 		Workload:  strings.TrimSpace(q.Get("workload")),
 		Pod:       strings.TrimSpace(q.Get("pod")),
+		Container: strings.TrimSpace(q.Get("container")),
 	}
 	since := strings.TrimSpace(q.Get("since"))
 	until := strings.TrimSpace(q.Get("until"))

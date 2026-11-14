@@ -10,6 +10,8 @@ as `docs/` in [kwd](https://github.com/hrodrig/kwd).
 | [plan-0.2.0.md](./plan-0.2.0.md) | Core band merge order + success criteria |
 | [measurement-and-rightsizing.md](./measurement-and-rightsizing.md) | Measurement + recommend strategy (Mermaid); linked from README |
 | [compare.md](./compare.md) | Short README table, then the peer matrix and when to leave kpm |
+| [take-home-store.md](./take-home-store.md) | Safe `kpm backup` before laptop analyze-local / MCP (avoid hot `.db` copy) |
+| [mcp.md](./mcp.md) | Stdio MCP client wiring (`kpm mcp`) |
 | [kpm-hero-oss.jpg](./kpm-hero-oss.jpg) | README hero (1280×720), family style |
 | [kpm-serve-analyze-local-dark.png](./kpm-serve-analyze-local-dark.png) | README — `kpm serve` charts (analyze-local) |
 | [kpm-tui-cpu-request-13pods.png](./kpm-tui-cpu-request-13pods.png) | README — live TUI spectrum |

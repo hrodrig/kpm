@@ -152,6 +152,10 @@ func TestServeListenNoSampleWrites(t *testing.T) {
 	if !strings.Contains(out.String(), "kpm serve:") {
 		t.Fatalf("no serve banner; out=%q err=%q", out.String(), errBuf.String())
 	}
+	if !strings.Contains(out.String(), "commit") || !strings.Contains(out.String(), "built") ||
+		!strings.Contains(out.String(), "branch") {
+		t.Fatalf("missing build meta banner; out=%q", out.String())
+	}
 
 	st2, err := store.Open(db)
 	if err != nil {

@@ -31,10 +31,21 @@
     backdrop: document.getElementById("drawer-backdrop"),
     drawerTitle: document.getElementById("drawer-title"),
     drawerBody: document.getElementById("drawer-body"),
+    buildMeta: document.getElementById("build-meta"),
   };
 
   var recByGrain = {};
-  var recByOwner = {};
+  var recByContainer = {};
+
+  /** Thousands separators for counts (en-US: 376,059). */
+  function formatCount(n) {
+    n = Number(n) || 0;
+    try {
+      return n.toLocaleString("en-US");
+    } catch (e) {
+      return String(n);
+    }
+  }
 
   function apiURL(path, params) {
     var u = new URL(path, window.location.origin);
@@ -331,12 +342,14 @@
     }
   }
 
+  function containerRecKey(ns, owner, container) {
+    return (ns || "") + "/" + (owner || "") + "/" + (container || "");
+  }
+
   function lookupRec(item) {
-    return (
-      recByGrain[item.grain_key] ||
-      recByOwner[item.namespace + "/" + (item.owner_name || "")] ||
-      null
-    );
+    var byC = recByContainer[containerRecKey(item.namespace, item.owner_name, item.container)];
+    if (byC) return byC;
+    return recByGrain[item.grain_key] || null;
   }
 
   function fmtDeltaM(d) {
@@ -412,17 +425,24 @@
 
   function indexRecommendations(rows) {
     recByGrain = {};
-    recByOwner = {};
+    recByContainer = {};
     (rows || []).forEach(function (r) {
       if (r.grain_key) recByGrain[r.grain_key] = r;
-      if (r.namespace && r.owner_name) {
-        recByOwner[r.namespace + "/" + r.owner_name] = r;
+      if (r.namespace && r.owner_name && r.container) {
+        recByContainer[containerRecKey(r.namespace, r.owner_name, r.container)] = r;
       }
     });
   }
 
   function cardHTML(item) {
-    var title = item.owner_name || item.grain_key;
+    var owner = item.owner_name || "";
+    var container = item.container || "";
+    var title = owner;
+    if (container) {
+      title = owner ? owner + " / " + container : container;
+    } else if (!title) {
+      title = item.grain_key;
+    }
     var id = encodeURIComponent(item.grain_key);
     var meta = metricInfo(state.metric);
     return (
@@ -431,7 +451,9 @@
       '" data-ns="' +
       escapeAttr(item.namespace) +
       '" data-wl="' +
-      escapeAttr(item.owner_name || "") +
+      escapeAttr(owner) +
+      '" data-container="' +
+      escapeAttr(container) +
       '">' +
       "<h2>" +
       escapeHTML(title) +
@@ -439,7 +461,7 @@
       '<div class="meta">' +
       escapeHTML(item.grain_key) +
       " · " +
-      item.samples +
+      formatCount(item.samples) +
       " samples</div>" +
       cardVerdictHTML(item) +
       '<div class="chart-stats">' +
@@ -472,6 +494,22 @@
     if (!v) return "?";
     if (v.charAt(0) === "v" || v === "dev") return v;
     return "v" + v;
+  }
+
+  function shortCommit(c) {
+    c = String(c || "").trim();
+    if (!c || c === "unknown") return c || "";
+    return c.length > 12 ? c.slice(0, 12) : c;
+  }
+
+  function formatBuildMeta(st) {
+    var parts = ["kpm " + formatVersion(st.version)];
+    if (st.commit) parts.push("commit " + shortCommit(st.commit));
+    if (st.build_date) parts.push("built " + st.build_date);
+    if (st.branch) parts.push("branch " + st.branch);
+    if (st.platform) parts.push(st.platform);
+    if (st.go_version) parts.push(st.go_version);
+    return parts.join(" · ");
   }
 
   function formatClusterTarget(st) {
@@ -508,11 +546,15 @@
           el.clusterTarget.textContent = formatClusterTarget(st);
           el.clusterTarget.title = formatClusterTarget(st);
         }
+        if (el.buildMeta) {
+          el.buildMeta.textContent = formatBuildMeta(st);
+          el.buildMeta.title = formatBuildMeta(st);
+        }
         el.status.textContent =
           "store " +
           (st.store_path || "?") +
           " · samples " +
-          (st.sample_count || 0) +
+          formatCount(st.sample_count || 0) +
           " · " +
           (st.kube_live ? "kube live" : "store only") +
           " · " +
@@ -626,8 +668,9 @@
     Array.prototype.forEach.call(cards, function (card) {
       var ns = card.getAttribute("data-ns") || "";
       var wl = card.getAttribute("data-wl") || "";
+      var c = card.getAttribute("data-container") || "";
       if (!ns || !wl) return;
-      var id = ns + "/" + wl;
+      var id = ns + "/" + wl + (c ? "/" + c : "");
       if (!byKey[id]) {
         byKey[id] = [];
         keys.push(id);
@@ -651,7 +694,11 @@
         );
         return fetchJSON("/api/v1/series/batch", params).then(function (batch) {
           (batch.items || []).forEach(function (series) {
-            var id = (series.namespace || "") + "/" + (series.workload || "");
+            var id =
+              (series.namespace || "") +
+              "/" +
+              (series.workload || "") +
+              (series.container ? "/" + series.container : "");
             (byKey[id] || []).forEach(function (card) {
               drawSeries(card.querySelector("canvas"), series.points || [], series.metric || state.metric, {
                 request: series.request,
@@ -682,6 +729,7 @@
       {
         namespace: card.getAttribute("data-ns"),
         workload: card.getAttribute("data-wl"),
+        container: card.getAttribute("data-container") || "",
         metric: state.metric,
         max_points: "120",
       },
@@ -698,25 +746,35 @@
   function openDrawer(card) {
     var ns = card.getAttribute("data-ns");
     var wl = card.getAttribute("data-wl");
+    var container = card.getAttribute("data-container") || "";
     var grain = decodeURIComponent(card.getAttribute("data-grain"));
-    el.drawerTitle.textContent = wl || grain;
+    el.drawerTitle.textContent = container ? (wl || "") + " / " + container : wl || grain;
     el.drawerBody.innerHTML = '<div class="loading">Loading…</div>';
     el.drawer.classList.add("open");
     el.backdrop.classList.add("open");
     el.drawer.setAttribute("aria-hidden", "false");
 
+    var memberParams = Object.assign({ namespace: ns, workload: wl }, windowParams());
     Promise.all([
       fetchJSON("/api/v1/recommendations", { grain: "workload" }).catch(function () {
         return { rows: [] };
       }),
+      fetchJSON("/api/v1/members", memberParams).catch(function (e) {
+        return { count: 0, rows: [], error: e.message };
+      }),
       fetchJSON("/api/v1/live").catch(function (e) {
         return { available: false, error: e.message, rows: [] };
       }),
-    ]).then(function (pair) {
-      var recs = (pair[0].rows || []).filter(function (r) {
-        return r.grain_key === grain || (r.namespace === ns && r.owner_name === wl);
+    ]).then(function (triple) {
+      var recs = (triple[0].rows || []).filter(function (r) {
+        if (r.grain_key === grain) return true;
+        if (r.namespace !== ns || r.owner_name !== wl) return false;
+        if (container) return r.container === container;
+        return true;
       });
-      var live = pair[1];
+      var members = triple[1];
+      var memberRows = members.rows || [];
+      var live = triple[2];
       var liveRows = (live.rows || []).filter(function (r) {
         return r.namespace === ns && (r.owner_name === wl || !wl);
       });
@@ -760,6 +818,33 @@
           "</div>";
         html += '<pre class="meta" id="patch-preview" hidden></pre>';
       }
+      html += "</section><section><h3>Pods (store)</h3>";
+      if (members.error) {
+        html += "<p class=\"meta\">" + escapeHTML(members.error) + "</p>";
+      } else if (!memberRows.length) {
+        html += "<p class=\"meta\">No store members for this workload in the window.</p>";
+      } else {
+        if (members.captured_at) {
+          html +=
+            '<p class="meta">Latest sample ' +
+            escapeHTML(members.captured_at) +
+            " · " +
+            memberRows.length +
+            " container(s)</p>";
+        }
+        html += "<dl>";
+        memberRows.forEach(function (r) {
+          html +=
+            "<dt>" +
+            escapeHTML(r.pod + "/" + r.container) +
+            "</dt><dd>cpu " +
+            r.cpu_util_mcores +
+            " / req " +
+            r.cpu_request_mcores +
+            " m</dd>";
+        });
+        html += "</dl>";
+      }
       html += "</section><section><h3>Live</h3>";
       if (!live.available) {
         html += "<p class=\"meta\">" + escapeHTML(live.error || "Kube unavailable") + "</p>";
@@ -767,7 +852,7 @@
         html += "<p class=\"meta\">No live rows for this workload.</p>";
       } else {
         html += "<dl>";
-        liveRows.slice(0, 8).forEach(function (r) {
+        liveRows.forEach(function (r) {
           html +=
             "<dt>" +
             escapeHTML(r.pod + "/" + r.container) +

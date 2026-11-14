@@ -1,11 +1,12 @@
 # SPECIFICATIONS — kpm
 
-> **Status: normative — describes the `v1.1.1` tree.** Every section below is
+> **Status: normative — describes the `v1.2.0` tree.** Every section below is
 > implemented and must not regress without a CHANGELOG entry. The CLI surface and the
 > store schema are frozen at `1.0.0` (§2.5, §2.6). Bands: Core `v0.2.0`, Insights
 > `v0.3.0`, Notify `v0.4.0`, MCP `v0.5.0`, Server `v0.6.0`, Scale `v0.7.0`, Honesty
 > `v0.8.0`, capacity truth + `restore` `v0.9.0`, harden `v1.0.0`, liveness `/livez` `v1.1.0`,
-> MCP annotations + `x/net` v0.62.0 `v1.1.1`.
+> MCP annotations + `x/net` v0.62.0 `v1.1.1`, Go 1.27.4 / MPTCP / per-container cards /
+> store-backed members `v1.2.0`.
 
 | Term | Meaning |
 |------|---------|
@@ -168,6 +169,10 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 ### 2.4 Backup / export
 
 - `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
+  **Normative for take-home / analyze-local:** operators who move history to another
+  host must use `kpm backup` (or an equivalent online `.backup`), not a raw
+  `cp`/`scp`/`rsync` of a live `store.path` while the sampler holds WAL pages.
+  Operator guide: `docs/take-home-store.md`.
 - `kpm restore` — install a backup at the store path, or `--merge` the rows it
   adds. **Replace** copies to a temp file and renames into place, removes stale
   `-wal`/`-shm` left by the replaced database, and refuses a non-empty store
@@ -952,16 +957,20 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   `interval_seconds > 0`). Entry: **`kpm serve`** (`mcp.enabled` and/or
   `server.enabled`); `/readyz` is store-only (kube optional).
 - **JSON API** (when `server.enabled`): `GET /api/v1/status`, `/workloads`,
-  `/series`, `/series/batch`, `/recommendations`, `/live` (503 JSON if kube unavailable),
+  `/series`, `/series/batch`, `/recommendations`, `/members` (store-backed
+  pod/container rows for a namespace+workload at the latest sample in the
+  window; requires both query params), `/live` (503 JSON if kube unavailable),
   `/export/patch` (GitOps YAML; never applied). Bearer via `server.token_env`
   or shared `mcp.token_env`; required off-loopback (or `server.auth: true`).
   One listen: prefer `server.listen`, else `mcp.listen`.
 - **Charts UI** (when `server.enabled`): embedded `GET /` + `/static/*`
-  (no SPA/npm). Workload cards fetch `/api/v1/series` and join latest
-  recommendations for verdict badges; drawers show recommendations + optional
-  live + copy/download patch. Summary strip counts oversized / undersized /
-  ok / no-req. Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock
-  form stores bearer for API calls when required.
+  (no SPA/npm). Per-container cards fetch `/api/v1/series` (with `container`)
+  and join latest recommendations by namespace+owner+container for verdict
+  badges; drawers show that container's recommendations, store members
+  (`/members` for the owner), optional live enrichment, and copy/download
+  patch. Summary strip counts oversized / undersized / ok / no-req per card.
+  Window presets 1h/24h/48h/7d/15d + custom range. Browser unlock form stores
+  bearer for API calls when required.
 
 ### 8.2 Relationship to capacity / TUI (Normative)
 
@@ -989,18 +998,25 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.4 Analyze-local UX (Normative)
 
-- Per-workload chart cards from store series; window presets (1h / 24h / 48h /
-  7d / 15d) + custom range. Maximum window span is **15d** (including free Go
-  durations and `since`/`until`). Store queries use index
-  `(namespace, owner_name, sampled_at)`. `GET /series` clamps to the newest
+- **Per-container** chart cards from store series (one card per
+  `namespace/owner_kind/owner_name/container`, or `namespace/Pod/pod/container`
+  when unowned). Multi-container Deployments do **not** collapse into a single
+  owner card. Window presets (1h / 24h / 48h / 7d / 15d) + custom range.
+  Maximum window span is **15d** (including free Go durations and
+  `since`/`until`). Store queries use index `(namespace, owner_name, sampled_at)`.
+  `GET /series` accepts optional `container=` and clamps to the newest
   **10,000** matching rows (`truncated: true` when clamped). `GET /series/batch`
-  accepts at most **20** workloads (HTTP 400 above that); the charts page
-  requests further batches of 20. `GET /series`, `GET /series/batch`, and
+  accepts at most **20** keys (HTTP 400 above that); keys are `ns/name` or
+  `ns/name/container`; the charts page requests further batches of 20 and always
+  sends the container segment. `GET /series`, `GET /series/batch`, and
   `GET /workloads` each bound the store read to **15s** and return HTTP 503
   `store query timed out` when that elapses. `GET /workloads` fails
-  closed (HTTP 413) above 100k rows in the window.
-- Collapsible drawer: store recommendations; if kube available, current
-  request/limit (+ delta vs suggest when both exist).
+  closed (HTTP 413) above 100k rows in the window; each item includes
+  `container` and a grain_key that ends with that container.
+- Collapsible drawer: recommendations for the card’s container; **Pods (store)**
+  from `/api/v1/members` (all containers at the latest sample for the owner);
+  if kube available, **Live** current util/request (+ delta vs suggest when
+  both exist). Live never replaces the store member list.
 - Mode chip from `status.kube_live`: **`live`** when the Metrics client was
   wired at process start; **`analyze-local`** when store-only (`/live` 503).
 - Sticky footer: repo link, MIT license, advisory-only disclaimer (kpm never
@@ -1013,24 +1029,31 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
 
 ### 8.5 Recommend verdicts on cards (`#18c`) (Normative)
 
-- `GET /api/v1/recommendations` includes `cpu_verdict` / `mem_verdict`
-  (`oversized|undersized|ok|n/a`) from p-util vs current request
+- `GET /api/v1/recommendations` includes `container`, `cpu_verdict` /
+  `mem_verdict` (`oversized|undersized|ok|n/a`) from p-util vs current request
   (`SnapshotVerdicts` / `Classify` with config oversize/undersize ratios),
   plus `cpu_delta_mcores` / `mem_delta_bytes` (suggested − request).
-- Cards show CPU/Mem badges; page summary counts worst-of-pair per workload
-  (undersized beats oversized beats ok; `n/a` = no request; missing row =
-  no recommend).
+- Cards show CPU/Mem badges joined on `namespace` + `owner_name` + `container`
+  (never a silent last-write across sidecars). Page summary counts
+  worst-of-pair **per card** (undersized beats oversized beats ok; `n/a` = no
+  request; missing row = no recommend).
 - Node capacity snapshots (`#20b`): `kpm capacity --record-nodes` writes
   `node_snapshots` (under-demand; not every sample tick). Analyze-local
   `GET /api/v1/nodes` reads the latest batch offline (no kube).
 
 ### 8.6 Status / recommendations examples (anonymized)
 
-`GET /api/v1/status` (no secrets):
+`GET /api/v1/status` (no secrets). Includes ldflags build metadata and runtime
+platform (also printed on `kpm serve` startup and in the UI footer):
 
 ```json
 {
   "version": "v0.6.0",
+  "commit": "abc1234",
+  "build_date": "2026-11-05T00:00:00Z",
+  "branch": "develop",
+  "go_version": "go1.27.4",
+  "platform": "linux/amd64",
   "store_path": "/var/lib/kpm/example.db",
   "sample_interval_seconds": 0,
   "server_enabled": true,
@@ -1050,10 +1073,11 @@ kubeconfig works. Band plan: [docs/plan-0.6.0.md](docs/plan-0.6.0.md).
   "rows": [
     {
       "grain": "workload",
-      "grain_key": "app/Deployment/api",
+      "grain_key": "Deployment/api/main",
       "namespace": "app",
       "owner_kind": "Deployment",
       "owner_name": "api",
+      "container": "main",
       "cpu_p_mcores": 40,
       "cpu_req_mcores": 200,
       "cpu_sug_mcores": 100,
@@ -1147,6 +1171,7 @@ tui:
 | Secrets | `*_env` **names** in YAML; the values come only from the environment, never from the file. |
 | Notify / MCP HTTP / server | **Fail closed.** A sink whose env var is missing or empty refuses to build (`environment variable X is missing or empty (fail-closed)`); `mcp.token_env` is required when `mcp.listen` is non-loopback; `server.token_env` (or `mcp.token_env`) is required when server auth is on. |
 | MCP / server bind | **`127.0.0.1:9740`** by default. Binding anywhere else requires a token. |
+| TCP listeners (MPTCP) | **Plain TCP.** Module `godebug multipathtcp=0` plus `ListenConfig.SetMultipathTCP(false)` on the shared HTTP listen path — mitigates the Go 1.24+ MPTCP listen default that is the demonstrated exposure for **CVE-2026-98432**. Does **not** replace a patched host kernel. Loopback bind alone does not disable MPTCP. |
 | K8s RBAC deny | **Fail closed.** A denied List surfaces as exit `2`, never as an empty result. |
 | Middleware order | Browser guard (Host/Origin) → allowlist (IP/CIDR) → rate limit → mux, outermost first. |
 | Ops paths | `/livez`, `/healthz`, `/readyz` and `/metrics` are **exempt** from allowlist and rate limit — a probe must not be rate-limited into a false unhealthy. `/healthz` is an alias of `/livez`. |
