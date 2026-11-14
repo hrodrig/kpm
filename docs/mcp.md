@@ -20,7 +20,9 @@ Two things, and the second one is the usual reason it "does nothing":
    `kpm.yaml` in the client's working directory, which is almost never where you think it is. There is
    no MCP-specific default.
 2. **A store with samples in it.** `kpm mcp` reads only the store. If you never ran `kpm sample`, every
-   tool returns an empty set — correctly, and unhelpfully.
+   tool returns an empty set — correctly, and unhelpfully. If the store came from another host, produce
+   it with **`kpm backup`** (not a hot `cp` of a live `.db`) — see
+   [take-home-store.md](./take-home-store.md).
 
 ```yaml
 # /Users/you/.config/kpm/kpm.yaml

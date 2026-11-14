@@ -114,8 +114,11 @@ path: **[ROADMAP](docs/ROADMAP.md)**.
 
 ### What’s new in 0.6 — analyze-local charts
 
-Copy the SQLite store to a laptop, run **`kpm serve`**, open charts —
-**no sample loop required**. Optional live Metrics when kubeconfig works.
+Take a **consistent** store home with **`kpm backup`**, run **`kpm serve`**, open
+charts — **no sample loop required**. Do **not** `cp`/`scp` the live `.db` while
+the sampler writes (WAL hot copies often look “malformed”). Guide:
+**[docs/take-home-store.md](docs/take-home-store.md)**. Optional live Metrics when
+kubeconfig works.
 
 - Workload cards + time windows; oversized / undersized badges from stored recommend
 - JSON `GET /api/v1/*` · GitOps patch copy/download (**never** applied)
@@ -260,7 +263,9 @@ make build
 ./bin/kpm version
 ./bin/kpm --print-sample-config > kpm.yml
 ./bin/kpm --help
-# After samples (or a copied store): analyze-local charts — see SPEC §8
+# After samples: safe snapshot for a laptop (not a hot cp of store.path)
+# ./bin/kpm backup --config ./kpm.yml -o ./metrics-home.db
+# Analyze-local charts / MCP — see docs/take-home-store.md and SPEC §8
 # ./bin/kpm serve --config ./kpm.yml
 ```
 
