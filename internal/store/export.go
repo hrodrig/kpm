@@ -16,6 +16,7 @@ type ExportFilter struct {
 	Namespace string
 	Pod       string
 	Workload  string // matches owner_name
+	Container string // matches container name
 	// Limit caps rows returned (0 = unlimited). When Newest is true, the
 	// newest Limit rows are chosen (SQL DESC) then returned in ascending order.
 	Limit  int
@@ -39,26 +40,19 @@ var exportHeader = []string{
 	"cpu_limit_mcores", "mem_limit_bytes",
 }
 
-// Export writes matching samples to w as csv or tsv. Returns row count.
-func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f ExportFilter) (int64, error) {
-	sep := ','
+func exportSep(format ExportFormat) (rune, error) {
 	switch format {
 	case FormatCSV:
-		sep = ','
+		return ',', nil
 	case FormatTSV:
-		sep = '\t'
+		return '\t', nil
 	default:
 		return 0, fmt.Errorf("export format must be csv or tsv (got %q)", format)
 	}
+}
 
-	q := `SELECT sampled_at, client_id, cluster_name,
-		namespace, pod, container,
-		owner_kind, owner_name, node,
-		cpu_util_mcores, mem_util_bytes,
-		cpu_request_mcores, mem_request_bytes,
-		cpu_limit_mcores, mem_limit_bytes
-		FROM samples WHERE 1=1`
-	var args []any
+// appendSampleFilters adds ExportFilter predicates to a samples WHERE clause.
+func appendSampleFilters(q string, args []any, f ExportFilter) (string, []any) {
 	if !f.Since.IsZero() {
 		q += ` AND sampled_at >= ?`
 		args = append(args, FormatUTC(f.Since))
@@ -79,6 +73,39 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 		q += ` AND owner_name = ?`
 		args = append(args, wl)
 	}
+	if c := strings.TrimSpace(f.Container); c != "" {
+		q += ` AND container = ?`
+		args = append(args, c)
+	}
+	return q, args
+}
+
+func writeExportRow(cw *csv.Writer, sampledAt, clientID, clusterName, namespace, pod, container, ownerKind, ownerName, node string, cpuUtil, cpuReq, cpuLim float64, memUtil, memReq, memLim int64) error {
+	return cw.Write([]string{
+		sampledAt, clientID, clusterName,
+		namespace, pod, container,
+		ownerKind, ownerName, node,
+		fmt.Sprintf("%g", cpuUtil), fmt.Sprintf("%d", memUtil),
+		fmt.Sprintf("%g", cpuReq), fmt.Sprintf("%d", memReq),
+		fmt.Sprintf("%g", cpuLim), fmt.Sprintf("%d", memLim),
+	})
+}
+
+// Export writes matching samples to w as csv or tsv. Returns row count.
+func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f ExportFilter) (int64, error) {
+	sep, err := exportSep(format)
+	if err != nil {
+		return 0, err
+	}
+
+	q := `SELECT sampled_at, client_id, cluster_name,
+		namespace, pod, container,
+		owner_kind, owner_name, node,
+		cpu_util_mcores, mem_util_bytes,
+		cpu_request_mcores, mem_request_bytes,
+		cpu_limit_mcores, mem_limit_bytes
+		FROM samples WHERE 1=1`
+	q, args := appendSampleFilters(q, nil, f)
 	q += ` ORDER BY sampled_at ASC, id ASC`
 
 	rows, err := s.reads().QueryContext(ctx, q, args...)
@@ -110,15 +137,7 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 		); err != nil {
 			return n, err
 		}
-		rec := []string{
-			sampledAt, clientID, clusterName,
-			namespace, pod, container,
-			ownerKind, ownerName, node,
-			fmt.Sprintf("%g", cpuUtil), fmt.Sprintf("%d", memUtil),
-			fmt.Sprintf("%g", cpuReq), fmt.Sprintf("%d", memReq),
-			fmt.Sprintf("%g", cpuLim), fmt.Sprintf("%d", memLim),
-		}
-		if err := cw.Write(rec); err != nil {
+		if err := writeExportRow(cw, sampledAt, clientID, clusterName, namespace, pod, container, ownerKind, ownerName, node, cpuUtil, cpuReq, cpuLim, memUtil, memReq, memLim); err != nil {
 			return n, err
 		}
 		n++

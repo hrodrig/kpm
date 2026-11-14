@@ -283,13 +283,174 @@ func insertRec(t *testing.T, st *store.Store, now time.Time) {
 	t.Helper()
 	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{{
 		RecordedAt: now, ClientID: "c", ClusterName: "x",
-		Grain: "workload", GrainKey: "app/StatefulSet/api",
-		Namespace: "app", OwnerKind: "StatefulSet", OwnerName: "api",
+		Grain: "workload", GrainKey: "StatefulSet/api/main",
+		Namespace: "app", OwnerKind: "StatefulSet", OwnerName: "api", Container: "main",
 		Samples: 10, CPUPMcores: 40, MemPBytes: 400,
 		CPUSugMcores: 100, MemSugBytes: 1000,
 		CPUReqMcores: 200, MemReqBytes: 2000, TargetUtilization: 0.7,
 	}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func multiContainerFixture(t *testing.T, now time.Time) *store.Store {
+	t.Helper()
+	st, err := store.Open(filepath.Join(t.TempDir(), "mc.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	recs := []store.Record{
+		{
+			SampledAt: now.Add(-time.Hour), ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "foo-0", Container: "app",
+			OwnerKind: "Deployment", OwnerName: "foo",
+			CPUUtilMcores: 200, MemUtilBytes: 100 << 20,
+			CPURequestMcores: 50, CPULimitMcores: 1000,
+			MemRequestBytes: 2048 << 20, MemLimitBytes: 2048 << 20,
+		},
+		{
+			SampledAt: now.Add(-time.Hour), ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "foo-0", Container: "nginx",
+			OwnerKind: "Deployment", OwnerName: "foo",
+			CPUUtilMcores: 2, MemUtilBytes: 10 << 20,
+			CPURequestMcores: 10, CPULimitMcores: 50,
+			MemRequestBytes: 128 << 20, MemLimitBytes: 128 << 20,
+		},
+		{
+			SampledAt: now.Add(-30 * time.Minute), ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "foo-0", Container: "app",
+			OwnerKind: "Deployment", OwnerName: "foo",
+			CPUUtilMcores: 310, MemUtilBytes: 120 << 20,
+			CPURequestMcores: 50, CPULimitMcores: 1000,
+			MemRequestBytes: 2048 << 20, MemLimitBytes: 2048 << 20,
+		},
+		{
+			SampledAt: now.Add(-30 * time.Minute), ClientID: "c", ClusterName: "x",
+			Namespace: "app", Pod: "foo-0", Container: "nginx",
+			OwnerKind: "Deployment", OwnerName: "foo",
+			CPUUtilMcores: 3, MemUtilBytes: 12 << 20,
+			CPURequestMcores: 10, CPULimitMcores: 50,
+			MemRequestBytes: 128 << 20, MemLimitBytes: 128 << 20,
+		},
+	}
+	if err := st.InsertRecords(context.Background(), recs); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.InsertRecommendations(context.Background(), []store.Recommendation{
+		{
+			RecordedAt: now, ClientID: "c", ClusterName: "x",
+			Grain: "workload", GrainKey: "Deployment/foo/app",
+			Namespace: "app", OwnerKind: "Deployment", OwnerName: "foo", Container: "app",
+			Samples: 2, CPUPMcores: 310, MemPBytes: 120 << 20,
+			CPUSugMcores: 450, MemSugBytes: 176 << 20,
+			CPUReqMcores: 50, MemReqBytes: 2048 << 20, TargetUtilization: 0.7,
+		},
+		{
+			RecordedAt: now, ClientID: "c", ClusterName: "x",
+			Grain: "workload", GrainKey: "Deployment/foo/nginx",
+			Namespace: "app", OwnerKind: "Deployment", OwnerName: "foo", Container: "nginx",
+			Samples: 2, CPUPMcores: 3, MemPBytes: 12 << 20,
+			CPUSugMcores: 10, MemSugBytes: 16 << 20,
+			CPUReqMcores: 10, MemReqBytes: 128 << 20, TargetUtilization: 0.7,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
+func multiContainerMux(t *testing.T, now time.Time) *http.ServeMux {
+	t.Helper()
+	mux := http.NewServeMux()
+	server.Mount(mux, &server.Deps{
+		Store: multiContainerFixture(t, now), Version: "v",
+		Now: func() time.Time { return now },
+	}, "")
+	return mux
+}
+
+func TestAPIPerContainerWorkloads(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
+
+	rr := authedGet(mux, "/api/v1/workloads?window=24h", "")
+	var wl server.WorkloadsOut
+	if err := json.Unmarshal(rr.Body.Bytes(), &wl); err != nil {
+		t.Fatal(err)
+	}
+	if rr.Code != http.StatusOK || wl.Count != 2 {
+		t.Fatalf("workloads want 2 got %d %+v", rr.Code, wl)
+	}
+	byC := map[string]server.WorkloadOut{}
+	for _, item := range wl.Items {
+		byC[item.Container] = item
+		if !strings.HasSuffix(item.GrainKey, "/"+item.Container) {
+			t.Fatalf("grain_key %q missing container", item.GrainKey)
+		}
+	}
+	if byC["app"].Samples < 1 || byC["nginx"].Samples < 1 {
+		t.Fatalf("missing containers %+v", wl.Items)
+	}
+}
+
+func assertSeriesReqLim(t *testing.T, mux *http.ServeMux, container string, wantReq, wantLim float64) {
+	t.Helper()
+	path := "/api/v1/series?namespace=app&workload=foo&container=" + container + "&metric=cpu_util_mcores&window=24h"
+	rr := authedGet(mux, path, "")
+	var out server.SeriesOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &out)
+	if rr.Code != http.StatusOK || out.Request == nil || *out.Request != wantReq {
+		t.Fatalf("%s series req want %g: %d %+v", container, wantReq, rr.Code, out)
+	}
+	if out.Limit == nil || *out.Limit != wantLim {
+		t.Fatalf("%s series lim want %g got %+v", container, wantLim, out.Limit)
+	}
+	if out.Container != container {
+		t.Fatalf("%s series container %q", container, out.Container)
+	}
+}
+
+func TestAPIPerContainerSeries(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
+	assertSeriesReqLim(t, mux, "app", 50, 1000)
+	assertSeriesReqLim(t, mux, "nginx", 10, 50)
+
+	rr := authedGet(mux, "/api/v1/series/batch?workloads=app/foo/app,app/foo/nginx&metric=cpu_util_mcores&window=24h", "")
+	var batch server.SeriesBatchOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &batch)
+	if rr.Code != http.StatusOK || len(batch.Items) != 2 {
+		t.Fatalf("batch %d %+v", rr.Code, batch)
+	}
+}
+
+func TestAPIPerContainerRecs(t *testing.T) {
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
+	mux := multiContainerMux(t, now)
+
+	rr := authedGet(mux, "/api/v1/recommendations?grain=workload", "")
+	var recs server.RecsOut
+	_ = json.Unmarshal(rr.Body.Bytes(), &recs)
+	if rr.Code != http.StatusOK || recs.Count != 2 {
+		t.Fatalf("recs %d %+v", rr.Code, recs)
+	}
+	recByC := map[string]server.RecOut{}
+	for _, r := range recs.Rows {
+		recByC[r.Container] = r
+	}
+	appRec, nginxRec := recByC["app"], recByC["nginx"]
+	if appRec.Container == "" || nginxRec.Container == "" {
+		t.Fatalf("missing container on recs %+v", recs.Rows)
+	}
+	if appRec.CPUVerdict == nginxRec.CPUVerdict && appRec.CPUReqMcores == nginxRec.CPUReqMcores {
+		t.Fatalf("card must not collapse containers: app=%+v nginx=%+v", appRec, nginxRec)
+	}
+	if appRec.CPUVerdict != "undersized" {
+		t.Fatalf("app cpu verdict want undersized got %q", appRec.CPUVerdict)
+	}
+	if nginxRec.CPUVerdict != "oversized" {
+		t.Fatalf("nginx cpu verdict want oversized got %q", nginxRec.CPUVerdict)
 	}
 }
 

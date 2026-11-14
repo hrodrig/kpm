@@ -155,6 +155,33 @@ func TestListRecords(t *testing.T) {
 	}
 }
 
+func TestListRecordsContainerFilter(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Now().UTC()
+	recs := []Record{
+		{SampledAt: now, Namespace: "app", Pod: "foo-0", Container: "app", OwnerName: "foo", CPUUtilMcores: 50, CPURequestMcores: 50},
+		{SampledAt: now, Namespace: "app", Pod: "foo-0", Container: "nginx", OwnerName: "foo", CPUUtilMcores: 5, CPURequestMcores: 10},
+	}
+	if err := st.InsertRecords(t.Context(), recs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.ListRecords(t.Context(), ExportFilter{Workload: "foo", Container: "app"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Container != "app" || got[0].CPURequestMcores != 50 {
+		t.Fatalf("app container: %+v", got)
+	}
+	got, err = st.ListRecords(t.Context(), ExportFilter{Workload: "foo", Container: "nginx"})
+	if err != nil || len(got) != 1 || got[0].Container != "nginx" {
+		t.Fatalf("nginx container: %v %#v", err, got)
+	}
+}
+
 func TestListRecordsLimitNewest(t *testing.T) {
 	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
 	if err != nil {

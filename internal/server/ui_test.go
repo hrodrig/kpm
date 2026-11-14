@@ -28,7 +28,8 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
 		"kube_live", "updateModeLabel", "filterItems", "workloadQueryParams",
 		"No workloads match these filters", "/api/v1/nodes", "record-nodes", "renderNodesPanel",
-		"/api/v1/members", "Pods (store)", "formatBuildMeta", "build_date", "go_version")
+		"/api/v1/members", "Pods (store)", "formatBuildMeta", "build_date", "go_version",
+		"data-container", "recByContainer", "containerRecKey", "formatCount")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {
