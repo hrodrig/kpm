@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Analyze-local UI and the `/workloads` scan-limit error use **thousands
   separators** (`samples 376,059`; `exceeds 100,000 rows`).
 
+### Tests
+
+- Cover `grainKey` edge cases, negative short `formatIntCommas`, and the
+  `/workloads` 413 body with `100,000` (patch coverage for #159).
+
 ## [1.1.1] - 2026-11-04
 
 ### Security
