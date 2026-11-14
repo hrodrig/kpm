@@ -13,6 +13,7 @@ func TestFormatIntCommas(t *testing.T) {
 		{1000, "1,000"},
 		{100000, "100,000"},
 		{376059, "376,059"},
+		{-12, "-12"},
 		{-2600, "-2,600"},
 	}
 	for _, tc := range cases {
