@@ -48,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cover `grainKey` edge cases, negative short `formatIntCommas`, and the
   `/workloads` 413 body with `100,000` (patch coverage for #159).
 
+### Docs
+
+- [docs/take-home-store.md](docs/take-home-store.md): take a consistent SQLite
+  snapshot home with **`kpm backup`** (`VACUUM INTO`) before laptop
+  analyze-local / MCP — raw hot `cp`/`scp` of a live `store.path` often fails
+  `integrity_check`. Linked from README §0.6, SPEC §2.4, man `backup`, and
+  [docs/mcp.md](docs/mcp.md). Clarifies **`recommend --record`** (rightsizing
+  rows) vs **`capacity --record-nodes`** (node snapshots).
+
 ## [1.1.1] - 2026-11-04
 
 ### Security

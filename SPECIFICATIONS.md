@@ -168,6 +168,10 @@ collector. SIGINT/SIGTERM → clean shutdown, exit `0`.
 ### 2.4 Backup / export
 
 - `kpm backup` — safe copy via SQLite **`VACUUM INTO`** (works while store open).
+  **Normative for take-home / analyze-local:** operators who move history to another
+  host must use `kpm backup` (or an equivalent online `.backup`), not a raw
+  `cp`/`scp`/`rsync` of a live `store.path` while the sampler holds WAL pages.
+  Operator guide: `docs/take-home-store.md`.
 - `kpm restore` — install a backup at the store path, or `--merge` the rows it
   adds. **Replace** copies to a temp file and renames into place, removes stale
   `-wal`/`-shm` left by the replaced database, and refuses a non-empty store
