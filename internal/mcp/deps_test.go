@@ -159,6 +159,12 @@ func TestSummarizeWindowBoundsAndValidation(t *testing.T) {
 		t.Fatal("expected inverted range error")
 	}
 
+	// Explicit SummarizeTimeout override works cleanly.
+	dCustom := &mcp.Deps{Store: st, SummarizeTimeout: 5 * time.Second}
+	if out, err := dCustom.SummarizeWindow(context.Background(), mcp.SummarizeIn{Namespace: "app"}); err != nil || out.SampleCount != 2 {
+		t.Fatalf("custom timeout summarize: out=%+v err=%v", out, err)
+	}
+
 	// Canceled context / timeout propagated.
 	cctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -390,3 +390,124 @@ func TestExportHonorsLimitAndNewest(t *testing.T) {
 		t.Fatalf("want oldest 2 rows (p0 then p1), got:\n%s", buf.String())
 	}
 }
+
+func TestNormalizeTimestampCellAndIndexEdges(t *testing.T) {
+	if got := timestampColumnIndex([]string{"id", "node"}); got != -1 {
+		t.Fatalf("want -1 when no timestamp column, got %d", got)
+	}
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	// Out-of-range index is a safe no-op.
+	vals := []any{"unchanged"}
+	normalizeTimestampCell(vals, -1)
+	normalizeTimestampCell(vals, 5)
+	if vals[0] != "unchanged" {
+		t.Fatalf("unexpected mutation: %v", vals)
+	}
+
+	// []byte RFC3339 normalizes to canonical UTCLayout string.
+	bVals := []any{[]byte(ts.Format(time.RFC3339))}
+	normalizeTimestampCell(bVals, 0)
+	if bVals[0] != FormatUTC(ts) {
+		t.Fatalf("want %q, got %#v", FormatUTC(ts), bVals[0])
+	}
+
+	// Non-string/non-byte cell is left alone.
+	nVals := []any{int64(42)}
+	normalizeTimestampCell(nVals, 0)
+	if nVals[0] != int64(42) {
+		t.Fatalf("want int64(42), got %#v", nVals[0])
+	}
+}
+
+func TestMergeAndPruneErrorPaths(t *testing.T) {
+	dir := t.TempDir()
+	backup := makeBackup(t, dir)
+
+	closedDst, err := Open(filepath.Join(dir, "closed-dst.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = closedDst.Close()
+	if _, err := closedDst.MergeFrom(t.Context(), backup); err == nil {
+		t.Fatal("expected MergeFrom error on closed target store")
+	}
+
+	dst, err := Open(filepath.Join(dir, "dst.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = dst.Close() }()
+
+	cctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := dst.MergeFrom(cctx, backup); err == nil {
+		t.Fatal("expected MergeFrom error on canceled context")
+	}
+	if _, err := dst.PruneOlderThan(cctx, time.Now().UTC()); err == nil {
+		t.Fatal("expected PruneOlderThan error on canceled context")
+	}
+
+	if _, err := dst.db.Exec(`DROP TABLE node_snapshots`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dst.PruneOlderThan(t.Context(), time.Now().UTC()); err == nil {
+		t.Fatal("expected PruneOlderThan error on missing table")
+	}
+}
+
+func TestBackupAndRestoreErrorPaths(t *testing.T) {
+	dir := t.TempDir()
+	backup := makeBackup(t, dir)
+
+	st, err := Open(filepath.Join(dir, "src.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	cctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := st.Backup(cctx, filepath.Join(dir, "canceled-backup.db")); err == nil {
+		t.Fatal("expected Backup error on canceled context")
+	}
+
+	roDir := filepath.Join(dir, "readonly")
+	if err := os.MkdirAll(roDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(roDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(roDir, 0o700) })
+
+	if err := st.Backup(t.Context(), filepath.Join(roDir, "b.db")); err == nil {
+		t.Fatal("expected Backup error in read-only parent dir")
+	}
+	if err := RestoreReplace(backup, filepath.Join(roDir, "r.db"), false); err == nil {
+		t.Fatal("expected RestoreReplace error in read-only parent dir")
+	}
+
+	dirDst := filepath.Join(dir, "dest-is-dir")
+	if err := os.MkdirAll(dirDst, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := RestoreReplace(backup, dirDst, true); err == nil {
+		t.Fatal("expected RestoreReplace rename error when destination is a directory")
+	}
+
+	if err := snapshotStoreFile(filepath.Join(dir, "missing.db"), filepath.Join(dir, "out.db")); err == nil {
+		t.Fatal("expected snapshotStoreFile error for missing source")
+	}
+	if err := snapshotStoreFile(backup, backup); err == nil {
+		t.Fatal("expected snapshotStoreFile error when destination already exists")
+	}
+
+	walDirTarget := filepath.Join(dir, "sidecar-fail.db")
+	if err := os.MkdirAll(filepath.Join(walDirTarget+"-wal", "nested"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeWALSidecars(walDirTarget); err == nil {
+		t.Fatal("expected removeWALSidecars error when -wal is a non-empty directory")
+	}
+}
