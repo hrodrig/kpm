@@ -69,42 +69,14 @@ func ScoreCalibration(recs []store.Recommendation, samples []store.Record, opt S
 		opt.Band = 0.15
 	}
 
+	idx := indexSamplesForScore(samples)
 	out := ScoreResult{Band: opt.Band, MinSamples: opt.MinSamples}
 	for _, rec := range recs {
-		row := ScoreRow{
-			Grain:         rec.Grain,
-			GrainKey:      rec.GrainKey,
-			RecordedAt:    rec.RecordedAt,
-			CPUSug:        rec.CPUSugMcores,
-			MemSug:        rec.MemSugBytes,
-			CPUTargetUtil: rec.CPUTarget(),
-			MemTargetUtil: rec.MemTarget(),
-			Band:          opt.Band,
-		}
-		cpuVals, memVals := collectAfter(samples, rec)
-		row.Samples = len(cpuVals)
+		row := scoreOneRec(rec, idx, opt)
 		if row.Samples < opt.MinSamples {
-			row.CPULabel = ScoreSkip
-			row.MemLabel = ScoreSkip
 			out.Skipped++
-			out.Rows = append(out.Rows, row)
-			continue
-		}
-		row.CPUAfterP = Percentile(cpuVals, opt.Percentile)
-		row.MemAfterP = Percentile(memVals, opt.Percentile)
-		row.CPULabel = labelUtilVsSug(row.CPUAfterP, rec.CPUSugMcores, rec.CPUTarget(), opt.Band)
-		row.MemLabel = labelUtilVsSug(row.MemAfterP, float64(rec.MemSugBytes), rec.MemTarget(), opt.Band)
-		if row.CPULabel != ScoreNoData {
-			out.ScoredCPU++
-			if row.CPULabel == ScoreHit {
-				out.HitsCPU++
-			}
-		}
-		if row.MemLabel != ScoreNoData {
-			out.ScoredMem++
-			if row.MemLabel == ScoreHit {
-				out.HitsMem++
-			}
+		} else {
+			tallyScoreRow(&out, row)
 		}
 		out.Rows = append(out.Rows, row)
 	}
@@ -117,29 +89,88 @@ func ScoreCalibration(recs []store.Recommendation, samples []store.Record, opt S
 	return out
 }
 
-func collectAfter(samples []store.Record, rec store.Recommendation) (cpu, mem []float64) {
-	cutoff := rec.RecordedAt.UTC()
+type scoreSampleIndex struct {
+	byPod      map[string][]store.Record
+	byWorkload map[string][]store.Record
+}
+
+func indexSamplesForScore(samples []store.Record) scoreSampleIndex {
+	idx := scoreSampleIndex{
+		byPod:      make(map[string][]store.Record),
+		byWorkload: make(map[string][]store.Record),
+	}
 	for _, s := range samples {
-		at := s.SampledAt.UTC()
-		if !at.After(cutoff) {
-			continue
+		pk := s.Namespace + "/" + s.Pod + "/" + s.Container
+		idx.byPod[pk] = append(idx.byPod[pk], s)
+		if s.OwnerKind != "" && s.OwnerName != "" {
+			wk := WorkloadGrainKey(s.Namespace, s.OwnerKind, s.OwnerName, s.Container)
+			idx.byWorkload[wk] = append(idx.byWorkload[wk], s)
 		}
-		if !matchGrain(s, rec) {
+	}
+	return idx
+}
+
+func scoreOneRec(rec store.Recommendation, idx scoreSampleIndex, opt ScoreOptions) ScoreRow {
+	row := ScoreRow{
+		Grain:         rec.Grain,
+		GrainKey:      rec.GrainKey,
+		RecordedAt:    rec.RecordedAt,
+		CPUSug:        rec.CPUSugMcores,
+		MemSug:        rec.MemSugBytes,
+		CPUTargetUtil: rec.CPUTarget(),
+		MemTargetUtil: rec.MemTarget(),
+		Band:          opt.Band,
+	}
+	cpuVals, memVals := collectAfterIndexed(idx, rec)
+	row.Samples = len(cpuVals)
+	if row.Samples < opt.MinSamples {
+		row.CPULabel = ScoreSkip
+		row.MemLabel = ScoreSkip
+		return row
+	}
+	pct := rec.Percentile
+	if pct < 1 {
+		pct = opt.Percentile
+	}
+	row.CPUAfterP = Percentile(cpuVals, pct)
+	row.MemAfterP = Percentile(memVals, pct)
+	row.CPULabel = labelUtilVsSug(row.CPUAfterP, rec.CPUSugMcores, rec.CPUTarget(), opt.Band)
+	row.MemLabel = labelUtilVsSug(row.MemAfterP, float64(rec.MemSugBytes), rec.MemTarget(), opt.Band)
+	return row
+}
+
+func tallyScoreRow(out *ScoreResult, row ScoreRow) {
+	if row.CPULabel != ScoreNoData {
+		out.ScoredCPU++
+		if row.CPULabel == ScoreHit {
+			out.HitsCPU++
+		}
+	}
+	if row.MemLabel != ScoreNoData {
+		out.ScoredMem++
+		if row.MemLabel == ScoreHit {
+			out.HitsMem++
+		}
+	}
+}
+
+func collectAfterIndexed(idx scoreSampleIndex, rec store.Recommendation) (cpu, mem []float64) {
+	var bucket []store.Record
+	switch Grain(rec.Grain) {
+	case GrainWorkload:
+		bucket = idx.byWorkload[WorkloadGrainKey(rec.Namespace, rec.OwnerKind, rec.OwnerName, rec.Container)]
+	default:
+		bucket = idx.byPod[rec.Namespace+"/"+rec.Pod+"/"+rec.Container]
+	}
+	cutoff := rec.RecordedAt.UTC()
+	for _, s := range bucket {
+		if !s.SampledAt.UTC().After(cutoff) {
 			continue
 		}
 		cpu = append(cpu, s.CPUUtilMcores)
 		mem = append(mem, float64(s.MemUtilBytes))
 	}
 	return cpu, mem
-}
-
-func matchGrain(s store.Record, rec store.Recommendation) bool {
-	switch Grain(rec.Grain) {
-	case GrainWorkload:
-		return s.OwnerKind == rec.OwnerKind && s.OwnerName == rec.OwnerName && s.Container == rec.Container
-	default:
-		return s.Namespace == rec.Namespace && s.Pod == rec.Pod && s.Container == rec.Container
-	}
 }
 
 func labelUtilVsSug(utilP, sug, target, band float64) ScoreLabel {

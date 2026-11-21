@@ -11,7 +11,7 @@ import (
 // RecIndex indexes latest recommendation snapshots for TUI joins.
 type RecIndex struct {
 	ByPodContainer map[string]store.Recommendation // ns/pod/container
-	ByWorkload     map[string]store.Recommendation // kind/name/container
+	ByWorkload     map[string]store.Recommendation // ns/kind/name/container (plus legacy kind/name/container)
 }
 
 // IndexRecommendations builds lookup maps from latest snapshots.
@@ -25,7 +25,15 @@ func IndexRecommendations(recs []store.Recommendation) RecIndex {
 		case string(recommend.GrainPod):
 			idx.ByPodContainer[r.GrainKey] = r
 		case string(recommend.GrainWorkload):
-			idx.ByWorkload[r.GrainKey] = r
+			if r.OwnerKind != "" && r.OwnerName != "" {
+				key := recommend.WorkloadGrainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Container)
+				idx.ByWorkload[key] = r
+			}
+			if r.GrainKey != "" {
+				if _, exists := idx.ByWorkload[r.GrainKey]; !exists {
+					idx.ByWorkload[r.GrainKey] = r
+				}
+			}
 		}
 	}
 	return idx
@@ -77,7 +85,12 @@ func lookupRec(c live.ContainerRow, idx RecIndex) (store.Recommendation, bool) {
 		return r, true
 	}
 	if c.OwnerKind != "" && c.OwnerName != "" {
-		if r, ok := idx.ByWorkload[c.OwnerKind+"/"+c.OwnerName+"/"+c.Container]; ok {
+		nsKey := recommend.WorkloadGrainKey(c.Namespace, c.OwnerKind, c.OwnerName, c.Container)
+		if r, ok := idx.ByWorkload[nsKey]; ok {
+			return r, true
+		}
+		legacyKey := c.OwnerKind + "/" + c.OwnerName + "/" + c.Container
+		if r, ok := idx.ByWorkload[legacyKey]; ok && (r.Namespace == "" || r.Namespace == c.Namespace) {
 			return r, true
 		}
 	}

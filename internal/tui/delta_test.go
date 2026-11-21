@@ -52,3 +52,39 @@ func TestDeltaWorkloadFallback(t *testing.T) {
 		t.Fatalf("workload delta: %+v", d)
 	}
 }
+
+func TestDeltaWorkloadNamespaceIsolation(t *testing.T) {
+	idx := IndexRecommendations([]store.Recommendation{
+		{
+			Grain: "workload", GrainKey: "prod/Deployment/api/app",
+			Namespace: "prod", OwnerKind: "Deployment", OwnerName: "api", Container: "app",
+			CPUSugMcores: 500, MemSugBytes: 512 << 20,
+		},
+		{
+			Grain: "workload", GrainKey: "staging/Deployment/api/app",
+			Namespace: "staging", OwnerKind: "Deployment", OwnerName: "api", Container: "app",
+			CPUSugMcores: 50, MemSugBytes: 64 << 20,
+		},
+	})
+	pod := live.PodRow{Namespace: "staging", Pod: "api-0"}
+	containers := []live.ContainerRow{{
+		Namespace: "staging", Pod: "api-0", Container: "app",
+		OwnerKind: "Deployment", OwnerName: "api",
+		CPURequestMcores: 100, MemRequestBytes: 128 << 20,
+	}}
+	d := DeltaForPod(pod, containers, idx)
+	if !d.HasSnapshot || d.CPUReqDelta != 50 {
+		t.Fatalf("staging should match staging workload rec (delta 50), got %+v", d)
+	}
+
+	// Unrelated namespace must not borrow prod's recommendation.
+	otherPod := live.PodRow{Namespace: "other", Pod: "api-0"}
+	otherC := []live.ContainerRow{{
+		Namespace: "other", Pod: "api-0", Container: "app",
+		OwnerKind: "Deployment", OwnerName: "api",
+		CPURequestMcores: 100, MemRequestBytes: 128 << 20,
+	}}
+	if d2 := DeltaForPod(otherPod, otherC, idx); d2.HasSnapshot {
+		t.Fatalf("other namespace must not match prod/staging rec: %+v", d2)
+	}
+}
