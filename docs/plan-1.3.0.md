@@ -29,7 +29,7 @@ headers, IdleTimeout, BrowserGuard host checks, systemd harden) fold into `#171`
 |---|-----------|--------|--------|
 | 1 | HTTP / MCP / notify security harden | [#171](https://github.com/hrodrig/kpm/issues/171) | `[x]` |
 | 2 | Store merge / restore / WAL / scan ceilings | [#172](https://github.com/hrodrig/kpm/issues/172) | `[x]` |
-| 3 | Recommend grain namespace + sample fidelity | [#173](https://github.com/hrodrig/kpm/issues/173) | `[ ]` |
+| 3 | Recommend grain namespace + sample fidelity | [#173](https://github.com/hrodrig/kpm/issues/173) | `[x]` |
 | 4 | Daemon HTTP lifecycle, SMTP, kube.context | [#174](https://github.com/hrodrig/kpm/issues/174) | `[ ]` |
 | 5 | Capacity / fit / TUI correctness | [#175](https://github.com/hrodrig/kpm/issues/175) | `[ ]` |
 | 6 | Config validation + export/doctor edges | [#176](https://github.com/hrodrig/kpm/issues/176) | `[ ]` |
@@ -82,13 +82,13 @@ Track high items first (details on the issue):
 
 ### `#173` — Recommend / sample
 
-- [ ] Namespace-scope workload grain keys + score/TUI match (SPEC + migration note)
-- [ ] No synthetic `0` util for containers missing from PodMetrics
-- [ ] Prefer `Controller: true` owner ref
-- [ ] Fix `onSampleFailFn` data race; typed-nil adapter checks
-- [ ] Deduplicate `scope.namespaces`; List pagination where needed
-- [ ] ScoreCalibration perf / percentile / CLI filter consistency
-- [ ] Ceil / NaN guards; patch / MemQuantity edge formatting
+- [x] Namespace-scope workload grain keys + score/TUI match (SPEC + migration note)
+- [x] No synthetic `0` util for containers missing from PodMetrics
+- [x] Prefer `Controller: true` owner ref
+- [x] Fix `onSampleFailFn` data race; typed-nil adapter checks
+- [x] Deduplicate `scope.namespaces`; List pagination where needed
+- [x] ScoreCalibration perf / percentile / CLI filter consistency
+- [x] Ceil / NaN guards; patch / MemQuantity edge formatting
 
 ### `#174` — Daemon / notify / cluster
 

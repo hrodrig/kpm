@@ -262,8 +262,13 @@ utilisation, never an interpolation. `percentile: 95` over 20 samples is the 19t
 input is `0`; `p` is clamped to `0..100`, and `p: 0` returns the minimum.
 
 **Both grains pool their samples before the percentile.** The workload grain keys on
-`owner_kind/owner_name/container`, so *every pod of that owner and container feeds the same sample
-set*; the pod grain keys on `namespace/pod/container`. A workload p95 is therefore the p95 of the
+`namespace/owner_kind/owner_name/container`, so *every pod of that owner and container within the
+same namespace feeds the same sample set* (matching `/api/v1/workloads` and preventing identically
+named workloads across different namespaces from colliding); the pod grain keys on
+`namespace/pod/container`. *(Migration note: stores written before v1.3.0 carry 3-part
+`owner_kind/owner_name/container` workload keys; `--score`, TUI, and analyze-local still match
+those historical rows via their stored `namespace` column, and the next `kpm recommend --record`
+writes the canonical 4-part key.)* A workload p95 is therefore the p95 of the
 pool, **not** the maximum of its pods' p95s — pooling can only pull a top order statistic down, and
 one bursty pod is diluted by its quieter siblings. Sizing an owner from the workload grain sizes the
 aggregate, not the worst pod; use the pod grain when a single pod drives the risk. A row's request,
