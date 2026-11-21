@@ -106,4 +106,22 @@ func TestBuildSendersRejectsInvalidURLSchemes(t *testing.T) {
 			t.Fatalf("webhook URL %q: expected scheme/host validation error", raw)
 		}
 	}
+
+	// Direct Send validation & helper edge branches.
+	if err := (&Slack{WebhookURL: "ftp://example.com/secret"}).Send(context.Background(), Message{Text: "x"}); err == nil {
+		t.Fatal("expected Slack.Send invalid URL error")
+	}
+	if err := (&Webhook{URL: "ftp://example.com/secret"}).Send(context.Background(), Message{Text: "x"}); err == nil {
+		t.Fatal("expected Webhook.Send invalid URL error")
+	}
+	if err := validateHTTPURL("://bad-url"); err == nil {
+		t.Fatal("expected parse error for malformed URL")
+	}
+	if redactURLError(nil) != nil {
+		t.Fatal("redactURLError(nil) must return nil")
+	}
+	plain := errors.New("plain error")
+	if redactURLError(plain) != plain {
+		t.Fatal("redactURLError must pass through non-url errors")
+	}
 }

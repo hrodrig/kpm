@@ -34,6 +34,15 @@ func TestClientIPMultiHeaderXFF(t *testing.T) {
 	if got := ClientIP(req2, trusted); got != "203.0.113.77" {
 		t.Fatalf("chained trusted multi-header XFF: got %q, want 203.0.113.77", got)
 	}
+
+	// Blank XFF header lines and empty comma-separated hops are skipped cleanly.
+	req3 := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	req3.RemoteAddr = "192.168.1.10:1234"
+	req3.Header.Add("X-Forwarded-For", "203.0.113.88, , ")
+	req3.Header.Add("X-Forwarded-For", "   ")
+	if got := ClientIP(req3, trusted); got != "203.0.113.88" {
+		t.Fatalf("blank lines/hops XFF: got %q, want 203.0.113.88", got)
+	}
 }
 
 func TestRateLimiterBoundsAndConcurrentShutdown(t *testing.T) {
@@ -44,6 +53,19 @@ func TestRateLimiterBoundsAndConcurrentShutdown(t *testing.T) {
 		Burst:      2,
 		MaxEntries: 3,
 	}, nil)
+
+	// Mark an entry idle beyond maxIdle and verify evictIdle removes it.
+	idle := rl.getOrCreate("198.51.100.250")
+	rl.mu.Lock()
+	idle.lastSeen = time.Now().Add(-10 * time.Minute)
+	rl.mu.Unlock()
+	rl.evictIdle()
+	rl.mu.Lock()
+	if _, exists := rl.limiters["198.51.100.250"]; exists {
+		rl.mu.Unlock()
+		t.Fatal("expected idle entry to be evicted")
+	}
+	rl.mu.Unlock()
 
 	for i := 1; i <= 10; i++ {
 		rl.getOrCreate("198.51.100." + string(rune('0'+i)))
