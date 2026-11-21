@@ -75,6 +75,10 @@ func originAllowed(origin string, allow map[string]bool) bool {
 	if err != nil || u.Host == "" {
 		return false
 	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return false
+	}
 	return hostAllowed(u.Host, allow)
 }
 
@@ -85,7 +89,7 @@ func loopbackHTTPHost(hostport string) bool {
 	}
 	host = strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
 	switch host {
-	case "localhost", "127.0.0.1", "::1", "0.0.0.0", "":
+	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
 	ip := net.ParseIP(host)

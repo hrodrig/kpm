@@ -56,6 +56,8 @@ type Deps struct {
 	Now       func() time.Time
 	// Live is optional; nil → GET /live returns 503 JSON.
 	Live func(ctx context.Context) (LiveOut, error)
+	// ReadTimeout bounds store/live handler reads (<=0 uses apiReadTimeout).
+	ReadTimeout time.Duration
 }
 
 func (d *Deps) now() time.Time {
@@ -63,6 +65,13 @@ func (d *Deps) now() time.Time {
 		return d.Now().UTC()
 	}
 	return time.Now().UTC()
+}
+
+func (d *Deps) readTimeout() time.Duration {
+	if d != nil && d.ReadTimeout > 0 {
+		return d.ReadTimeout
+	}
+	return apiReadTimeout
 }
 
 // Mount registers /api/v1/* on mux, optionally behind bearer auth.
@@ -145,7 +154,9 @@ func (a *api) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Store != nil {
 		out.StorePath = d.Store.Path()
-		if n, err := d.Store.Count(r.Context()); err == nil {
+		ctx, cancel := context.WithTimeout(r.Context(), d.readTimeout())
+		defer cancel()
+		if n, err := d.Store.Count(ctx); err == nil {
 			out.SampleCount = n
 		}
 	}
@@ -633,9 +644,11 @@ func (a *api) handleNodes(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "store not open")
 		return
 	}
-	rows, err := a.deps.Store.LatestNodeSnapshots(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), a.deps.readTimeout())
+	defer cancel()
+	rows, err := a.deps.Store.LatestNodeSnapshots(ctx)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeReadErr(w, err)
 		return
 	}
 	out := NodesOut{Count: len(rows), Items: make([]NodeOut, 0, len(rows))}
@@ -667,9 +680,11 @@ func (a *api) handleRecommendations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	grain := strings.TrimSpace(r.URL.Query().Get("grain"))
-	recs, err := a.deps.Store.LatestRecommendations(r.Context(), grain)
+	ctx, cancel := context.WithTimeout(r.Context(), a.deps.readTimeout())
+	defer cancel()
+	recs, err := a.deps.Store.LatestRecommendations(ctx, grain)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeReadErr(w, err)
 		return
 	}
 	over, under := recommend.DefaultOversizeRatio, recommend.DefaultUndersizeRatio
@@ -848,7 +863,9 @@ func (a *api) handleLive(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	out, err := a.deps.Live(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), a.deps.readTimeout())
+	defer cancel()
+	out, err := a.deps.Live(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, LiveOut{
 			Available: false,
@@ -884,9 +901,11 @@ func (a *api) handleExportPatch(w http.ResponseWriter, r *http.Request) {
 	if format == "" {
 		format = recommend.PatchStrategic
 	}
-	recs, err := a.deps.Store.LatestRecommendations(r.Context(), "")
+	ctx, cancel := context.WithTimeout(r.Context(), a.deps.readTimeout())
+	defer cancel()
+	recs, err := a.deps.Store.LatestRecommendations(ctx, "")
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeReadErr(w, err)
 		return
 	}
 	var found *store.Recommendation

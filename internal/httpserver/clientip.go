@@ -19,20 +19,8 @@ func ClientIP(r *http.Request, trusted *TrustedProxies) string {
 	if trusted.empty() || peerParsed == nil || !trusted.ContainsIP(peerParsed) {
 		return peer
 	}
-	if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
-		hops := strings.Split(xff, ",")
-		for i := len(hops) - 1; i >= 0; i-- {
-			ip := strings.TrimSpace(hops[i])
-			if ip == "" {
-				continue
-			}
-			parsed := net.ParseIP(ip)
-			if parsed == nil {
-				continue
-			}
-			if trusted.ContainsIP(parsed) {
-				continue
-			}
+	if ip, hasXFF := clientIPFromXFF(r.Header.Values("X-Forwarded-For"), trusted); hasXFF {
+		if ip != "" {
 			return ip
 		}
 		return peer
@@ -43,6 +31,31 @@ func ClientIP(r *http.Request, trusted *TrustedProxies) string {
 		}
 	}
 	return peer
+}
+
+// clientIPFromXFF walks all X-Forwarded-For header lines right-to-left so a
+// client-forged first header cannot shadow a header appended by a reverse proxy.
+func clientIPFromXFF(values []string, trusted *TrustedProxies) (ip string, hasNonEmpty bool) {
+	for vi := len(values) - 1; vi >= 0; vi-- {
+		raw := strings.TrimSpace(values[vi])
+		if raw == "" {
+			continue
+		}
+		hasNonEmpty = true
+		hops := strings.Split(raw, ",")
+		for i := len(hops) - 1; i >= 0; i-- {
+			hop := strings.TrimSpace(hops[i])
+			if hop == "" {
+				continue
+			}
+			parsed := net.ParseIP(hop)
+			if parsed == nil || trusted.ContainsIP(parsed) {
+				continue
+			}
+			return hop, true
+		}
+	}
+	return "", hasNonEmpty
 }
 
 func peerIP(remoteAddr string) string {

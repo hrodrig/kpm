@@ -38,55 +38,72 @@ func bucketKey(ip string) string {
 	return (&net.IPNet{IP: parsed.Mask(mask), Mask: mask}).String()
 }
 
+// DefaultMaxRateLimitEntries caps tracked per-IP buckets to prevent unbounded
+// memory growth under distributed or spoofed-source floods.
+const DefaultMaxRateLimitEntries = 10_000
+
 // RateLimitConfig holds per-IP token-bucket parameters (gghstats mold).
 type RateLimitConfig struct {
-	Enabled  bool
-	Requests int           // per period (default 120)
-	Period   time.Duration // default 1m
-	Burst    int           // default 20
+	Enabled    bool
+	Requests   int           // per period (default 120)
+	Period     time.Duration // default 1m
+	Burst      int           // default 20
+	MaxEntries int           // max tracked buckets (default DefaultMaxRateLimitEntries)
 }
 
 // DefaultRateLimitConfig returns built-in defaults.
 func DefaultRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{
-		Enabled:  true,
-		Requests: 120,
-		Period:   time.Minute,
-		Burst:    20,
+		Enabled:    true,
+		Requests:   120,
+		Period:     time.Minute,
+		Burst:      20,
+		MaxEntries: DefaultMaxRateLimitEntries,
 	}
 }
 
 // RateLimiter is a per-IP token-bucket rate limiter.
 type RateLimiter struct {
-	limiters sync.Map // bucket key → *rateLimiterEntry
-	rate     rate.Limit
-	burst    int
-	maxIdle  time.Duration
-	done     chan struct{}
-	trusted  *TrustedProxies
+	mu           sync.Mutex
+	limiters     map[string]*rateLimiterEntry // bucket key → entry
+	maxEntries   int
+	rate         rate.Limit
+	burst        int
+	maxIdle      time.Duration
+	done         chan struct{}
+	shutdownOnce sync.Once
+	trusted      *TrustedProxies
 }
 
 type rateLimiterEntry struct {
 	limiter  *rate.Limiter
-	mu       sync.Mutex
 	lastSeen time.Time
 }
 
 // NewRateLimiter creates a per-IP limiter and starts idle cleanup.
 // Call Shutdown when the server stops.
 func NewRateLimiter(cfg RateLimitConfig, trusted *TrustedProxies) *RateLimiter {
-	r := rate.Limit(float64(cfg.Requests) / cfg.Period.Seconds())
-	if r <= 0 {
-		slog.Warn("rate limit requests/period is zero or negative, disabling",
-			"requests", cfg.Requests, "period", cfg.Period)
-		r = rate.Inf
+	r := rate.Inf
+	burst := cfg.Burst
+	if cfg.Period <= 0 || cfg.Requests <= 0 || burst <= 0 {
+		slog.Warn("rate limit config is non-positive, disabling",
+			"requests", cfg.Requests, "period", cfg.Period, "burst", cfg.Burst)
+		burst = 1
+	} else {
+		r = rate.Limit(float64(cfg.Requests) / cfg.Period.Seconds())
+	}
+	maxEntries := cfg.MaxEntries
+	if maxEntries <= 0 {
+		maxEntries = DefaultMaxRateLimitEntries
 	}
 	rl := &RateLimiter{
-		rate:    r,
-		burst:   cfg.Burst,
-		maxIdle: 5 * time.Minute,
-		done:    make(chan struct{}),
-		trusted: trusted,
+		limiters:   make(map[string]*rateLimiterEntry),
+		maxEntries: maxEntries,
+		rate:       r,
+		burst:      burst,
+		maxIdle:    5 * time.Minute,
+		done:       make(chan struct{}),
+		trusted:    trusted,
 	}
 	go rl.cleanupLoop()
 	return rl
@@ -97,11 +114,9 @@ func (rl *RateLimiter) Shutdown() {
 	if rl == nil {
 		return
 	}
-	select {
-	case <-rl.done:
-	default:
+	rl.shutdownOnce.Do(func() {
 		close(rl.done)
-	}
+	})
 }
 
 // Middleware wraps next with per-IP rate limiting. Paths in skip are exempt.
@@ -129,25 +144,25 @@ func (rl *RateLimiter) Middleware(next http.Handler, skip PathSkip) http.Handler
 
 func (rl *RateLimiter) getOrCreate(ip string) *rateLimiterEntry {
 	key := bucketKey(ip)
-	if v, ok := rl.limiters.Load(key); ok {
-		e := v.(*rateLimiterEntry)
-		e.mu.Lock()
-		e.lastSeen = time.Now()
-		e.mu.Unlock()
+	now := time.Now()
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	if e, ok := rl.limiters[key]; ok {
+		e.lastSeen = now
 		return e
+	}
+	if len(rl.limiters) >= rl.maxEntries {
+		rl.evictIdleLocked(now)
+	}
+	if len(rl.limiters) >= rl.maxEntries {
+		rl.evictOldestLocked()
 	}
 	e := &rateLimiterEntry{
 		limiter:  rate.NewLimiter(rl.rate, rl.burst),
-		lastSeen: time.Now(),
+		lastSeen: now,
 	}
-	actual, _ := rl.limiters.LoadOrStore(key, e)
-	got := actual.(*rateLimiterEntry)
-	if got != e {
-		got.mu.Lock()
-		got.lastSeen = time.Now()
-		got.mu.Unlock()
-	}
-	return got
+	rl.limiters[key] = e
+	return e
 }
 
 func (rl *RateLimiter) cleanupLoop() {
@@ -164,15 +179,32 @@ func (rl *RateLimiter) cleanupLoop() {
 }
 
 func (rl *RateLimiter) evictIdle() {
-	cutoff := time.Now().Add(-rl.maxIdle)
-	rl.limiters.Range(func(key, value any) bool {
-		e := value.(*rateLimiterEntry)
-		e.mu.Lock()
-		idle := e.lastSeen.Before(cutoff)
-		e.mu.Unlock()
-		if idle {
-			rl.limiters.Delete(key)
+	rl.mu.Lock()
+	rl.evictIdleLocked(time.Now())
+	rl.mu.Unlock()
+}
+
+func (rl *RateLimiter) evictIdleLocked(now time.Time) {
+	cutoff := now.Add(-rl.maxIdle)
+	for key, e := range rl.limiters {
+		if e.lastSeen.Before(cutoff) {
+			delete(rl.limiters, key)
 		}
-		return true
-	})
+	}
+}
+
+func (rl *RateLimiter) evictOldestLocked() {
+	var oldestKey string
+	var oldestAt time.Time
+	first := true
+	for key, e := range rl.limiters {
+		if first || e.lastSeen.Before(oldestAt) {
+			oldestKey = key
+			oldestAt = e.lastSeen
+			first = false
+		}
+	}
+	if !first {
+		delete(rl.limiters, oldestKey)
+	}
 }

@@ -17,13 +17,16 @@ type Slack struct {
 func (s *Slack) Type() string { return "slack" }
 
 func (s *Slack) Send(ctx context.Context, m Message) error {
+	if err := validateHTTPURL(s.WebhookURL); err != nil {
+		return fmt.Errorf("slack webhook: %w", err)
+	}
 	raw, err := json.Marshal(map[string]string{"text": m.Text})
 	if err != nil {
 		return fmt.Errorf("slack payload: %w", err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.WebhookURL, strings.NewReader(string(raw)))
 	if err != nil {
-		return fmt.Errorf("slack request: %w", err)
+		return fmt.Errorf("slack request: %w", redactURLError(err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := s.Client
@@ -32,7 +35,7 @@ func (s *Slack) Send(ctx context.Context, m Message) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("slack webhook: %w", err)
+		return fmt.Errorf("slack webhook: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {

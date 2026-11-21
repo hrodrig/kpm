@@ -115,3 +115,49 @@ func TestBuildAccessControlRejectsBadTrustedProxy(t *testing.T) {
 		t.Fatalf("unparseable trusted_proxies must refuse to start: %v", err)
 	}
 }
+
+func TestStreamableHTTPAllowedHostsBehindLoopbackProxy(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	off := false
+	ops := httpserver.New("127.0.0.1:9740", nil, nil)
+	d := &mcp.Deps{Store: st, Config: &config.Config{}, Version: "t"}
+	mcpCfg := config.MCP{
+		Enabled:      true,
+		Listen:       "127.0.0.1:9740",
+		AllowedHosts: []string{"kpm.example.com"},
+		RateLimit:    config.MCPRateLimit{Enabled: &off},
+	}
+	if err := mcp.AttachDaemonHTTP(ops, d, mcpCfg); err != nil {
+		t.Fatal(err)
+	}
+
+	initBody := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`
+	req := httptest.NewRequest(http.MethodPost, mcp.PathMCP, strings.NewReader(initBody))
+	req.RemoteAddr = "127.0.0.1:54321"
+	req.Host = "kpm.example.com"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	rr := httptest.NewRecorder()
+	ops.Handler().ServeHTTP(rr, req)
+	if rr.Code == http.StatusForbidden {
+		t.Fatalf("allowed_hosts loopback proxy must not get 403 on /mcp: body=%q", rr.Body.String())
+	}
+
+	// Unlisted Host on loopback is still rejected by BrowserGuard.
+	bad := httptest.NewRequest(http.MethodPost, mcp.PathMCP, strings.NewReader(initBody))
+	bad.RemoteAddr = "127.0.0.1:54321"
+	bad.Host = "evil.example"
+	bad.Header.Set("Content-Type", "application/json")
+	bad.Header.Set("Accept", "application/json, text/event-stream")
+	rrBad := httptest.NewRecorder()
+	ops.Handler().ServeHTTP(rrBad, bad)
+	if rrBad.Code != http.StatusForbidden {
+		t.Fatalf("unlisted host must get 403 from BrowserGuard, got %d", rrBad.Code)
+	}
+}

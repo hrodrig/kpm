@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- HTTP access control & server hardening: walk all `X-Forwarded-For` header
+  lines right-to-left (`Header.Values`), bound `RateLimiter` buckets with
+  `sync.Once` shutdown and run rate limiting before IP allowlist, clean paths
+  before `/static/` skip matching, reject `Host: 0.0.0.0`/empty `Host` and
+  non-`http(s)` `Origin` schemes in `BrowserGuard`, and set `IdleTimeout` +
+  `MaxHeaderBytes` on `http.Server` ([#171](https://github.com/hrodrig/kpm/issues/171)).
+- MCP hardening: cap `summarize_window` scans (`store.MaxScanRows` fail-closed,
+  90d max span, 15s read timeout, `until >= since`) and configure Streamable
+  HTTP `SessionTimeout` (30m) while delegating loopback host checks to
+  `BrowserGuard` for `allowed_hosts` reverse proxies ([#171](https://github.com/hrodrig/kpm/issues/171)).
+- Notification sinks: redact webhook/Slack secret URLs from `*url.Error`
+  messages, refuse HTTP redirects, and validate `http`/`https` schemes at
+  startup and send time ([#171](https://github.com/hrodrig/kpm/issues/171)).
+- Analyze-local server & UI: bound `/api/v1/live`, `/status`, `/nodes`,
+  `/recommendations`, and `/export/patch` with read timeouts; externalize theme
+  init to `/static/theme-init.js` and send strict CSP, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`
+  ([#171](https://github.com/hrodrig/kpm/issues/171)).
+
 ### Added
 
 - Analyze-local UI: sticky toolbar/filters, labeled **CPU | Mem** and **util | vs

@@ -32,11 +32,17 @@ func buildOne(s config.NotifySink) (Sender, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := validateHTTPURL(url); err != nil {
+			return nil, fmt.Errorf("webhook_url_env %q: %w", s.WebhookURLEnv, err)
+		}
 		return &Slack{WebhookURL: url}, nil
 	case "webhook":
 		url, err := requireEnv(s.URLEnv)
 		if err != nil {
 			return nil, err
+		}
+		if err := validateHTTPURL(url); err != nil {
+			return nil, fmt.Errorf("url_env %q: %w", s.URLEnv, err)
 		}
 		headers := map[string]string{}
 		for hk, envName := range s.HeadersEnv {

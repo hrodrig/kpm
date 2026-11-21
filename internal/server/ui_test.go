@@ -14,7 +14,7 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 	server.MountUI(mux)
 
 	body := mustGetBody(t, mux, "/", "text/html")
-	mustContain(t, body, "analyze-local", "/static/app.js", "theme-toggle",
+	mustContain(t, body, "analyze-local", "/static/theme-init.js", "/static/app.js", "theme-toggle",
 		"cluster-target", "recommend-summary", "mode-label", "site-footer",
 		"build-meta", "footer-build",
 		"https://github.com/hrodrig/kpm", "MIT License", "advisory only",
@@ -22,6 +22,12 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 		"Clear filters", "Filter workloads", "nodes-panel", "Node capacity",
 		"chrome-sticky", "metric-controls", "data-metric-resource", "data-metric-scale",
 		"CPU recommend", "Mem recommend")
+	if strings.Contains(body, "<script>") {
+		t.Fatal("index.html must not contain inline <script> blocks (breaks strict CSP)")
+	}
+
+	themeInit := mustGetBody(t, mux, "/static/theme-init.js", "")
+	mustContain(t, themeInit, "kpm_theme", "data-theme")
 
 	css := mustGetBody(t, mux, "/static/app.css", "")
 	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel", ".footer-build",
@@ -34,6 +40,32 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 		"/api/v1/members", "Pods (store)", "formatBuildMeta", "build_date", "go_version",
 		"data-container", "recByContainer", "containerRecKey", "formatCount",
 		"pressureSignal", "bindMetricControls", "kpm_metric", "above request", "near limit")
+}
+
+func TestMountUISecurityHeaders(t *testing.T) {
+	mux := http.NewServeMux()
+	server.MountUI(mux)
+
+	for _, path := range []string{"/", "/ui", "/static/theme-init.js", "/static/app.css"} {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status %d", path, rr.Code)
+		}
+		if got := rr.Header().Get("X-Frame-Options"); got != "DENY" {
+			t.Fatalf("%s X-Frame-Options = %q, want DENY", path, got)
+		}
+		if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+			t.Fatalf("%s X-Content-Type-Options = %q, want nosniff", path, got)
+		}
+		if got := rr.Header().Get("Referrer-Policy"); got != "no-referrer" {
+			t.Fatalf("%s Referrer-Policy = %q, want no-referrer", path, got)
+		}
+		csp := rr.Header().Get("Content-Security-Policy")
+		if !strings.Contains(csp, "script-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") {
+			t.Fatalf("%s Content-Security-Policy = %q", path, csp)
+		}
+	}
 }
 
 func TestMountAllIncludesUI(t *testing.T) {

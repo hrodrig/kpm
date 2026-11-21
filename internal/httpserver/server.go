@@ -150,6 +150,8 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	srv := &http.Server{
 		Handler:           s.handler,
 		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 	errCh := make(chan error, 1)
 	go func() {
