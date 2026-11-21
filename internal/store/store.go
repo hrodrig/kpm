@@ -69,10 +69,14 @@ func (s *Store) reads() *sql.DB {
 // "database is locked" when sample and serve share a file.
 func Open(path string) (*Store, error) {
 	dir := filepath.Dir(path)
+	_, statErr := os.Stat(dir)
+	dirExisted := statErr == nil
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create store dir: %w", err)
 	}
-	_ = os.Chmod(dir, 0o700)
+	if !dirExisted {
+		_ = os.Chmod(dir, 0o700)
+	}
 
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {

@@ -212,17 +212,13 @@ func (s *Store) LatestRecommendation(ctx context.Context, grain, grainKey string
 }
 
 // LatestRecommendations returns the newest snapshot per grain_key (optional grain filter).
+// Ties on recorded_at break on highest id to match LatestRecommendation.
 func (s *Store) LatestRecommendations(ctx context.Context, grain string) ([]Recommendation, error) {
 	q := `
-		SELECT r.id, r.recorded_at, r.client_id, r.cluster_name,
-			r.grain, r.grain_key, r.namespace, r.pod, r.container, r.owner_kind, r.owner_name,
-			r.samples, r.percentile, r.target_utilization,
-			r.cpu_target_utilization, r.memory_target_utilization, r.window_days, r.days_with_samples,
-			r.cpu_p_mcores, r.mem_p_bytes, r.cpu_sug_mcores, r.mem_sug_bytes,
-			r.cpu_req_mcores, r.mem_req_bytes
-		FROM recommendations r
-		INNER JOIN (
-			SELECT grain, grain_key, MAX(recorded_at) AS max_at
+		SELECT id, ` + recommendationColumns + `
+		FROM (
+			SELECT id, ` + recommendationColumns + `,
+				ROW_NUMBER() OVER (PARTITION BY grain, grain_key ORDER BY recorded_at DESC, id DESC) AS rn
 			FROM recommendations`
 	args := []any{}
 	if grain != "" {
@@ -230,9 +226,9 @@ func (s *Store) LatestRecommendations(ctx context.Context, grain string) ([]Reco
 		args = append(args, grain)
 	}
 	q += `
-			GROUP BY grain, grain_key
-		) latest ON r.grain = latest.grain AND r.grain_key = latest.grain_key AND r.recorded_at = latest.max_at
-		ORDER BY r.grain, r.grain_key`
+		)
+		WHERE rn = 1
+		ORDER BY grain, grain_key`
 	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list latest recommendations: %w", err)

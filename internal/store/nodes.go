@@ -132,13 +132,13 @@ func boolToInt(b bool) int {
 
 // LatestNodeSnapshots returns all rows from the newest recorded_at batch.
 func (s *Store) LatestNodeSnapshots(ctx context.Context) ([]NodeSnapshot, error) {
-	var at string
+	var at sql.NullString
 	err := s.reads().QueryRowContext(ctx, `SELECT MAX(recorded_at) FROM node_snapshots`).Scan(&at)
-	if err == sql.ErrNoRows || at == "" {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
+	}
+	if !at.Valid || at.String == "" {
+		return nil, nil
 	}
 	rows, err := s.reads().QueryContext(ctx, `
 		SELECT id, recorded_at, client_id, cluster_name, node,
@@ -147,7 +147,7 @@ func (s *Store) LatestNodeSnapshots(ctx context.Context) ([]NodeSnapshot, error)
 			taints, unschedulable
 		FROM node_snapshots
 		WHERE recorded_at = ?
-		ORDER BY node ASC`, at)
+		ORDER BY node ASC`, at.String)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -172,5 +173,99 @@ func TestRestoreReplaceIncludesUncheckpointedWAL(t *testing.T) {
 	}
 	if n != 2 {
 		t.Fatalf("restored store lost uncheckpointed WAL rows: got %d want 2", n)
+	}
+}
+
+func TestOpenDoesNotChmodExistingParentDir(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "shared")
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	st, err := Open(filepath.Join(parent, "kpm.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+
+	fi, err := os.Stat(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o755 {
+		t.Fatalf("existing parent dir mode changed to %o, want 0755", fi.Mode().Perm())
+	}
+
+	// Newly created dir still gets 0700.
+	nested := filepath.Join(parent, "fresh-subdir")
+	st2, err := Open(filepath.Join(nested, "kpm.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st2.Close()
+	fi2, err := os.Stat(nested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi2.Mode().Perm() != 0o700 {
+		t.Fatalf("new parent dir mode %o, want 0700", fi2.Mode().Perm())
+	}
+}
+
+func TestLatestNodeSnapshotsSurfacesErrors(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Empty table returns nil, nil.
+	rows, err := st.LatestNodeSnapshots(t.Context())
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("empty table: rows=%d err=%v", len(rows), err)
+	}
+	// Canceled context must return an error, not nil, nil.
+	cctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := st.LatestNodeSnapshots(cctx); err == nil {
+		t.Fatal("expected canceled context error from LatestNodeSnapshots")
+	}
+	_ = st.Close()
+	if _, err := st.LatestNodeSnapshots(t.Context()); err == nil {
+		t.Fatal("expected closed DB error from LatestNodeSnapshots")
+	}
+}
+
+func TestLatestRecommendationsTieBreaksByID(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	ts := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+	if err := st.InsertRecommendations(t.Context(), []Recommendation{
+		{
+			RecordedAt: ts, Grain: "workload", GrainKey: "Deployment/api/app",
+			Namespace: "app", OwnerKind: "Deployment", OwnerName: "api", Container: "app",
+			CPUSugMcores: 100,
+		},
+		{
+			RecordedAt: ts, Grain: "workload", GrainKey: "Deployment/api/app",
+			Namespace: "app", OwnerKind: "Deployment", OwnerName: "api", Container: "app",
+			CPUSugMcores: 250,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.LatestRecommendations(t.Context(), "workload")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 deduplicated recommendation on timestamp tie, got %d", len(got))
+	}
+	if got[0].CPUSugMcores != 250 {
+		t.Fatalf("want newest id (CPUSugMcores=250), got %g", got[0].CPUSugMcores)
 	}
 }
