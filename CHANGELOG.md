@@ -42,6 +42,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recommend filter placeholders read **CPU recommend** / **Mem recommend** so
   they are not confused with the chart metric control (#168).
 
+### Fixed
+
+- SQLite store merge, restore, and retention integrity: preserve `taints` and
+  `unschedulable` in `Store.MergeFrom`, pin `*sql.Conn` for `TEMP TABLE`
+  staging, normalize legacy RFC3339 timestamps on merge, snapshot WAL-mode
+  sources via `VACUUM INTO` in `RestoreReplace` and stage `Backup` inside a
+  private `0700` dir before `0600` rename, avoid `chmod 0700` on pre-existing
+  parent directories in `Store.Open`, surface DB/context errors from
+  `LatestNodeSnapshots`, tie-break `LatestRecommendations` by `MAX(id)`, prune
+  `recommendations` and `node_snapshots` during retention, enforce `MaxScanRows`
+  fail-closed in `ListRecords(Limit=0)`, and honor `Limit`/`Newest` in `Export`
+  ([#172](https://github.com/hrodrig/kpm/issues/172)).
+
 ## [1.2.0] - 2026-11-14
 
 ### Security

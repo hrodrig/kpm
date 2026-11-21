@@ -28,7 +28,7 @@ headers, IdleTimeout, BrowserGuard host checks, systemd harden) fold into `#171`
 | # | Work unit | GitHub | Status |
 |---|-----------|--------|--------|
 | 1 | HTTP / MCP / notify security harden | [#171](https://github.com/hrodrig/kpm/issues/171) | `[x]` |
-| 2 | Store merge / restore / WAL / scan ceilings | [#172](https://github.com/hrodrig/kpm/issues/172) | `[ ]` |
+| 2 | Store merge / restore / WAL / scan ceilings | [#172](https://github.com/hrodrig/kpm/issues/172) | `[x]` |
 | 3 | Recommend grain namespace + sample fidelity | [#173](https://github.com/hrodrig/kpm/issues/173) | `[ ]` |
 | 4 | Daemon HTTP lifecycle, SMTP, kube.context | [#174](https://github.com/hrodrig/kpm/issues/174) | `[ ]` |
 | 5 | Capacity / fit / TUI correctness | [#175](https://github.com/hrodrig/kpm/issues/175) | `[ ]` |
@@ -71,14 +71,14 @@ Track high items first (details on the issue):
 
 ### `#172` — Store
 
-- [ ] `MergeFrom` preserve `taints` / `unschedulable` on `node_snapshots`
-- [ ] `RestoreReplace` checkpoint / include WAL safely
-- [ ] `Store.Open` chmod only newly created parent dirs
-- [ ] Surface errors from `LatestNodeSnapshots`
-- [ ] Deduplicate `LatestRecommendations` on `recorded_at` ties
-- [ ] Retention prune includes `recommendations` / `node_snapshots` (or document exclusion)
-- [ ] Enforce `MaxScanRows` when `Limit == 0`; Export respects ceiling
-- [ ] Pin `*sql.Conn` for TEMP TABLE merge; backup umask; RFC3339 normalize on merge
+- [x] `MergeFrom` preserve `taints` / `unschedulable` on `node_snapshots`
+- [x] `RestoreReplace` checkpoint / include WAL safely
+- [x] `Store.Open` chmod only newly created parent dirs
+- [x] Surface errors from `LatestNodeSnapshots`
+- [x] Deduplicate `LatestRecommendations` on `recorded_at` ties
+- [x] Retention prune includes `recommendations` / `node_snapshots` (or document exclusion)
+- [x] Enforce `MaxScanRows` when `Limit == 0`; Export respects ceiling
+- [x] Pin `*sql.Conn` for TEMP TABLE merge; backup umask; RFC3339 normalize on merge
 
 ### `#173` — Recommend / sample
 
