@@ -19,17 +19,21 @@ func TestMountUIIndexAndStatic(t *testing.T) {
 		"build-meta", "footer-build",
 		"https://github.com/hrodrig/kpm", "MIT License", "advisory only",
 		"filter-ns", "filter-owner", "filter-grain", "filter-cpu", "filter-mem",
-		"Clear filters", "Filter workloads", "nodes-panel", "Node capacity")
+		"Clear filters", "Filter workloads", "nodes-panel", "Node capacity",
+		"chrome-sticky", "metric-controls", "data-metric-resource", "data-metric-scale",
+		"CPU recommend", "Mem recommend")
 
 	css := mustGetBody(t, mux, "/static/app.css", "")
-	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel", ".footer-build")
+	mustContain(t, css, "--accent", `data-theme="dark"`, ".filters", ".nodes-panel", ".footer-build",
+		".chrome-sticky", ".metric-controls", ".badge.pressure", ".near-limit")
 
 	js := mustGetBody(t, mux, "/static/app.js", "")
 	mustContain(t, js, "/api/v1/series/batch", "/api/v1/series", "/api/v1/recommendations", "cpu_verdict",
 		"kube_live", "updateModeLabel", "filterItems", "workloadQueryParams",
 		"No workloads match these filters", "/api/v1/nodes", "record-nodes", "renderNodesPanel",
 		"/api/v1/members", "Pods (store)", "formatBuildMeta", "build_date", "go_version",
-		"data-container", "recByContainer", "containerRecKey", "formatCount")
+		"data-container", "recByContainer", "containerRecKey", "formatCount",
+		"pressureSignal", "bindMetricControls", "kpm_metric", "above request", "near limit")
 }
 
 func TestMountAllIncludesUI(t *testing.T) {

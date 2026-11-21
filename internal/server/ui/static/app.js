@@ -4,9 +4,42 @@
 
   var TOKEN_KEY = "kpm_api_token";
   var THEME_KEY = "kpm_theme";
+  var METRIC_KEY = "kpm_metric";
+
+  function metricIdFromParts(resource, scale) {
+    var res = resource === "mem" ? "mem" : "cpu";
+    var sc = scale === "ratio" ? "ratio" : "util";
+    if (res === "cpu" && sc === "util") return "cpu_util_mcores";
+    if (res === "mem" && sc === "util") return "mem_util_bytes";
+    if (res === "cpu") return "cpu_util_ratio";
+    return "mem_util_ratio";
+  }
+
+  function partsFromMetricId(id) {
+    if (id === "mem_util_bytes" || id === "mem_util_ratio") {
+      return { resource: "mem", scale: id.indexOf("ratio") >= 0 ? "ratio" : "util" };
+    }
+    return { resource: "cpu", scale: id === "cpu_util_ratio" ? "ratio" : "util" };
+  }
+
+  function loadStoredMetric() {
+    try {
+      var raw = localStorage.getItem(METRIC_KEY);
+      if (
+        raw === "cpu_util_mcores" ||
+        raw === "mem_util_bytes" ||
+        raw === "cpu_util_ratio" ||
+        raw === "mem_util_ratio"
+      ) {
+        return raw;
+      }
+    } catch (e) {}
+    return "cpu_util_mcores";
+  }
+
   var state = {
     window: "24h",
-    metric: "cpu_util_mcores",
+    metric: loadStoredMetric(),
     since: "",
     until: "",
     token: sessionStorage.getItem(TOKEN_KEY) || "",
@@ -234,6 +267,7 @@
       ctx.font = "12px ui-monospace, Menlo, monospace";
       ctx.fillText("No samples in window", 8, h / 2);
       if (stats) stats.textContent = meta.label + " · no data";
+      renderPressureBadge(card, [], refs, metricId);
       return;
     }
     var vals = points.map(function (p) {
@@ -340,6 +374,7 @@
         escapeHTML(hint) +
         "</span>";
     }
+    renderPressureBadge(card, points, refs, metricId);
   }
 
   function containerRecKey(ns, owner, container) {
@@ -372,19 +407,96 @@
     return '<span class="' + cls + '">' + escapeHTML(label) + "</span>";
   }
 
+  /**
+   * Client-side util pressure vs req/lim (#169). Ratio charts skipped.
+   * max triggers watch; ≥25% of points at threshold raises / confirms severity.
+   * near limit wins over above request when both apply.
+   */
+  function pressureSignal(points, req, lim, metricId) {
+    if (!metricId || metricId.indexOf("_ratio") !== -1) return null;
+    if (!points || !points.length) return null;
+    var vals = [];
+    points.forEach(function (p) {
+      var v = Number(p.v);
+      if (isFinite(v)) vals.push(v);
+    });
+    if (!vals.length) return null;
+    var max = Math.max.apply(null, vals);
+    var n = vals.length;
+    var nearLim = false;
+    var aboveReq = false;
+    if (lim != null && isFinite(lim) && lim > 0) {
+      var limThr = 0.8 * lim;
+      var nearCount = 0;
+      vals.forEach(function (v) {
+        if (v >= limThr) nearCount++;
+      });
+      nearLim = max >= limThr || nearCount / n >= 0.25;
+    }
+    if (req != null && isFinite(req)) {
+      var aboveCount = 0;
+      vals.forEach(function (v) {
+        if (v > req) aboveCount++;
+      });
+      aboveReq = max > req || aboveCount / n >= 0.25;
+    }
+    if (nearLim) {
+      return {
+        kind: "near-limit",
+        label: "near limit",
+        title: "Utilization pressure vs limit — independent of rightsizing recommend",
+      };
+    }
+    if (aboveReq) {
+      return {
+        kind: "above-request",
+        label: "above request",
+        title: "Utilization pressure vs request — independent of rightsizing recommend",
+      };
+    }
+    return null;
+  }
+
+  function renderPressureBadge(card, points, refs, metricId) {
+    if (!card) return;
+    var row = card.querySelector(".pressure-row");
+    if (!row) return;
+    var sig = pressureSignal(
+      points,
+      refs && refs.request,
+      refs && refs.limit,
+      metricId
+    );
+    if (!sig) {
+      row.innerHTML = "";
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+    row.innerHTML =
+      '<span class="badge pressure ' +
+      escapeAttr(sig.kind) +
+      '" title="' +
+      escapeAttr(sig.title) +
+      '">' +
+      escapeHTML(sig.label) +
+      "</span>";
+  }
+
   function cardVerdictHTML(item) {
     var rec = lookupRec(item);
+    var rightsizing;
     if (!rec) {
-      return (
-        '<div class="verdict-row">' + badgeHTML("rightsizing", "none", "") + "</div>"
-      );
+      rightsizing =
+        '<div class="verdict-row">' + badgeHTML("rightsizing", "none", "") + "</div>";
+    } else {
+      rightsizing =
+        '<div class="verdict-row">' +
+        badgeHTML("CPU", rec.cpu_verdict, fmtDeltaM(rec.cpu_delta_mcores)) +
+        badgeHTML("Mem", rec.mem_verdict, fmtDeltaMem(rec.mem_delta_bytes)) +
+        "</div>";
     }
-    return (
-      '<div class="verdict-row">' +
-      badgeHTML("CPU", rec.cpu_verdict, fmtDeltaM(rec.cpu_delta_mcores)) +
-      badgeHTML("Mem", rec.mem_verdict, fmtDeltaMem(rec.mem_delta_bytes)) +
-      "</div>"
-    );
+    return rightsizing + '<div class="pressure-row" hidden></div>';
   }
 
   function updateRecSummary(items) {
@@ -1012,9 +1124,49 @@
       });
       loadOverview();
     });
-    document.getElementById("metric").addEventListener("change", function (e) {
-      state.metric = e.target.value;
-      loadOverview();
+    bindMetricControls();
+  }
+
+  function persistMetric() {
+    try {
+      localStorage.setItem(METRIC_KEY, state.metric);
+    } catch (e) {}
+  }
+
+  function syncMetricButtons() {
+    var parts = partsFromMetricId(state.metric);
+    document.querySelectorAll("[data-metric-resource]").forEach(function (btn) {
+      var on = btn.getAttribute("data-metric-resource") === parts.resource;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    document.querySelectorAll("[data-metric-scale]").forEach(function (btn) {
+      var on = btn.getAttribute("data-metric-scale") === parts.scale;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function setMetricFromParts(resource, scale) {
+    state.metric = metricIdFromParts(resource, scale);
+    persistMetric();
+    syncMetricButtons();
+    loadOverview();
+  }
+
+  function bindMetricControls() {
+    syncMetricButtons();
+    document.querySelectorAll("[data-metric-resource]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var parts = partsFromMetricId(state.metric);
+        setMetricFromParts(btn.getAttribute("data-metric-resource"), parts.scale);
+      });
+    });
+    document.querySelectorAll("[data-metric-scale]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var parts = partsFromMetricId(state.metric);
+        setMetricFromParts(parts.resource, btn.getAttribute("data-metric-scale"));
+      });
     });
   }
 

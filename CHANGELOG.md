@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Analyze-local UI: sticky toolbar/filters, labeled **CPU | Mem** and **util | vs
+  request** metric segments with `localStorage` persistence
+  ([#168](https://github.com/hrodrig/kpm/issues/168)).
+- Analyze-local util cards: **above request** / **near limit** pressure badges
+  from max and sustained util vs req/lim (independent of rightsizing)
+  ([#169](https://github.com/hrodrig/kpm/issues/169)).
+
+### Changed
+
+- Recommend filter placeholders read **CPU recommend** / **Mem recommend** so
+  they are not confused with the chart metric control (#168).
+
 ## [1.2.0] - 2026-11-14
 
 ### Security

@@ -116,13 +116,21 @@ select {
   border-radius: var(--r-4);
 }
 
+.chrome-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--surface);
+}
+
 .top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-12) var(--sp-16);
-  padding: var(--sp-16) var(--sp-24);
-  border-bottom: 1px solid var(--line);
+  padding: var(--sp-16) var(--sp-24) var(--sp-8);
   background: var(--surface);
 }
 
@@ -171,7 +179,7 @@ select {
   white-space: nowrap;
 }
 
-.chrome {
+.display-nav {
   display: flex;
   align-items: center;
   gap: var(--sp-8);
@@ -286,12 +294,65 @@ input:focus-visible {
   color: var(--ink);
 }
 
-.metric {
+.metric-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding-left: var(--sp-8);
+  border-left: 1px solid var(--line);
+}
+
+.metric-label {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.segment {
+  display: inline-flex;
   border: 1px solid var(--line);
   border-radius: var(--r-4);
-  padding: var(--sp-4) var(--sp-8);
+  overflow: hidden;
+}
+
+.segment .seg {
+  appearance: none;
+  border: 0;
+  border-right: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
+  padding: var(--sp-4) var(--sp-12);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-12);
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+}
+
+.segment .seg:last-child {
+  border-right: 0;
+}
+
+.segment .seg:hover {
+  background: var(--bg);
+}
+
+.segment .seg.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.segment .seg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .metric-controls {
+    border-left: 0;
+    padding-left: 0;
+  }
 }
 
 .filters {
@@ -299,7 +360,9 @@ input:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
-  margin: 0 0 var(--sp-12);
+  margin: 0;
+  padding: var(--sp-8) var(--sp-24) var(--sp-12);
+  background: var(--surface);
 }
 
 .filters input,
@@ -434,6 +497,28 @@ input:focus-visible {
 .badge.na,
 .badge.none {
   color: var(--muted);
+}
+
+.pressure-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  min-height: 0;
+}
+
+.pressure-row[hidden] {
+  display: none;
+}
+
+.badge.pressure.above-request {
+  border-color: var(--chart-req);
+  color: var(--chart-req);
+}
+
+.badge.pressure.near-limit {
+  border-color: var(--chart-lim);
+  color: var(--chart-lim);
+  font-weight: 600;
 }
 
 .grid {
