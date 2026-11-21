@@ -27,7 +27,7 @@ headers, IdleTimeout, BrowserGuard host checks, systemd harden) fold into `#171`
 
 | # | Work unit | GitHub | Status |
 |---|-----------|--------|--------|
-| 1 | HTTP / MCP / notify security harden | [#171](https://github.com/hrodrig/kpm/issues/171) | `[ ]` |
+| 1 | HTTP / MCP / notify security harden | [#171](https://github.com/hrodrig/kpm/issues/171) | `[x]` |
 | 2 | Store merge / restore / WAL / scan ceilings | [#172](https://github.com/hrodrig/kpm/issues/172) | `[ ]` |
 | 3 | Recommend grain namespace + sample fidelity | [#173](https://github.com/hrodrig/kpm/issues/173) | `[ ]` |
 | 4 | Daemon HTTP lifecycle, SMTP, kube.context | [#174](https://github.com/hrodrig/kpm/issues/174) | `[ ]` |
@@ -58,16 +58,16 @@ Issue bodies remain the detailed checklist; this plan owns **merge order**,
 
 Track high items first (details on the issue):
 
-- [ ] Multi-header `X-Forwarded-For` (all header lines, right-to-left)
-- [ ] MCP `summarize_window` row cap + timeout + window validation
-- [ ] MCP Streamable HTTP session bounds / loopback reverse-proxy
-- [ ] Redact webhook/Slack secrets from errors and daemon logs
-- [ ] RateLimiter memory bound, Shutdown race, middleware order
-- [ ] HTTP `IdleTimeout` / handler timeouts
-- [ ] Notify: no redirect follow; validate URL schemes
-- [ ] `PathSkip` clean path before `/static/` match
-- [ ] BrowserGuard: reject `Host: 0.0.0.0`, empty Host, bad Origin schemes
-- [ ] UI security headers + move inline theme script to `/static/` for CSP
+- [x] Multi-header `X-Forwarded-For` (all header lines, right-to-left)
+- [x] MCP `summarize_window` row cap + timeout + window validation
+- [x] MCP Streamable HTTP session bounds / loopback reverse-proxy
+- [x] Redact webhook/Slack secrets from errors and daemon logs
+- [x] RateLimiter memory bound, Shutdown race, middleware order
+- [x] HTTP `IdleTimeout` / handler timeouts
+- [x] Notify: no redirect follow; validate URL schemes
+- [x] `PathSkip` clean path before `/static/` match
+- [x] BrowserGuard: reject `Host: 0.0.0.0`, empty Host, bad Origin schemes
+- [x] UI security headers + move inline theme script to `/static/` for CSP
 
 ### `#172` — Store
 
