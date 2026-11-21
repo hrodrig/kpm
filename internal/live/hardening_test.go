@@ -2,10 +2,13 @@ package live
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
 
 	"github.com/hrodrig/kpm/internal/config"
 )
@@ -102,5 +105,20 @@ func TestCaptureAndNodesPaginateAndDeduplicateNamespaces(t *testing.T) {
 	}
 	if nodes.calls != 2 || len(gotNodes) != 2 {
 		t.Fatalf("expected 2 paginated node calls and 2 nodes, calls=%d nodes=%d", nodes.calls, len(gotNodes))
+	}
+
+	// Error path in listAllNodes.
+	if _, err := CaptureNodeCapacity(context.Background(), fakeNodes{err: errors.New("boom")}, nil); err == nil {
+		t.Fatal("expected list nodes error")
+	}
+
+	// Non-nil fake clientsets pass through CaptureClients and CaptureNodeCapacityClients.
+	cs := fake.NewClientset()
+	mcs := metricsfake.NewSimpleClientset()
+	if _, err := CaptureClients(context.Background(), cs, mcs, Options{}); err != nil {
+		t.Fatalf("CaptureClients: %v", err)
+	}
+	if _, err := CaptureNodeCapacityClients(context.Background(), cs, nil); err != nil {
+		t.Fatalf("CaptureNodeCapacityClients: %v", err)
 	}
 }

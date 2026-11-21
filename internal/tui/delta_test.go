@@ -65,6 +65,11 @@ func TestDeltaWorkloadNamespaceIsolation(t *testing.T) {
 			Namespace: "staging", OwnerKind: "Deployment", OwnerName: "api", Container: "app",
 			CPUSugMcores: 50, MemSugBytes: 64 << 20,
 		},
+		{
+			Grain: "workload", GrainKey: "Deployment/legacy/app",
+			Namespace: "staging", OwnerKind: "Deployment", OwnerName: "legacy", Container: "app",
+			CPUSugMcores: 25, MemSugBytes: 32 << 20,
+		},
 	})
 	pod := live.PodRow{Namespace: "staging", Pod: "api-0"}
 	containers := []live.ContainerRow{{

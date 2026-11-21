@@ -70,6 +70,12 @@ func TestScoreCalibrationNamespacesAndStoredPercentile(t *testing.T) {
 	}
 
 	var samples []store.Record
+	// Include a pre-recommendation sample (must be ignored by cutoff check).
+	samples = append(samples, store.Record{
+		SampledAt: recAt.Add(-time.Hour), Namespace: "staging", Pod: "api-0", Container: "app",
+		OwnerKind: "Deployment", OwnerName: "api",
+		CPUUtilMcores: 9999, MemUtilBytes: 9999 << 20,
+	})
 	// 25 samples for staging: 24 at 70m, 1 outlier at 500m -> p50=70m (hit), p95=500m (miss-high).
 	// 25 samples for prod: all at 700m -> p95=700m (hit).
 	for i := 0; i < 25; i++ {
