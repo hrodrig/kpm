@@ -6,7 +6,9 @@ as `docs/` in [kwd](https://github.com/hrodrig/kwd).
 
 | Asset | Role |
 |-------|------|
-| [ROADMAP.md](./ROADMAP.md) | Semver bands to v1.0; global work IDs `#1`–`#23` |
+| [ROADMAP.md](./ROADMAP.md) | Semver bands; global work IDs |
+| [plan-1.3.0.md](./plan-1.3.0.md) | 1.3.0 — audit harden `#171`–`#178` + serve UI `#168`/`#169` |
+| [plan-1.0.0.md](./plan-1.0.0.md) | 1.0.0 harden-and-tag (shipped) |
 | [plan-0.2.0.md](./plan-0.2.0.md) | Core band merge order + success criteria |
 | [measurement-and-rightsizing.md](./measurement-and-rightsizing.md) | Measurement + recommend strategy (Mermaid); linked from README |
 | [compare.md](./compare.md) | Short README table, then the peer matrix and when to leave kpm |
