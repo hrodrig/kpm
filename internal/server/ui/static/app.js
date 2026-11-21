@@ -267,6 +267,7 @@
       ctx.font = "12px ui-monospace, Menlo, monospace";
       ctx.fillText("No samples in window", 8, h / 2);
       if (stats) stats.textContent = meta.label + " · no data";
+      renderPressureBadge(card, [], refs, metricId);
       return;
     }
     var vals = points.map(function (p) {
@@ -373,6 +374,7 @@
         escapeHTML(hint) +
         "</span>";
     }
+    renderPressureBadge(card, points, refs, metricId);
   }
 
   function containerRecKey(ns, owner, container) {
@@ -405,19 +407,96 @@
     return '<span class="' + cls + '">' + escapeHTML(label) + "</span>";
   }
 
+  /**
+   * Client-side util pressure vs req/lim (#169). Ratio charts skipped.
+   * max triggers watch; ≥25% of points at threshold raises / confirms severity.
+   * near limit wins over above request when both apply.
+   */
+  function pressureSignal(points, req, lim, metricId) {
+    if (!metricId || metricId.indexOf("_ratio") !== -1) return null;
+    if (!points || !points.length) return null;
+    var vals = [];
+    points.forEach(function (p) {
+      var v = Number(p.v);
+      if (isFinite(v)) vals.push(v);
+    });
+    if (!vals.length) return null;
+    var max = Math.max.apply(null, vals);
+    var n = vals.length;
+    var nearLim = false;
+    var aboveReq = false;
+    if (lim != null && isFinite(lim) && lim > 0) {
+      var limThr = 0.8 * lim;
+      var nearCount = 0;
+      vals.forEach(function (v) {
+        if (v >= limThr) nearCount++;
+      });
+      nearLim = max >= limThr || nearCount / n >= 0.25;
+    }
+    if (req != null && isFinite(req)) {
+      var aboveCount = 0;
+      vals.forEach(function (v) {
+        if (v > req) aboveCount++;
+      });
+      aboveReq = max > req || aboveCount / n >= 0.25;
+    }
+    if (nearLim) {
+      return {
+        kind: "near-limit",
+        label: "near limit",
+        title: "Utilization pressure vs limit — independent of rightsizing recommend",
+      };
+    }
+    if (aboveReq) {
+      return {
+        kind: "above-request",
+        label: "above request",
+        title: "Utilization pressure vs request — independent of rightsizing recommend",
+      };
+    }
+    return null;
+  }
+
+  function renderPressureBadge(card, points, refs, metricId) {
+    if (!card) return;
+    var row = card.querySelector(".pressure-row");
+    if (!row) return;
+    var sig = pressureSignal(
+      points,
+      refs && refs.request,
+      refs && refs.limit,
+      metricId
+    );
+    if (!sig) {
+      row.innerHTML = "";
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+    row.innerHTML =
+      '<span class="badge pressure ' +
+      escapeAttr(sig.kind) +
+      '" title="' +
+      escapeAttr(sig.title) +
+      '">' +
+      escapeHTML(sig.label) +
+      "</span>";
+  }
+
   function cardVerdictHTML(item) {
     var rec = lookupRec(item);
+    var rightsizing;
     if (!rec) {
-      return (
-        '<div class="verdict-row">' + badgeHTML("rightsizing", "none", "") + "</div>"
-      );
+      rightsizing =
+        '<div class="verdict-row">' + badgeHTML("rightsizing", "none", "") + "</div>";
+    } else {
+      rightsizing =
+        '<div class="verdict-row">' +
+        badgeHTML("CPU", rec.cpu_verdict, fmtDeltaM(rec.cpu_delta_mcores)) +
+        badgeHTML("Mem", rec.mem_verdict, fmtDeltaMem(rec.mem_delta_bytes)) +
+        "</div>";
     }
-    return (
-      '<div class="verdict-row">' +
-      badgeHTML("CPU", rec.cpu_verdict, fmtDeltaM(rec.cpu_delta_mcores)) +
-      badgeHTML("Mem", rec.mem_verdict, fmtDeltaMem(rec.mem_delta_bytes)) +
-      "</div>"
-    );
+    return rightsizing + '<div class="pressure-row" hidden></div>';
   }
 
   function updateRecSummary(items) {

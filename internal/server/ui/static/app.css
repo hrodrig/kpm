@@ -499,6 +499,28 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.pressure-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  min-height: 0;
+}
+
+.pressure-row[hidden] {
+  display: none;
+}
+
+.badge.pressure.above-request {
+  border-color: var(--chart-req);
+  color: var(--chart-req);
+}
+
+.badge.pressure.near-limit {
+  border-color: var(--chart-lim);
+  color: var(--chart-lim);
+  font-weight: 600;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
