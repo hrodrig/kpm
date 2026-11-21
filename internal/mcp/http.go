@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/hrodrig/kpm/internal/config"
 	"github.com/hrodrig/kpm/internal/httpserver"
 )
+
+// DefaultSessionTimeout expires idle Streamable HTTP (/mcp) sessions so
+// disconnected clients cannot accumulate sessions indefinitely.
+const DefaultSessionTimeout = 30 * time.Minute
 
 // PathSSE is the legacy SSE MCP endpoint (SPEC §7.5 client examples).
 const PathSSE = "/sse"
@@ -31,11 +36,18 @@ func BearerAuth(token string, next http.Handler) http.Handler {
 
 // MountHTTP registers SSE (/sse) and streamable HTTP (/mcp) on mux, optionally
 // behind bearer auth. Uses the same tool surface as stdio.
+//
+// Streamable HTTP sessions expire after DefaultSessionTimeout. Localhost
+// DNS-rebinding protection is delegated to httpserver.BrowserGuard so
+// loopback reverse proxies using allowed_hosts are not rejected with 403.
 func MountHTTP(mux *http.ServeMux, d *Deps, bearerToken string) {
 	srv := NewServer(d)
 	get := func(*http.Request) *mcpsdk.Server { return srv }
 	sse := mcpsdk.NewSSEHandler(get, nil)
-	stream := mcpsdk.NewStreamableHTTPHandler(get, nil)
+	stream := mcpsdk.NewStreamableHTTPHandler(get, &mcpsdk.StreamableHTTPOptions{
+		SessionTimeout:             DefaultSessionTimeout,
+		DisableLocalhostProtection: true,
+	})
 	mux.Handle(PathSSE, BearerAuth(bearerToken, sse))
 	mux.Handle(PathSSE+"/", BearerAuth(bearerToken, sse))
 	mux.Handle(PathMCP, BearerAuth(bearerToken, stream))

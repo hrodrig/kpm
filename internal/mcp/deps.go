@@ -19,12 +19,37 @@ const DefaultListCap = 500
 // MaxListCap is the absolute maximum rows list_samples may return.
 const MaxListCap = 2000
 
+// MaxSummarizeRows bounds summarize_window scans fail-closed (matches store ceiling).
+const MaxSummarizeRows = store.MaxScanRows
+
+// MaxSummarizeWindow caps the explicit [since, until] span for summarize_window.
+const MaxSummarizeWindow = 90 * 24 * time.Hour
+
+// DefaultSummarizeTimeout bounds one summarize_window SQLite read.
+const DefaultSummarizeTimeout = 15 * time.Second
+
 // Deps is the read-only tool backend (store + status meta).
 type Deps struct {
-	Store   *store.Store
-	Config  *config.Config
-	Version string
-	Now     func() time.Time
+	Store            *store.Store
+	Config           *config.Config
+	Version          string
+	Now              func() time.Time
+	MaxSummarizeRows int           // optional override (<=0 uses MaxSummarizeRows)
+	SummarizeTimeout time.Duration // optional override (<=0 uses DefaultSummarizeTimeout)
+}
+
+func (d *Deps) maxSummarizeRows() int {
+	if d != nil && d.MaxSummarizeRows > 0 {
+		return d.MaxSummarizeRows
+	}
+	return MaxSummarizeRows
+}
+
+func (d *Deps) summarizeTimeout() time.Duration {
+	if d != nil && d.SummarizeTimeout > 0 {
+		return d.SummarizeTimeout
+	}
+	return DefaultSummarizeTimeout
 }
 
 func (d *Deps) now() time.Time {
@@ -156,9 +181,20 @@ func (d *Deps) SummarizeWindow(ctx context.Context, in SummarizeIn) (SummarizeOu
 	if err != nil {
 		return SummarizeOut{}, err
 	}
-	recs, err := d.Store.ListRecords(ctx, f)
+	if !f.Since.IsZero() && !f.Until.IsZero() && f.Until.Sub(f.Since) > MaxSummarizeWindow {
+		return SummarizeOut{}, fmt.Errorf("summarize_window exceeds max window %s", MaxSummarizeWindow)
+	}
+	capRows := d.maxSummarizeRows()
+	f.Limit = capRows + 1
+	f.Newest = true
+	rctx, cancel := context.WithTimeout(ctx, d.summarizeTimeout())
+	defer cancel()
+	recs, err := d.Store.ListRecords(rctx, f)
 	if err != nil {
 		return SummarizeOut{}, err
+	}
+	if len(recs) > capRows {
+		return SummarizeOut{}, fmt.Errorf("summarize_window exceeds %d rows; narrow namespace, workload, or time window", capRows)
 	}
 	out := SummarizeOut{SampleCount: len(recs)}
 	var cpuRatios, memRatios []float64
@@ -254,6 +290,9 @@ func filterFrom(ns, workload, since, until string) (store.ExportFilter, error) {
 		if err != nil {
 			return f, fmt.Errorf("until: %w", err)
 		}
+	}
+	if !f.Since.IsZero() && !f.Until.IsZero() && f.Until.Before(f.Since) {
+		return f, fmt.Errorf("until must not precede since")
 	}
 	return f, nil
 }

@@ -133,3 +133,36 @@ func TestNewServerRegisters(t *testing.T) {
 		t.Fatal("nil server")
 	}
 }
+
+func TestSummarizeWindowBoundsAndValidation(t *testing.T) {
+	st, now := openFixture(t)
+	d := &mcp.Deps{Store: st, MaxSummarizeRows: 1}
+
+	// Row cap fail-closed: fixture has 2 rows in namespace "app" > cap 1.
+	if _, err := d.SummarizeWindow(context.Background(), mcp.SummarizeIn{Namespace: "app"}); err == nil {
+		t.Fatal("expected row cap error")
+	}
+
+	// Window exceeding MaxSummarizeWindow rejected before scan.
+	d2 := &mcp.Deps{Store: st}
+	since := now.Add(-120 * 24 * time.Hour).Format(time.RFC3339)
+	until := now.Format(time.RFC3339)
+	if _, err := d2.SummarizeWindow(context.Background(), mcp.SummarizeIn{Since: since, Until: until}); err == nil {
+		t.Fatal("expected max window error")
+	}
+
+	// Inverted range (until < since) rejected.
+	if _, err := d2.SummarizeWindow(context.Background(), mcp.SummarizeIn{
+		Since: now.Format(time.RFC3339),
+		Until: now.Add(-time.Hour).Format(time.RFC3339),
+	}); err == nil {
+		t.Fatal("expected inverted range error")
+	}
+
+	// Canceled context / timeout propagated.
+	cctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := d2.SummarizeWindow(cctx, mcp.SummarizeIn{Namespace: "app"}); err == nil {
+		t.Fatal("expected context error")
+	}
+}
