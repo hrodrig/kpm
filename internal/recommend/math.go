@@ -8,7 +8,16 @@ import (
 const (
 	cpuStepMcores = 10.0
 	memStepBytes  = 1024 * 1024 // 1 MiB
+	ceilEpsilon   = 1e-9
 )
+
+func ceilWithEps(v float64) float64 {
+	f := math.Floor(v)
+	if v-f <= ceilEpsilon {
+		return f
+	}
+	return math.Ceil(v)
+}
 
 // Percentile returns the nearest-rank percentile of values (p in 0..100).
 // Empty input returns 0.
@@ -40,18 +49,24 @@ func Percentile(values []float64, p int) float64 {
 
 // RoundUpCPUMillicores ceils to the next 10 millicores (minimum step).
 func RoundUpCPUMillicores(m float64) float64 {
-	if m <= 0 {
+	if math.IsNaN(m) || math.IsInf(m, 0) || m <= 0 {
 		return 0
 	}
-	return math.Ceil(m/cpuStepMcores) * cpuStepMcores
+	return ceilWithEps(m/cpuStepMcores) * cpuStepMcores
 }
 
-// RoundUpMemBytes ceils to the next 1 MiB.
+// RoundUpMemBytes ceils to the next 1 MiB, clamping NaN/Inf/<=0 to 0 and
+// preventing int64 wrap-around on extreme inputs.
 func RoundUpMemBytes(b float64) int64 {
-	if b <= 0 {
+	if math.IsNaN(b) || math.IsInf(b, 0) || b <= 0 {
 		return 0
 	}
-	return int64(math.Ceil(b/float64(memStepBytes))) * memStepBytes
+	steps := ceilWithEps(b / float64(memStepBytes))
+	const maxSteps = math.MaxInt64 / memStepBytes
+	if steps >= float64(maxSteps) {
+		return maxSteps * memStepBytes
+	}
+	return int64(steps) * memStepBytes
 }
 
 // SuggestedRequest returns round_up(p / targetUtilization).

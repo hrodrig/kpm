@@ -1,6 +1,7 @@
 package recommend
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -94,5 +95,60 @@ func TestScoreCalibrationNamespacesAndStoredPercentile(t *testing.T) {
 	res := ScoreCalibration(recs, samples, ScoreOptions{MinSamples: 24, Percentile: 95, Band: 0.15})
 	if res.Skipped != 0 || res.HitsCPU != 2 || res.HitsMem != 2 {
 		t.Fatalf("expected both namespaces to hit using stored percentiles, got %+v rows=%+v", res, res.Rows)
+	}
+}
+
+func TestRoundUpCeilEpsilonNaNAndOverflow(t *testing.T) {
+	// Exact multiples divided by 0.7 must not overshoot by a full step due to float64 representation.
+	if got := SuggestedCPU(21, 0.7); got != 30 {
+		t.Fatalf("SuggestedCPU(21, 0.7) = %g, want 30", got)
+	}
+	if got := SuggestedCPU(42, 0.7); got != 60 {
+		t.Fatalf("SuggestedCPU(42, 0.7) = %g, want 60", got)
+	}
+	if got := SuggestedMem(21<<20, 0.7); got != 30<<20 {
+		t.Fatalf("SuggestedMem(21Mi, 0.7) = %d, want %d", got, 30<<20)
+	}
+	// Genuine fractional remainder still rounds up.
+	if got := SuggestedCPU(21.1, 0.7); got != 40 {
+		t.Fatalf("SuggestedCPU(21.1, 0.7) = %g, want 40", got)
+	}
+	if got := RoundUpCPUMillicores(math.NaN()); got != 0 {
+		t.Fatalf("NaN CPU = %g, want 0", got)
+	}
+	if got := RoundUpCPUMillicores(math.Inf(1)); got != 0 {
+		t.Fatalf("Inf CPU = %g, want 0", got)
+	}
+	if got := RoundUpMemBytes(math.NaN()); got != 0 {
+		t.Fatalf("NaN mem = %d, want 0", got)
+	}
+	if got := RoundUpMemBytes(math.Inf(1)); got != 0 {
+		t.Fatalf("Inf mem = %d, want 0", got)
+	}
+	if got := RoundUpMemBytes(1e30); got <= 0 {
+		t.Fatalf("huge mem wrapped negative: %d", got)
+	}
+}
+
+func TestStripReplicaSetHashValidatesResultAndMemQuantityEdges(t *testing.T) {
+	// Stripping "-abcde" from "foo--abcde" yields invalid "foo-", so keep original.
+	if got := stripReplicaSetHash("foo--abcde"); got != "foo--abcde" {
+		t.Fatalf("stripReplicaSetHash(foo--abcde) = %q, want foo--abcde", got)
+	}
+	if got := stripReplicaSetHash("web-7c9d4f"); got != "web" {
+		t.Fatalf("stripReplicaSetHash(web-7c9d4f) = %q, want web", got)
+	}
+
+	if got := MemQuantity(-100); got != "0" {
+		t.Fatalf("MemQuantity(-100) = %q, want 0", got)
+	}
+	if got := MemQuantity(512); got != "512" {
+		t.Fatalf("MemQuantity(512) = %q, want 512", got)
+	}
+	if got := MemQuantity(4096); got != "4Ki" {
+		t.Fatalf("MemQuantity(4096) = %q, want 4Ki", got)
+	}
+	if got := MemQuantity(2 << 20); got != "2Mi" {
+		t.Fatalf("MemQuantity(2Mi) = %q, want 2Mi", got)
 	}
 }

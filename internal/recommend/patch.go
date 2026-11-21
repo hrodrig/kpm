@@ -214,7 +214,11 @@ func stripReplicaSetHash(name string) string {
 			return name
 		}
 	}
-	return name[:i]
+	cand := name[:i]
+	if err := validateDNS1123Subdomain(cand, "workload name"); err != nil {
+		return name
+	}
+	return cand
 }
 
 // yamlQuote returns a double-quoted YAML scalar (safe for validated identifiers).
@@ -298,7 +302,19 @@ func CPUQuantity(mcores float64) string {
 	return fmt.Sprintf("%dm", int64(math.Round(mcores)))
 }
 
-// MemQuantity formats bytes as a Kubernetes memory quantity (Mi preferred).
+// MemQuantity formats bytes as a Kubernetes memory quantity (Mi preferred,
+// Ki/bytes for sub-MiB positive values, "0" for non-positive values).
 func MemQuantity(bytes int64) string {
+	if bytes <= 0 {
+		return "0"
+	}
+	const ki = 1024
+	const mi = 1024 * 1024
+	if bytes < mi {
+		if bytes%ki == 0 {
+			return fmt.Sprintf("%dKi", bytes/ki)
+		}
+		return fmt.Sprintf("%d", bytes)
+	}
 	return formatBytes(bytes)
 }
