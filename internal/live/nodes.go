@@ -59,7 +59,11 @@ func CaptureNodeCapacity(ctx context.Context, nodes NodeLister, containers []Con
 
 // CaptureNodeCapacityClients uses a typed clientset for Nodes.
 func CaptureNodeCapacityClients(ctx context.Context, cs kubernetes.Interface, containers []ContainerRow) ([]NodeCapacity, error) {
-	return CaptureNodeCapacity(ctx, k8sNodeLister{cs: cs}, containers)
+	var lister NodeLister
+	if cs != nil {
+		lister = k8sNodeLister{cs: cs}
+	}
+	return CaptureNodeCapacity(ctx, lister, containers)
 }
 
 // BlockingTaints formats the taints that keep a pod off a node unless it tolerates

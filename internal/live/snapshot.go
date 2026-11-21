@@ -104,8 +104,12 @@ func Capture(ctx context.Context, opt Options) (Snapshot, error) {
 
 // CaptureClients runs Capture with typed clientsets.
 func CaptureClients(ctx context.Context, pods kubernetes.Interface, metrics metricsclientset.Interface, opt Options) (Snapshot, error) {
-	opt.Pods = k8sPodLister{cs: pods}
-	opt.Metrics = k8sMetricsLister{cs: metrics}
+	if pods != nil {
+		opt.Pods = k8sPodLister{cs: pods}
+	}
+	if metrics != nil {
+		opt.Metrics = k8sMetricsLister{cs: metrics}
+	}
 	return Capture(ctx, opt)
 }
 
@@ -201,6 +205,11 @@ func buildContainerRows(pods []corev1.Pod, metrics []metricsv1beta1.PodMetrics) 
 func ownerRef(p *corev1.Pod) (kind, name string) {
 	if len(p.OwnerReferences) == 0 {
 		return "", ""
+	}
+	for _, o := range p.OwnerReferences {
+		if o.Controller != nil && *o.Controller {
+			return o.Kind, o.Name
+		}
 	}
 	o := p.OwnerReferences[0]
 	return o.Kind, o.Name

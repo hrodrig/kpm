@@ -93,9 +93,17 @@ func Capture(ctx context.Context, opt CaptureOptions) (Result, error) {
 
 // RunOnce opens the store (caller-provided), captures, inserts, and prunes.
 func RunOnce(ctx context.Context, cfg *config.Config, st *store.Store, pods kubernetes.Interface, metrics metricsclientset.Interface) (Result, error) {
+	var podLister PodLister
+	if pods != nil {
+		podLister = k8sPodLister{cs: pods}
+	}
+	var metricsLister MetricsLister
+	if metrics != nil {
+		metricsLister = k8sMetricsLister{cs: metrics}
+	}
 	res, err := Capture(ctx, CaptureOptions{
-		Pods:    k8sPodLister{cs: pods},
-		Metrics: k8sMetricsLister{cs: metrics},
+		Pods:    podLister,
+		Metrics: metricsLister,
 		Scope:   cfg.Scope,
 	})
 	if err != nil {
