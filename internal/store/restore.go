@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +73,7 @@ var mergeSpecs = []mergeSpec{
 			"recorded_at", "client_id", "cluster_name", "node",
 			"cpu_alloc_mcores", "mem_alloc_bytes", "cpu_cap_mcores", "mem_cap_bytes",
 			"cpu_req_mcores", "mem_req_bytes", "cpu_util_mcores", "mem_util_bytes",
-			"pods",
+			"pods", "taints", "unschedulable",
 		},
 		key: []string{"client_id", "cluster_name", "node", "recorded_at"},
 	},
@@ -106,9 +105,15 @@ func (s *Store) MergeFrom(ctx context.Context, srcPath string) (MergeReport, err
 			ver, SchemaVersion)
 	}
 
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return MergeReport{}, fmt.Errorf("pin store connection: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
 	rep := MergeReport{Source: srcPath, SchemaVersion: ver}
 	for _, spec := range mergeSpecs {
-		n, err := s.mergeTable(ctx, src.db, spec)
+		n, err := mergeTable(ctx, conn, src.db, spec)
 		if err != nil {
 			return rep, fmt.Errorf("merge %s: %w", spec.table, err)
 		}
@@ -124,10 +129,10 @@ func (s *Store) MergeFrom(ctx context.Context, srcPath string) (MergeReport, err
 	return rep, nil
 }
 
-// mergeTable stages the source rows in a TEMP table and then inserts the ones the
-// target lacks in a single statement, so dedupe happens inside SQLite rather than
-// by keeping a key set in memory.
-func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (int64, error) {
+// mergeTable stages the source rows in a TEMP table on the pinned connection
+// and then inserts the ones the target lacks in a single statement, so dedupe
+// happens inside SQLite rather than by keeping a key set in memory.
+func mergeTable(ctx context.Context, dst *sql.Conn, src *sql.DB, spec mergeSpec) (int64, error) {
 	present, err := tableExists(ctx, src, spec.table)
 	if err != nil {
 		return 0, err
@@ -146,14 +151,14 @@ func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (in
 	colList := strings.Join(cols, ", ")
 	stage := "stage_" + spec.table
 
-	_, _ = s.db.ExecContext(ctx, "DROP TABLE IF EXISTS temp."+stage)
-	if _, err := s.db.ExecContext(ctx,
+	_, _ = dst.ExecContext(ctx, "DROP TABLE IF EXISTS temp."+stage)
+	if _, err := dst.ExecContext(ctx,
 		"CREATE TEMP TABLE "+stage+" AS SELECT "+colList+" FROM main."+spec.table+" WHERE 0"); err != nil {
 		return 0, err
 	}
-	defer func() { _, _ = s.db.ExecContext(context.WithoutCancel(ctx), "DROP TABLE IF EXISTS temp."+stage) }()
+	defer func() { _, _ = dst.ExecContext(context.WithoutCancel(ctx), "DROP TABLE IF EXISTS temp."+stage) }()
 
-	if err := stageRows(ctx, src, spec.table, cols, s.db, stage); err != nil {
+	if err := stageRows(ctx, src, spec.table, cols, dst, stage); err != nil {
 		return 0, err
 	}
 
@@ -165,7 +170,7 @@ func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (in
 		" FROM " + stage + " WHERE NOT EXISTS (SELECT 1 FROM " + spec.table + " m WHERE " +
 		strings.Join(on, " AND ") + ")"
 
-	res, err := s.db.ExecContext(ctx, q)
+	res, err := dst.ExecContext(ctx, q)
 	if err != nil {
 		return 0, err
 	}
@@ -218,8 +223,10 @@ func sharedColumns(ctx context.Context, src *sql.DB, spec mergeSpec) ([]string, 
 	return out, nil
 }
 
-// stageRows copies every source row into the staging table in batches.
-func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, dst *sql.DB, stage string) error {
+// stageRows copies every source row into the staging table in batches,
+// normalizing legacy RFC3339 timestamps to UTCLayout so deduplication and
+// lexicographic ordering stay consistent across mixed-era backups.
+func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, dst *sql.Conn, stage string) error {
 	rows, err := src.QueryContext(ctx, "SELECT "+strings.Join(cols, ", ")+" FROM "+table)
 	if err != nil {
 		return err
@@ -251,6 +258,7 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		return nil
 	}
 
+	timeCol := timestampColumnIndex(cols)
 	for rows.Next() {
 		vals := make([]any, len(cols))
 		ptrs := make([]any, len(cols))
@@ -260,6 +268,7 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		if err := rows.Scan(ptrs...); err != nil {
 			return err
 		}
+		normalizeTimestampCell(vals, timeCol)
 		batch = append(batch, vals)
 		if len(batch) >= BatchSize {
 			if err := flush(); err != nil {
@@ -271,6 +280,33 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		return err
 	}
 	return flush()
+}
+
+func timestampColumnIndex(cols []string) int {
+	for i, c := range cols {
+		if c == "sampled_at" || c == "recorded_at" {
+			return i
+		}
+	}
+	return -1
+}
+
+func normalizeTimestampCell(vals []any, idx int) {
+	if idx < 0 || idx >= len(vals) {
+		return
+	}
+	var raw string
+	switch v := vals[idx].(type) {
+	case string:
+		raw = v
+	case []byte:
+		raw = string(v)
+	default:
+		return
+	}
+	if t, err := ParseUTC(raw); err == nil {
+		vals[idx] = FormatUTC(t)
+	}
 }
 
 // ValidateBackup checks that path holds a kpm store this build can read.
@@ -294,10 +330,10 @@ func ValidateBackup(path string) (int, error) {
 
 // RestoreReplace installs the store at srcPath as the store at destPath.
 //
-// The copy goes to a sibling temp file and is renamed into place, so an
-// interrupted restore never leaves a half-written store behind. Stale -wal/-shm
-// files next to the destination are removed: they belong to the database being
-// replaced, and leaving them in place is how a hand-copied store ends up corrupt.
+// The source is snapshotted via SQLite VACUUM INTO inside a private 0700 temp
+// directory (capturing any uncheckpointed -wal frames safely without mutating
+// the source), chmod'd to 0600, and atomically renamed into place. Stale
+// -wal/-shm files next to the destination are removed.
 //
 // The caller must not have the destination open: a writer that still holds the
 // old file keeps writing to an inode nothing points at any more.
@@ -319,19 +355,27 @@ func RestoreReplace(srcPath, destPath string, force bool) error {
 	if fi, err := os.Stat(dst); err == nil && fi.Size() > 0 && !force {
 		return fmt.Errorf("destination already holds a store: %s (use --force to replace it)", dst)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+	parent := filepath.Dir(dst)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
 		return fmt.Errorf("create store dir: %w", err)
 	}
+	tmpDir, err := os.MkdirTemp(parent, ".kpm-restore-*")
+	if err != nil {
+		return fmt.Errorf("create restore staging dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	tmp := dst + ".restore-tmp"
-	if err := copyStoreFile(src, tmp); err != nil {
-		_ = os.Remove(tmp)
+	tmp := filepath.Join(tmpDir, "restore.db")
+	if err := snapshotStoreFile(src, tmp); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
 		return fmt.Errorf("install restore: %w", err)
 	}
+	return removeWALSidecars(dst)
+}
+
+func removeWALSidecars(dst string) error {
 	for _, suffix := range []string{"-wal", "-shm"} {
 		if err := os.Remove(dst + suffix); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale %s: %w", suffix, err)
@@ -340,24 +384,20 @@ func RestoreReplace(srcPath, destPath string, force bool) error {
 	return nil
 }
 
-func copyStoreFile(src, dst string) error {
-	in, err := os.Open(src)
+// snapshotStoreFile produces a self-contained SQLite copy of src at dst using
+// VACUUM INTO on a read-only connection, preserving any uncheckpointed WAL data.
+func snapshotStoreFile(src, dst string) error {
+	st, err := OpenReadOnly(src)
 	if err != nil {
 		return fmt.Errorf("open backup: %w", err)
 	}
-	defer func() { _ = in.Close() }()
+	defer func() { _ = st.Close() }()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("create restore temp: %w", err)
+	if _, err := st.db.ExecContext(context.Background(), `VACUUM INTO ?`, dst); err != nil {
+		return fmt.Errorf("snapshot backup: %w", err)
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("copy backup: %w", err)
+	if err := os.Chmod(dst, 0o600); err != nil {
+		return fmt.Errorf("chmod restore: %w", err)
 	}
-	if err := out.Sync(); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("sync restore: %w", err)
-	}
-	return out.Close()
+	return nil
 }

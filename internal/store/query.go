@@ -5,11 +5,21 @@ import (
 	"fmt"
 )
 
+// maxScanRowsLimit is MaxScanRows in production and overridable in package tests.
+var maxScanRowsLimit = MaxScanRows
+
 // ListRecords returns samples matching the filter (same selectors as Export).
 // Results are always in ascending sampled_at order. When Newest is set with
 // Limit, the newest Limit rows are selected then reversed to ascending.
+// When Limit <= 0, MaxScanRows is enforced fail-closed to bound memory usage.
 func (s *Store) ListRecords(ctx context.Context, f ExportFilter) ([]Record, error) {
-	q, args := listRecordsSQL(f)
+	enforceCeiling := f.Limit <= 0
+	queryFilter := f
+	if enforceCeiling {
+		queryFilter.Limit = maxScanRowsLimit + 1
+		queryFilter.Newest = false
+	}
+	q, args := listRecordsSQL(queryFilter)
 	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list samples: %w", err)
@@ -19,6 +29,9 @@ func (s *Store) ListRecords(ctx context.Context, f ExportFilter) ([]Record, erro
 	out, err := scanRecords(rows)
 	if err != nil {
 		return nil, err
+	}
+	if enforceCeiling && len(out) > maxScanRowsLimit {
+		return nil, fmt.Errorf("list samples exceeds %d rows; narrow filter or set Limit", maxScanRowsLimit)
 	}
 	if f.Newest && f.Limit > 0 {
 		reverseRecords(out)
