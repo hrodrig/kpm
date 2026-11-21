@@ -1,6 +1,7 @@
 package store
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -118,5 +119,58 @@ func TestMergeNormalizesLegacyRFC3339Timestamps(t *testing.T) {
 	}
 	if stored != FormatUTC(ts) {
 		t.Fatalf("want normalized UTCLayout %q, got %q", FormatUTC(ts), stored)
+	}
+}
+
+func TestRestoreReplaceIncludesUncheckpointedWAL(t *testing.T) {
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "live.db")
+	src, err := Open(srcPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = src.Close() }()
+
+	// Disable automatic checkpoints so inserted rows remain in live.db-wal.
+	if _, err := src.db.Exec(`PRAGMA wal_autocheckpoint = 0`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	if err := src.InsertRecords(t.Context(), []Record{
+		restoreRec(now, "wal-pod-0"),
+		restoreRec(now.Add(time.Minute), "wal-pod-1"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	walInfo, err := os.Stat(srcPath + "-wal")
+	if err != nil || walInfo.Size() == 0 {
+		t.Fatalf("expected non-empty -wal sidecar, stat err=%v", err)
+	}
+
+	dstPath := filepath.Join(dir, "restored.db")
+	if err := RestoreReplace(srcPath, dstPath, false); err != nil {
+		t.Fatalf("RestoreReplace from live WAL source: %v", err)
+	}
+
+	fi, err := os.Stat(dstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("restored file mode %o wants 0600", fi.Mode().Perm())
+	}
+
+	dst, err := OpenReadOnly(dstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = dst.Close() }()
+	n, err := dst.Count(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("restored store lost uncheckpointed WAL rows: got %d want 2", n)
 	}
 }

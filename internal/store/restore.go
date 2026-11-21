@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -331,10 +330,10 @@ func ValidateBackup(path string) (int, error) {
 
 // RestoreReplace installs the store at srcPath as the store at destPath.
 //
-// The copy goes to a sibling temp file and is renamed into place, so an
-// interrupted restore never leaves a half-written store behind. Stale -wal/-shm
-// files next to the destination are removed: they belong to the database being
-// replaced, and leaving them in place is how a hand-copied store ends up corrupt.
+// The source is snapshotted via SQLite VACUUM INTO inside a private 0700 temp
+// directory (capturing any uncheckpointed -wal frames safely without mutating
+// the source), chmod'd to 0600, and atomically renamed into place. Stale
+// -wal/-shm files next to the destination are removed.
 //
 // The caller must not have the destination open: a writer that still holds the
 // old file keeps writing to an inode nothing points at any more.
@@ -356,17 +355,21 @@ func RestoreReplace(srcPath, destPath string, force bool) error {
 	if fi, err := os.Stat(dst); err == nil && fi.Size() > 0 && !force {
 		return fmt.Errorf("destination already holds a store: %s (use --force to replace it)", dst)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+	parent := filepath.Dir(dst)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
 		return fmt.Errorf("create store dir: %w", err)
 	}
+	tmpDir, err := os.MkdirTemp(parent, ".kpm-restore-*")
+	if err != nil {
+		return fmt.Errorf("create restore staging dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	tmp := dst + ".restore-tmp"
-	if err := copyStoreFile(src, tmp); err != nil {
-		_ = os.Remove(tmp)
+	tmp := filepath.Join(tmpDir, "restore.db")
+	if err := snapshotStoreFile(src, tmp); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
 		return fmt.Errorf("install restore: %w", err)
 	}
 	for _, suffix := range []string{"-wal", "-shm"} {
@@ -377,24 +380,20 @@ func RestoreReplace(srcPath, destPath string, force bool) error {
 	return nil
 }
 
-func copyStoreFile(src, dst string) error {
-	in, err := os.Open(src)
+// snapshotStoreFile produces a self-contained SQLite copy of src at dst using
+// VACUUM INTO on a read-only connection, preserving any uncheckpointed WAL data.
+func snapshotStoreFile(src, dst string) error {
+	st, err := OpenReadOnly(src)
 	if err != nil {
 		return fmt.Errorf("open backup: %w", err)
 	}
-	defer func() { _ = in.Close() }()
+	defer func() { _ = st.Close() }()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("create restore temp: %w", err)
+	if _, err := st.db.ExecContext(context.Background(), `VACUUM INTO ?`, dst); err != nil {
+		return fmt.Errorf("snapshot backup: %w", err)
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("copy backup: %w", err)
+	if err := os.Chmod(dst, 0o600); err != nil {
+		return fmt.Errorf("chmod restore: %w", err)
 	}
-	if err := out.Sync(); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("sync restore: %w", err)
-	}
-	return out.Close()
+	return nil
 }
