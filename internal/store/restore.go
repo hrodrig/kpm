@@ -74,7 +74,7 @@ var mergeSpecs = []mergeSpec{
 			"recorded_at", "client_id", "cluster_name", "node",
 			"cpu_alloc_mcores", "mem_alloc_bytes", "cpu_cap_mcores", "mem_cap_bytes",
 			"cpu_req_mcores", "mem_req_bytes", "cpu_util_mcores", "mem_util_bytes",
-			"pods",
+			"pods", "taints", "unschedulable",
 		},
 		key: []string{"client_id", "cluster_name", "node", "recorded_at"},
 	},
@@ -106,9 +106,15 @@ func (s *Store) MergeFrom(ctx context.Context, srcPath string) (MergeReport, err
 			ver, SchemaVersion)
 	}
 
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return MergeReport{}, fmt.Errorf("pin store connection: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
 	rep := MergeReport{Source: srcPath, SchemaVersion: ver}
 	for _, spec := range mergeSpecs {
-		n, err := s.mergeTable(ctx, src.db, spec)
+		n, err := mergeTable(ctx, conn, src.db, spec)
 		if err != nil {
 			return rep, fmt.Errorf("merge %s: %w", spec.table, err)
 		}
@@ -124,10 +130,10 @@ func (s *Store) MergeFrom(ctx context.Context, srcPath string) (MergeReport, err
 	return rep, nil
 }
 
-// mergeTable stages the source rows in a TEMP table and then inserts the ones the
-// target lacks in a single statement, so dedupe happens inside SQLite rather than
-// by keeping a key set in memory.
-func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (int64, error) {
+// mergeTable stages the source rows in a TEMP table on the pinned connection
+// and then inserts the ones the target lacks in a single statement, so dedupe
+// happens inside SQLite rather than by keeping a key set in memory.
+func mergeTable(ctx context.Context, dst *sql.Conn, src *sql.DB, spec mergeSpec) (int64, error) {
 	present, err := tableExists(ctx, src, spec.table)
 	if err != nil {
 		return 0, err
@@ -146,14 +152,14 @@ func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (in
 	colList := strings.Join(cols, ", ")
 	stage := "stage_" + spec.table
 
-	_, _ = s.db.ExecContext(ctx, "DROP TABLE IF EXISTS temp."+stage)
-	if _, err := s.db.ExecContext(ctx,
+	_, _ = dst.ExecContext(ctx, "DROP TABLE IF EXISTS temp."+stage)
+	if _, err := dst.ExecContext(ctx,
 		"CREATE TEMP TABLE "+stage+" AS SELECT "+colList+" FROM main."+spec.table+" WHERE 0"); err != nil {
 		return 0, err
 	}
-	defer func() { _, _ = s.db.ExecContext(context.WithoutCancel(ctx), "DROP TABLE IF EXISTS temp."+stage) }()
+	defer func() { _, _ = dst.ExecContext(context.WithoutCancel(ctx), "DROP TABLE IF EXISTS temp."+stage) }()
 
-	if err := stageRows(ctx, src, spec.table, cols, s.db, stage); err != nil {
+	if err := stageRows(ctx, src, spec.table, cols, dst, stage); err != nil {
 		return 0, err
 	}
 
@@ -165,7 +171,7 @@ func (s *Store) mergeTable(ctx context.Context, src *sql.DB, spec mergeSpec) (in
 		" FROM " + stage + " WHERE NOT EXISTS (SELECT 1 FROM " + spec.table + " m WHERE " +
 		strings.Join(on, " AND ") + ")"
 
-	res, err := s.db.ExecContext(ctx, q)
+	res, err := dst.ExecContext(ctx, q)
 	if err != nil {
 		return 0, err
 	}
@@ -218,8 +224,10 @@ func sharedColumns(ctx context.Context, src *sql.DB, spec mergeSpec) ([]string, 
 	return out, nil
 }
 
-// stageRows copies every source row into the staging table in batches.
-func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, dst *sql.DB, stage string) error {
+// stageRows copies every source row into the staging table in batches,
+// normalizing legacy RFC3339 timestamps to UTCLayout so deduplication and
+// lexicographic ordering stay consistent across mixed-era backups.
+func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, dst *sql.Conn, stage string) error {
 	rows, err := src.QueryContext(ctx, "SELECT "+strings.Join(cols, ", ")+" FROM "+table)
 	if err != nil {
 		return err
@@ -251,6 +259,7 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		return nil
 	}
 
+	timeCol := timestampColumnIndex(cols)
 	for rows.Next() {
 		vals := make([]any, len(cols))
 		ptrs := make([]any, len(cols))
@@ -260,6 +269,7 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		if err := rows.Scan(ptrs...); err != nil {
 			return err
 		}
+		normalizeTimestampCell(vals, timeCol)
 		batch = append(batch, vals)
 		if len(batch) >= BatchSize {
 			if err := flush(); err != nil {
@@ -271,6 +281,33 @@ func stageRows(ctx context.Context, src *sql.DB, table string, cols []string, ds
 		return err
 	}
 	return flush()
+}
+
+func timestampColumnIndex(cols []string) int {
+	for i, c := range cols {
+		if c == "sampled_at" || c == "recorded_at" {
+			return i
+		}
+	}
+	return -1
+}
+
+func normalizeTimestampCell(vals []any, idx int) {
+	if idx < 0 || idx >= len(vals) {
+		return
+	}
+	var raw string
+	switch v := vals[idx].(type) {
+	case string:
+		raw = v
+	case []byte:
+		raw = string(v)
+	default:
+		return
+	}
+	if t, err := ParseUTC(raw); err == nil {
+		vals[idx] = FormatUTC(t)
+	}
 }
 
 // ValidateBackup checks that path holds a kpm store this build can read.
