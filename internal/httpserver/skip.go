@@ -1,6 +1,9 @@
 package httpserver
 
-import "strings"
+import (
+	"path"
+	"strings"
+)
 
 // PathSkip lists request paths exempt from rate limiting or IP allowlist.
 type PathSkip struct {
@@ -17,14 +20,21 @@ func OpsSkip() PathSkip {
 	}
 }
 
-func (s PathSkip) matches(path string) bool {
+func (s PathSkip) matches(rawPath string) bool {
+	if rawPath == "" {
+		return false
+	}
+	cleaned := path.Clean(rawPath)
 	for _, p := range s.Exact {
-		if path == p {
+		if cleaned == p {
 			return true
 		}
 	}
 	for _, p := range s.Prefixes {
-		if strings.HasPrefix(path, p) {
+		if strings.HasPrefix(cleaned, p) {
+			return true
+		}
+		if strings.HasSuffix(p, "/") && cleaned == strings.TrimSuffix(p, "/") {
 			return true
 		}
 	}

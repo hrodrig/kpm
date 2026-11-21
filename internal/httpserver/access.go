@@ -6,7 +6,9 @@ import (
 )
 
 // AccessControl is the gghstats-style outer middleware stack for the daemon mux.
-// Order (outermost first): browser guard → allowlist → rate limit → mux.
+// Order (outermost first): browser guard → rate limit → allowlist → mux.
+// Rate limiting runs before allowlist so non-allowlisted IPs cannot brute-force
+// bearer tokens without being throttled.
 type AccessControl struct {
 	Trusted   *TrustedProxies
 	Allowlist *Allowlist
@@ -22,11 +24,11 @@ type AccessControl struct {
 func (ac AccessControl) Wrap(next http.Handler) http.Handler {
 	skip := OpsSkip()
 	h := next
-	if ac.RateLimit != nil {
-		h = ac.RateLimit.Middleware(h, skip)
-	}
 	if ac.Allowlist != nil {
 		h = ac.Allowlist.Middleware(h, skip)
+	}
+	if ac.RateLimit != nil {
+		h = ac.RateLimit.Middleware(h, skip)
 	}
 	if strings.TrimSpace(ac.Listen) != "" {
 		h = BrowserGuard(ac.Listen, ac.AllowedHosts, h)
