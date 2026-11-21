@@ -4,9 +4,42 @@
 
   var TOKEN_KEY = "kpm_api_token";
   var THEME_KEY = "kpm_theme";
+  var METRIC_KEY = "kpm_metric";
+
+  function metricIdFromParts(resource, scale) {
+    var res = resource === "mem" ? "mem" : "cpu";
+    var sc = scale === "ratio" ? "ratio" : "util";
+    if (res === "cpu" && sc === "util") return "cpu_util_mcores";
+    if (res === "mem" && sc === "util") return "mem_util_bytes";
+    if (res === "cpu") return "cpu_util_ratio";
+    return "mem_util_ratio";
+  }
+
+  function partsFromMetricId(id) {
+    if (id === "mem_util_bytes" || id === "mem_util_ratio") {
+      return { resource: "mem", scale: id.indexOf("ratio") >= 0 ? "ratio" : "util" };
+    }
+    return { resource: "cpu", scale: id === "cpu_util_ratio" ? "ratio" : "util" };
+  }
+
+  function loadStoredMetric() {
+    try {
+      var raw = localStorage.getItem(METRIC_KEY);
+      if (
+        raw === "cpu_util_mcores" ||
+        raw === "mem_util_bytes" ||
+        raw === "cpu_util_ratio" ||
+        raw === "mem_util_ratio"
+      ) {
+        return raw;
+      }
+    } catch (e) {}
+    return "cpu_util_mcores";
+  }
+
   var state = {
     window: "24h",
-    metric: "cpu_util_mcores",
+    metric: loadStoredMetric(),
     since: "",
     until: "",
     token: sessionStorage.getItem(TOKEN_KEY) || "",
@@ -1012,9 +1045,49 @@
       });
       loadOverview();
     });
-    document.getElementById("metric").addEventListener("change", function (e) {
-      state.metric = e.target.value;
-      loadOverview();
+    bindMetricControls();
+  }
+
+  function persistMetric() {
+    try {
+      localStorage.setItem(METRIC_KEY, state.metric);
+    } catch (e) {}
+  }
+
+  function syncMetricButtons() {
+    var parts = partsFromMetricId(state.metric);
+    document.querySelectorAll("[data-metric-resource]").forEach(function (btn) {
+      var on = btn.getAttribute("data-metric-resource") === parts.resource;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    document.querySelectorAll("[data-metric-scale]").forEach(function (btn) {
+      var on = btn.getAttribute("data-metric-scale") === parts.scale;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function setMetricFromParts(resource, scale) {
+    state.metric = metricIdFromParts(resource, scale);
+    persistMetric();
+    syncMetricButtons();
+    loadOverview();
+  }
+
+  function bindMetricControls() {
+    syncMetricButtons();
+    document.querySelectorAll("[data-metric-resource]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var parts = partsFromMetricId(state.metric);
+        setMetricFromParts(btn.getAttribute("data-metric-resource"), parts.scale);
+      });
+    });
+    document.querySelectorAll("[data-metric-scale]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var parts = partsFromMetricId(state.metric);
+        setMetricFromParts(parts.resource, btn.getAttribute("data-metric-scale"));
+      });
     });
   }
 

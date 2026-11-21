@@ -63,13 +63,25 @@
               <input id="until" type="datetime-local" />
               <button type="button" class="btn" id="apply-custom">Apply</button>
             </div>
-            <label class="hidden" for="metric">Metric</label>
-            <select id="metric" class="metric" aria-label="Metric">
-              <option value="cpu_util_mcores">CPU util (mcores)</option>
-              <option value="mem_util_bytes">Mem util (bytes)</option>
-              <option value="cpu_util_ratio">CPU util / request</option>
-              <option value="mem_util_ratio">Mem util / request</option>
-            </select>
+            <div class="metric-controls" role="group" aria-label="Chart metric">
+              <span class="metric-label" id="metric-resource-label">Metric</span>
+              <div class="segment" role="group" aria-labelledby="metric-resource-label">
+                <button type="button" class="seg active" data-metric-resource="cpu" aria-pressed="true">
+                  CPU
+                </button>
+                <button type="button" class="seg" data-metric-resource="mem" aria-pressed="false">
+                  Mem
+                </button>
+              </div>
+              <div class="segment" role="group" aria-label="Scale">
+                <button type="button" class="seg active" data-metric-scale="util" aria-pressed="true">
+                  util
+                </button>
+                <button type="button" class="seg" data-metric-scale="ratio" aria-pressed="false">
+                  vs request
+                </button>
+              </div>
+            </div>
           </div>
         </header>
         <div class="filters" role="search" aria-label="Filter workloads">
