@@ -372,6 +372,10 @@ func RestoreReplace(srcPath, destPath string, force bool) error {
 	if err := os.Rename(tmp, dst); err != nil {
 		return fmt.Errorf("install restore: %w", err)
 	}
+	return removeWALSidecars(dst)
+}
+
+func removeWALSidecars(dst string) error {
 	for _, suffix := range []string{"-wal", "-shm"} {
 		if err := os.Remove(dst + suffix); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale %s: %w", suffix, err)
