@@ -60,6 +60,9 @@ func (g k8sWorkloadGetter) GetDaemonSet(ctx context.Context, ns, name string) (*
 
 // NewWorkloadGetter wraps a clientset for owner template reads.
 func NewWorkloadGetter(cs kubernetes.Interface) WorkloadGetter {
+	if cs == nil {
+		return nil
+	}
 	return k8sWorkloadGetter{cs: cs}
 }
 

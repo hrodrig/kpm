@@ -48,7 +48,10 @@ func BuildRecords(sampledAt time.Time, pods []corev1.Pod, metrics []metricsv1bet
 		}
 		for _, c := range p.Spec.Containers {
 			um, hasUtil := utilByContainer[c.Name]
-			rec := store.Record{
+			if !hasUtil {
+				continue
+			}
+			out = append(out, store.Record{
 				SampledAt:        at,
 				Namespace:        p.Namespace,
 				Pod:              p.Name,
@@ -56,16 +59,13 @@ func BuildRecords(sampledAt time.Time, pods []corev1.Pod, metrics []metricsv1bet
 				OwnerKind:        ownerKind,
 				OwnerName:        ownerName,
 				Node:             p.Spec.NodeName,
+				CPUUtilMcores:    milliCPU(um.Usage.Cpu()),
+				MemUtilBytes:     bytesQty(um.Usage.Memory()),
 				CPURequestMcores: milliCPU(reqCPU[c.Name]),
 				MemRequestBytes:  bytesQty(reqMem[c.Name]),
 				CPULimitMcores:   milliCPU(limCPU[c.Name]),
 				MemLimitBytes:    bytesQty(limMem[c.Name]),
-			}
-			if hasUtil {
-				rec.CPUUtilMcores = milliCPU(um.Usage.Cpu())
-				rec.MemUtilBytes = bytesQty(um.Usage.Memory())
-			}
-			out = append(out, rec)
+			})
 		}
 	}
 	return Result{Records: out, SkippedPods: skipped, SampledAt: at}
@@ -74,6 +74,11 @@ func BuildRecords(sampledAt time.Time, pods []corev1.Pod, metrics []metricsv1bet
 func ownerRef(p *corev1.Pod) (kind, name string) {
 	if len(p.OwnerReferences) == 0 {
 		return "", ""
+	}
+	for _, o := range p.OwnerReferences {
+		if o.Controller != nil && *o.Controller {
+			return o.Kind, o.Name
+		}
 	}
 	o := p.OwnerReferences[0]
 	return o.Kind, o.Name

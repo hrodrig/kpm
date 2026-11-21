@@ -60,6 +60,33 @@ type Snapshot struct {
 	CapturedAt time.Time
 }
 
+// listPageSize caps each CoreV1 Pods/Nodes List call so large clusters paginate
+// via ListMeta.Continue instead of transferring one giant response.
+const listPageSize int64 = 500
+
+// NormalizeNamespaces deduplicates scope.namespaces while preserving order.
+// Empty slice or any empty entry collapses to []string{metav1.NamespaceAll} so
+// cluster-wide + named namespaces never double-count pods or samples.
+func NormalizeNamespaces(in []string) []string {
+	if len(in) == 0 {
+		return []string{metav1.NamespaceAll}
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, raw := range in {
+		ns := strings.TrimSpace(raw)
+		if ns == "" {
+			return []string{metav1.NamespaceAll}
+		}
+		if _, dup := seen[ns]; dup {
+			continue
+		}
+		seen[ns] = struct{}{}
+		out = append(out, ns)
+	}
+	return out
+}
+
 // Capture lists pods + metrics under scope and builds container rows.
 // Pods without metrics are kept with HasUtil=false (unlike sample→SQLite).
 func Capture(ctx context.Context, opt Options) (Snapshot, error) {
@@ -71,10 +98,7 @@ func Capture(ctx context.Context, opt Options) (Snapshot, error) {
 		now = opt.Now
 	}
 
-	namespaces := opt.Scope.Namespaces
-	if len(namespaces) == 0 {
-		namespaces = []string{metav1.NamespaceAll}
-	}
+	namespaces := NormalizeNamespaces(opt.Scope.Namespaces)
 
 	listOpts := metav1.ListOptions{}
 	if sel := joinLabelSelectors(opt.Scope.PodLabels, opt.ExtraPodLabels); sel != "" {
@@ -84,11 +108,11 @@ func Capture(ctx context.Context, opt Options) (Snapshot, error) {
 	var pods []corev1.Pod
 	var metrics []metricsv1beta1.PodMetrics
 	for _, ns := range namespaces {
-		pl, err := opt.Pods.List(ctx, ns, listOpts)
+		pl, err := listAllPods(ctx, opt.Pods, ns, listOpts)
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("list pods: %w", err)
 		}
-		pods = append(pods, pl.Items...)
+		pods = append(pods, pl...)
 
 		ml, err := opt.Metrics.List(ctx, ns, listOpts)
 		if err != nil {
@@ -102,10 +126,31 @@ func Capture(ctx context.Context, opt Options) (Snapshot, error) {
 	return Snapshot{Containers: rows, CapturedAt: now().UTC()}, nil
 }
 
+func listAllPods(ctx context.Context, lister PodLister, ns string, base metav1.ListOptions) ([]corev1.Pod, error) {
+	opts := base
+	opts.Limit = listPageSize
+	var out []corev1.Pod
+	for {
+		pl, err := lister.List(ctx, ns, opts)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, pl.Items...)
+		if pl.Continue == "" {
+			return out, nil
+		}
+		opts.Continue = pl.Continue
+	}
+}
+
 // CaptureClients runs Capture with typed clientsets.
 func CaptureClients(ctx context.Context, pods kubernetes.Interface, metrics metricsclientset.Interface, opt Options) (Snapshot, error) {
-	opt.Pods = k8sPodLister{cs: pods}
-	opt.Metrics = k8sMetricsLister{cs: metrics}
+	if pods != nil {
+		opt.Pods = k8sPodLister{cs: pods}
+	}
+	if metrics != nil {
+		opt.Metrics = k8sMetricsLister{cs: metrics}
+	}
 	return Capture(ctx, opt)
 }
 
@@ -201,6 +246,11 @@ func buildContainerRows(pods []corev1.Pod, metrics []metricsv1beta1.PodMetrics) 
 func ownerRef(p *corev1.Pod) (kind, name string) {
 	if len(p.OwnerReferences) == 0 {
 		return "", ""
+	}
+	for _, o := range p.OwnerReferences {
+		if o.Controller != nil && *o.Controller {
+			return o.Kind, o.Name
+		}
 	}
 	o := p.OwnerReferences[0]
 	return o.Kind, o.Name

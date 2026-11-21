@@ -52,6 +52,8 @@ type CaptureOptions struct {
 	Now     func() time.Time
 }
 
+const podListPageSize int64 = 500
+
 // Capture lists pods + metrics for scope and builds records.
 func Capture(ctx context.Context, opt CaptureOptions) (Result, error) {
 	if opt.Pods == nil || opt.Metrics == nil {
@@ -62,10 +64,7 @@ func Capture(ctx context.Context, opt CaptureOptions) (Result, error) {
 		now = opt.Now
 	}
 
-	namespaces := opt.Scope.Namespaces
-	if len(namespaces) == 0 {
-		namespaces = []string{metav1.NamespaceAll}
-	}
+	namespaces := live.NormalizeNamespaces(opt.Scope.Namespaces)
 
 	listOpts := metav1.ListOptions{}
 	if s := opt.Scope.PodLabels; s != "" {
@@ -75,11 +74,11 @@ func Capture(ctx context.Context, opt CaptureOptions) (Result, error) {
 	var pods []corev1.Pod
 	var metrics []metricsv1beta1.PodMetrics
 	for _, ns := range namespaces {
-		pl, err := opt.Pods.List(ctx, ns, listOpts)
+		pl, err := listAllPods(ctx, opt.Pods, ns, listOpts)
 		if err != nil {
 			return Result{}, fmt.Errorf("list pods: %w", err)
 		}
-		pods = append(pods, pl.Items...)
+		pods = append(pods, pl...)
 
 		ml, err := opt.Metrics.List(ctx, ns, listOpts)
 		if err != nil {
@@ -91,11 +90,36 @@ func Capture(ctx context.Context, opt CaptureOptions) (Result, error) {
 	return BuildRecords(now(), pods, metrics), nil
 }
 
+func listAllPods(ctx context.Context, lister PodLister, ns string, base metav1.ListOptions) ([]corev1.Pod, error) {
+	opts := base
+	opts.Limit = podListPageSize
+	var out []corev1.Pod
+	for {
+		pl, err := lister.List(ctx, ns, opts)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, pl.Items...)
+		if pl.Continue == "" {
+			return out, nil
+		}
+		opts.Continue = pl.Continue
+	}
+}
+
 // RunOnce opens the store (caller-provided), captures, inserts, and prunes.
 func RunOnce(ctx context.Context, cfg *config.Config, st *store.Store, pods kubernetes.Interface, metrics metricsclientset.Interface) (Result, error) {
+	var podLister PodLister
+	if pods != nil {
+		podLister = k8sPodLister{cs: pods}
+	}
+	var metricsLister MetricsLister
+	if metrics != nil {
+		metricsLister = k8sMetricsLister{cs: metrics}
+	}
 	res, err := Capture(ctx, CaptureOptions{
-		Pods:    k8sPodLister{cs: pods},
-		Metrics: k8sMetricsLister{cs: metrics},
+		Pods:    podLister,
+		Metrics: metricsLister,
 		Scope:   cfg.Scope,
 	})
 	if err != nil {

@@ -104,6 +104,7 @@ func runRecommendScore(cmd *cobra.Command, st *store.Store, cfg *config.Config, 
 	if err != nil {
 		return err
 	}
+	snaps = filterScoreRecs(snaps, namespace, workload)
 	if len(snaps) == 0 {
 		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "recommend --score: no recommendation snapshots in store")
 		return exitcode.New(exitcode.Store, fmt.Errorf("no recommendations to score"))
@@ -125,6 +126,25 @@ func runRecommendScore(cmd *cobra.Command, st *store.Store, cfg *config.Config, 
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "recommend --score: %d keys (%d skipped below min_samples)\n",
 		len(res.Rows), res.Skipped)
 	return nil
+}
+
+func filterScoreRecs(snaps []store.Recommendation, namespace, workload string) []store.Recommendation {
+	ns := strings.TrimSpace(namespace)
+	wl := strings.TrimSpace(workload)
+	if ns == "" && wl == "" {
+		return snaps
+	}
+	out := make([]store.Recommendation, 0, len(snaps))
+	for _, r := range snaps {
+		if ns != "" && r.Namespace != ns {
+			continue
+		}
+		if wl != "" && r.OwnerName != wl {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // coverageNote describes how much of the requested window actually holds data,

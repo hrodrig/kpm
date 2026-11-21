@@ -17,10 +17,20 @@ const (
 	GrainPod      Grain = "pod"
 )
 
+// WorkloadGrainKey builds the canonical namespace-scoped key for workload-grain
+// recommendations: "namespace/owner_kind/owner_name/container" (or 3-part when
+// namespace is empty).
+func WorkloadGrainKey(namespace, ownerKind, ownerName, container string) string {
+	if namespace == "" {
+		return ownerKind + "/" + ownerName + "/" + container
+	}
+	return namespace + "/" + ownerKind + "/" + ownerName + "/" + container
+}
+
 // Advice is one rightsizing row.
 type Advice struct {
 	Grain     Grain
-	Key       string // kind/name/container or ns/pod/container
+	Key       string // ns/kind/name/container or ns/pod/container
 	Namespace string
 	Pod       string
 	Container string
@@ -113,7 +123,7 @@ func Run(records []store.Record, cfg config.Recommend, now time.Time) Result {
 	for _, r := range inWin {
 		add(podGrain, r.Namespace+"/"+r.Pod+"/"+r.Container, r)
 		if r.OwnerKind != "" && r.OwnerName != "" {
-			add(workload, r.OwnerKind+"/"+r.OwnerName+"/"+r.Container, r)
+			add(workload, WorkloadGrainKey(r.Namespace, r.OwnerKind, r.OwnerName, r.Container), r)
 		}
 	}
 

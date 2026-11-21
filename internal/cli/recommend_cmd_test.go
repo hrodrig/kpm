@@ -231,3 +231,23 @@ func TestRecommendRecordScoreExclusive(t *testing.T) {
 		t.Fatal("expected mutual exclusion error")
 	}
 }
+
+func TestFilterScoreRecs(t *testing.T) {
+	snaps := []store.Recommendation{
+		{Namespace: "prod", OwnerName: "api"},
+		{Namespace: "staging", OwnerName: "api"},
+		{Namespace: "prod", OwnerName: "worker"},
+	}
+	if got := filterScoreRecs(snaps, "", ""); len(got) != 3 {
+		t.Fatalf("unfiltered want 3, got %d", len(got))
+	}
+	if got := filterScoreRecs(snaps, "prod", ""); len(got) != 2 {
+		t.Fatalf("ns=prod want 2, got %d", len(got))
+	}
+	if got := filterScoreRecs(snaps, "", "api"); len(got) != 2 {
+		t.Fatalf("workload=api want 2, got %d", len(got))
+	}
+	if got := filterScoreRecs(snaps, "prod", "api"); len(got) != 1 || got[0].Namespace != "prod" || got[0].OwnerName != "api" {
+		t.Fatalf("ns=prod workload=api want 1, got %+v", got)
+	}
+}

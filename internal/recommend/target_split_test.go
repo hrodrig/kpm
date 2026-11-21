@@ -31,7 +31,7 @@ func splitFixtures(now time.Time, cpuM, memBytes float64, n int) []store.Record 
 func splitAdvice(t *testing.T, res Result) Advice {
 	t.Helper()
 	for _, a := range res.Advice {
-		if a.Grain == GrainWorkload && a.Key == "Deployment/web/app" {
+		if a.Grain == GrainWorkload && a.Key == "ns/Deployment/web/app" {
 			return a
 		}
 	}

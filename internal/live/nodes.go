@@ -50,16 +50,36 @@ func CaptureNodeCapacity(ctx context.Context, nodes NodeLister, containers []Con
 	if nodes == nil {
 		return nil, fmt.Errorf("live: node lister required")
 	}
-	nl, err := nodes.List(ctx, metav1.ListOptions{})
+	items, err := listAllNodes(ctx, nodes)
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
-	return AggregateNodes(nl.Items, containers), nil
+	return AggregateNodes(items, containers), nil
+}
+
+func listAllNodes(ctx context.Context, lister NodeLister) ([]corev1.Node, error) {
+	opts := metav1.ListOptions{Limit: listPageSize}
+	var out []corev1.Node
+	for {
+		nl, err := lister.List(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, nl.Items...)
+		if nl.Continue == "" {
+			return out, nil
+		}
+		opts.Continue = nl.Continue
+	}
 }
 
 // CaptureNodeCapacityClients uses a typed clientset for Nodes.
 func CaptureNodeCapacityClients(ctx context.Context, cs kubernetes.Interface, containers []ContainerRow) ([]NodeCapacity, error) {
-	return CaptureNodeCapacity(ctx, k8sNodeLister{cs: cs}, containers)
+	var lister NodeLister
+	if cs != nil {
+		lister = k8sNodeLister{cs: cs}
+	}
+	return CaptureNodeCapacity(ctx, lister, containers)
 }
 
 // BlockingTaints formats the taints that keep a pod off a node unless it tolerates

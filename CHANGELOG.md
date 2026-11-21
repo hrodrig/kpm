@@ -44,6 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recommendations, scoring, and sampling fidelity: namespace-scope workload
+  grain keys (`namespace/owner_kind/owner_name/container`, matching
+  `/api/v1/workloads`; legacy 3-part pre-1.3 rows remain readable via their
+  stored `namespace` column), index `ScoreCalibration` in `O(S)` while honoring
+  stored per-snapshot `percentile` and CLI `--namespace`/`--workload` filters,
+  guard IEEE-754 ceil overshoot / `NaN` / `int64` overflow in `recommend` math,
+  validate DNS-1123 names after `stripReplicaSetHash` and clamp/format sub-MiB
+  `MemQuantity`, skip containers absent from `PodMetrics` instead of writing
+  synthetic `0` utilization, prefer `Controller: true` in `ownerRef`, fix the
+  `onSampleFailFn` data race and typed-nil Kubernetes adapter panics,
+  deduplicate `scope.namespaces`, and paginate CoreV1 Pod/Node `List` calls
+  ([#173](https://github.com/hrodrig/kpm/issues/173)).
 - SQLite store merge, restore, and retention integrity: preserve `taints` and
   `unschedulable` in `Store.MergeFrom`, pin `*sql.Conn` for `TEMP TABLE`
   staging, normalize legacy RFC3339 timestamps on merge, snapshot WAL-mode

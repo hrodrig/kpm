@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +31,10 @@ type FailHook func(consecutive int, err error)
 var runOnceFn = RunOnce
 
 // onSampleFailFn is optional (overridable in tests); default logs a warning.
-var onSampleFailFn FailHook = LogSampleFail
+var (
+	failHookMu     sync.RWMutex
+	onSampleFailFn FailHook = LogSampleFail
+)
 
 // LogSampleFail is the default FailHook (structured warning).
 func LogSampleFail(consecutive int, err error) {
@@ -43,6 +47,8 @@ func LogSampleFail(consecutive int, err error) {
 // SetFailHook replaces the transient-failure hook and returns the previous one.
 // Pass nil to restore LogSampleFail.
 func SetFailHook(h FailHook) FailHook {
+	failHookMu.Lock()
+	defer failHookMu.Unlock()
 	prev := onSampleFailFn
 	if h == nil {
 		onSampleFailFn = LogSampleFail
@@ -50,6 +56,15 @@ func SetFailHook(h FailHook) FailHook {
 		onSampleFailFn = h
 	}
 	return prev
+}
+
+func callFailHook(consecutive int, err error) {
+	failHookMu.RLock()
+	fn := onSampleFailFn
+	failHookMu.RUnlock()
+	if fn != nil {
+		fn(consecutive, err)
+	}
 }
 
 // RunLoop samples forever until ctx is cancelled. intervalSeconds must be > 0.
@@ -81,9 +96,7 @@ func RunLoop(
 				failSince = time.Now()
 			}
 			fails++
-			if onSampleFailFn != nil {
-				onSampleFailFn(fails, err)
-			}
+			callFailHook(fails, err)
 			if time.Since(failSince) >= sampleRetryBudget {
 				return fmt.Errorf("sample loop: retry budget %s exceeded after %d failures: %w",
 					sampleRetryBudget, fails, err)
