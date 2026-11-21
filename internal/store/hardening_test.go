@@ -1,9 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -267,5 +269,124 @@ func TestLatestRecommendationsTieBreaksByID(t *testing.T) {
 	}
 	if got[0].CPUSugMcores != 250 {
 		t.Fatalf("want newest id (CPUSugMcores=250), got %g", got[0].CPUSugMcores)
+	}
+}
+
+func TestPruneOlderThanPrunesAllTables(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	old := now.AddDate(0, 0, -30)
+
+	if err := st.InsertRecords(t.Context(), []Record{
+		restoreRec(old, "old-pod"),
+		restoreRec(now, "new-pod"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.InsertRecommendations(t.Context(), []Recommendation{
+		{RecordedAt: old, Grain: "pod", GrainKey: "app/old/c", Namespace: "app", Pod: "old", Container: "c"},
+		{RecordedAt: now, Grain: "pod", GrainKey: "app/new/c", Namespace: "app", Pod: "new", Container: "c"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.InsertNodeSnapshots(t.Context(), []NodeSnapshot{
+		{RecordedAt: old, Node: "n-old"},
+		{RecordedAt: now, Node: "n-new"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := st.PruneRetention(t.Context(), 14)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 3 {
+		t.Fatalf("expected 3 pruned rows across samples/recommendations/node_snapshots, got %d", deleted)
+	}
+
+	recs, err := st.LatestRecommendations(t.Context(), "")
+	if err != nil || len(recs) != 1 || recs[0].Pod != "new" {
+		t.Fatalf("remaining recommendations: %+v err=%v", recs, err)
+	}
+	nodes, err := st.LatestNodeSnapshots(t.Context())
+	if err != nil || len(nodes) != 1 || nodes[0].Node != "n-new" {
+		t.Fatalf("remaining node_snapshots: %+v err=%v", nodes, err)
+	}
+}
+
+func TestListRecordsEnforcesMaxScanRowsWhenUncapped(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	recs := []Record{
+		restoreRec(now, "p0"),
+		restoreRec(now.Add(time.Second), "p1"),
+		restoreRec(now.Add(2*time.Second), "p2"),
+		restoreRec(now.Add(3*time.Second), "p3"),
+	}
+	if err := st.InsertRecords(t.Context(), recs); err != nil {
+		t.Fatal(err)
+	}
+
+	prev := maxScanRowsLimit
+	maxScanRowsLimit = 3
+	t.Cleanup(func() { maxScanRowsLimit = prev })
+
+	if _, err := st.ListRecords(t.Context(), ExportFilter{}); err == nil || !strings.Contains(err.Error(), "exceeds 3 rows") {
+		t.Fatalf("expected fail-closed MaxScanRows error, got %v", err)
+	}
+	// Explicit Limit > 0 bypasses default ceiling cleanly.
+	got, err := st.ListRecords(t.Context(), ExportFilter{Limit: 4})
+	if err != nil || len(got) != 4 {
+		t.Fatalf("explicit Limit=4: len=%d err=%v", len(got), err)
+	}
+}
+
+func TestExportHonorsLimitAndNewest(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "m.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	base := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+	if err := st.InsertRecords(t.Context(), []Record{
+		restoreRec(base, "p0"),
+		restoreRec(base.Add(time.Minute), "p1"),
+		restoreRec(base.Add(2*time.Minute), "p2"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	n, err := st.Export(t.Context(), &buf, FormatCSV, ExportFilter{Limit: 2, Newest: true})
+	if err != nil || n != 2 {
+		t.Fatalf("export newest limit: n=%d err=%v", n, err)
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 3 { // header + 2 rows
+		t.Fatalf("want 3 lines, got %d: %q", len(lines), buf.String())
+	}
+	if !strings.Contains(lines[1], ",p1,") || !strings.Contains(lines[2], ",p2,") {
+		t.Fatalf("want newest 2 rows in ascending order (p1 then p2), got:\n%s", buf.String())
+	}
+
+	buf.Reset()
+	n, err = st.Export(t.Context(), &buf, FormatCSV, ExportFilter{Limit: 2})
+	if err != nil || n != 2 {
+		t.Fatalf("export oldest limit: n=%d err=%v", n, err)
+	}
+	lines = strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if !strings.Contains(lines[1], ",p0,") || !strings.Contains(lines[2], ",p1,") {
+		t.Fatalf("want oldest 2 rows (p0 then p1), got:\n%s", buf.String())
 	}
 }

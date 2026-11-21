@@ -284,19 +284,41 @@ func (s *Store) Count(ctx context.Context) (int64, error) {
 	return n, err
 }
 
-// PruneOlderThan deletes samples older than cutoff (UTC).
+// PruneOlderThan deletes samples, recommendation snapshots, and node snapshots
+// older than cutoff (UTC) in a single transaction, returning total rows removed.
 func (s *Store) PruneOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
-	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM samples WHERE sampled_at < ?`,
-		FormatUTC(cutoff),
-	)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	defer func() { _ = tx.Rollback() }()
+
+	cut := FormatUTC(cutoff)
+	stmts := []string{
+		`DELETE FROM samples WHERE sampled_at < ?`,
+		`DELETE FROM recommendations WHERE recorded_at < ?`,
+		`DELETE FROM node_snapshots WHERE recorded_at < ?`,
+	}
+	var total int64
+	for _, q := range stmts {
+		res, err := tx.ExecContext(ctx, q, cut)
+		if err != nil {
+			return 0, err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		total += n
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
-// PruneRetention deletes samples older than retentionDays from now.
+// PruneRetention deletes samples, recommendations, and node snapshots older
+// than retentionDays from now.
 func (s *Store) PruneRetention(ctx context.Context, retentionDays int) (int64, error) {
 	if retentionDays < 1 {
 		return 0, fmt.Errorf("retentionDays must be >= 1")

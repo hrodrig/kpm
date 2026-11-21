@@ -17,8 +17,10 @@ type ExportFilter struct {
 	Pod       string
 	Workload  string // matches owner_name
 	Container string // matches container name
-	// Limit caps rows returned (0 = unlimited). When Newest is true, the
-	// newest Limit rows are chosen (SQL DESC) then returned in ascending order.
+	// Limit caps rows returned. When 0, ListRecords enforces MaxScanRows
+	// fail-closed while Export streams all matching rows. When Newest is true
+	// with Limit > 0, the newest Limit rows are chosen (SQL DESC) then emitted
+	// in ascending order.
 	Limit  int
 	Newest bool
 }
@@ -98,15 +100,7 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 		return 0, err
 	}
 
-	q := `SELECT sampled_at, client_id, cluster_name,
-		namespace, pod, container,
-		owner_kind, owner_name, node,
-		cpu_util_mcores, mem_util_bytes,
-		cpu_request_mcores, mem_request_bytes,
-		cpu_limit_mcores, mem_limit_bytes
-		FROM samples WHERE 1=1`
-	q, args := appendSampleFilters(q, nil, f)
-	q += ` ORDER BY sampled_at ASC, id ASC`
+	q, args := exportSQL(f)
 
 	rows, err := s.reads().QueryContext(ctx, q, args...)
 	if err != nil {
@@ -147,4 +141,26 @@ func (s *Store) Export(ctx context.Context, w io.Writer, format ExportFormat, f 
 	}
 	cw.Flush()
 	return n, cw.Error()
+}
+
+func exportSQL(f ExportFilter) (string, []any) {
+	const cols = `sampled_at, client_id, cluster_name,
+		namespace, pod, container,
+		owner_kind, owner_name, node,
+		cpu_util_mcores, mem_util_bytes,
+		cpu_request_mcores, mem_request_bytes,
+		cpu_limit_mcores, mem_limit_bytes`
+	base, args := appendSampleFilters(`SELECT id, `+cols+` FROM samples WHERE 1=1`, nil, f)
+	if f.Limit > 0 && f.Newest {
+		q := `SELECT ` + cols + ` FROM (` + base + ` ORDER BY sampled_at DESC, id DESC LIMIT ?) ORDER BY sampled_at ASC, id ASC`
+		return q, append(args, f.Limit)
+	}
+	q := `SELECT ` + cols + ` FROM samples WHERE 1=1`
+	q, args = appendSampleFilters(q, nil, f)
+	q += ` ORDER BY sampled_at ASC, id ASC`
+	if f.Limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, f.Limit)
+	}
+	return q, args
 }
