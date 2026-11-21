@@ -101,3 +101,41 @@ func TestRunOnceRejectsNilClientsWithoutPanic(t *testing.T) {
 		t.Fatal("expected error for nil clientsets, not panic")
 	}
 }
+
+type pagedSamplePods struct {
+	pages map[string]*corev1.PodList
+	calls int
+}
+
+func (p *pagedSamplePods) List(_ context.Context, _ string, opts metav1.ListOptions) (*corev1.PodList, error) {
+	p.calls++
+	return p.pages[opts.Continue], nil
+}
+
+func TestCapturePaginatesAndDeduplicatesNamespaces(t *testing.T) {
+	pods := &pagedSamplePods{pages: map[string]*corev1.PodList{
+		"": {
+			ListMeta: metav1.ListMeta{Continue: "c1"},
+			Items:    []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "p1"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "c"}}}}},
+		},
+		"c1": {
+			Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "p2"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "c"}}}}},
+		},
+	}}
+	metrics := fakeMetrics{items: []metricsv1beta1.PodMetrics{
+		{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "p1"}, Containers: []metricsv1beta1.ContainerMetrics{{Name: "c"}}},
+		{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "p2"}, Containers: []metricsv1beta1.ContainerMetrics{{Name: "c"}}},
+	}}
+
+	res, err := Capture(context.Background(), CaptureOptions{
+		Pods:    pods,
+		Metrics: metrics,
+		Scope:   config.Scope{Namespaces: []string{"app", "app"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pods.calls != 2 || len(res.Records) != 2 {
+		t.Fatalf("expected 2 paginated calls and 2 records (deduped ns), calls=%d recs=%d", pods.calls, len(res.Records))
+	}
+}
