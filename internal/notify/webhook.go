@@ -20,13 +20,16 @@ type Webhook struct {
 func (w *Webhook) Type() string { return "webhook" }
 
 func (w *Webhook) Send(ctx context.Context, m Message) error {
+	if err := validateHTTPURL(w.URL); err != nil {
+		return fmt.Errorf("webhook: %w", err)
+	}
 	payload, err := w.encode(m)
 	if err != nil {
 		return err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.URL, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("webhook request: %w", err)
+		return fmt.Errorf("webhook request: %w", redactURLError(err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range w.Headers {
@@ -38,7 +41,7 @@ func (w *Webhook) Send(ctx context.Context, m Message) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("webhook: %w", err)
+		return fmt.Errorf("webhook: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
