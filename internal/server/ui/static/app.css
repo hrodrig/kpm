@@ -116,13 +116,21 @@ select {
   border-radius: var(--r-4);
 }
 
+.chrome-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--surface);
+}
+
 .top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-12) var(--sp-16);
-  padding: var(--sp-16) var(--sp-24);
-  border-bottom: 1px solid var(--line);
+  padding: var(--sp-16) var(--sp-24) var(--sp-8);
   background: var(--surface);
 }
 
@@ -171,7 +179,7 @@ select {
   white-space: nowrap;
 }
 
-.chrome {
+.display-nav {
   display: flex;
   align-items: center;
   gap: var(--sp-8);
@@ -299,7 +307,13 @@ input:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
-  margin: 0 0 var(--sp-12);
+  margin: 0;
+  padding: var(--sp-8) var(--sp-24) var(--sp-12);
+  background: var(--surface);
+}
+
+#main {
+  padding-top: var(--sp-12);
 }
 
 .filters input,

@@ -34,46 +34,44 @@
     </section>
 
     <div id="app" class="hidden">
-      <header class="top">
-        <div class="brand-block">
-          <h1 class="brand">
-            kpm
-            <span id="mode-label" class="mode-label" title="SQLite analyze-local">analyze-local</span>
-          </h1>
-          <p id="cluster-target" class="cluster-target" aria-live="polite">cluster …</p>
-          <nav class="chrome" aria-label="Display">
-            <button type="button" class="btn" id="theme-toggle" aria-pressed="false">
-              Dark
-            </button>
-          </nav>
-        </div>
-        <div class="toolbar">
-          <div class="windows" role="group" aria-label="Time window">
-            <button type="button" data-window="1h">1h</button>
-            <button type="button" data-window="24h" class="active">24h</button>
-            <button type="button" data-window="48h">48h</button>
-            <button type="button" data-window="7d">7d</button>
-            <button type="button" data-window="15d">15d</button>
+      <div id="chrome" class="chrome-sticky">
+        <header class="top">
+          <div class="brand-block">
+            <h1 class="brand">
+              kpm
+              <span id="mode-label" class="mode-label" title="SQLite analyze-local">analyze-local</span>
+            </h1>
+            <p id="cluster-target" class="cluster-target" aria-live="polite">cluster …</p>
+            <nav class="display-nav" aria-label="Display">
+              <button type="button" class="btn" id="theme-toggle" aria-pressed="false">
+                Dark
+              </button>
+            </nav>
           </div>
-          <div class="custom">
-            <label class="hidden" for="since">Since</label>
-            <input id="since" type="datetime-local" />
-            <label class="hidden" for="until">Until</label>
-            <input id="until" type="datetime-local" />
-            <button type="button" class="btn" id="apply-custom">Apply</button>
+          <div class="toolbar">
+            <div class="windows" role="group" aria-label="Time window">
+              <button type="button" data-window="1h">1h</button>
+              <button type="button" data-window="24h" class="active">24h</button>
+              <button type="button" data-window="48h">48h</button>
+              <button type="button" data-window="7d">7d</button>
+              <button type="button" data-window="15d">15d</button>
+            </div>
+            <div class="custom">
+              <label class="hidden" for="since">Since</label>
+              <input id="since" type="datetime-local" />
+              <label class="hidden" for="until">Until</label>
+              <input id="until" type="datetime-local" />
+              <button type="button" class="btn" id="apply-custom">Apply</button>
+            </div>
+            <label class="hidden" for="metric">Metric</label>
+            <select id="metric" class="metric" aria-label="Metric">
+              <option value="cpu_util_mcores">CPU util (mcores)</option>
+              <option value="mem_util_bytes">Mem util (bytes)</option>
+              <option value="cpu_util_ratio">CPU util / request</option>
+              <option value="mem_util_ratio">Mem util / request</option>
+            </select>
           </div>
-          <label class="hidden" for="metric">Metric</label>
-          <select id="metric" class="metric" aria-label="Metric">
-            <option value="cpu_util_mcores">CPU util (mcores)</option>
-            <option value="mem_util_bytes">Mem util (bytes)</option>
-            <option value="cpu_util_ratio">CPU util / request</option>
-            <option value="mem_util_ratio">Mem util / request</option>
-          </select>
-        </div>
-      </header>
-
-      <main id="main">
-        <p id="status" class="status" aria-live="polite"></p>
+        </header>
         <div class="filters" role="search" aria-label="Filter workloads">
           <label class="hidden" for="filter-ns">Namespace</label>
           <input id="filter-ns" type="search" placeholder="Namespace" autocomplete="off" />
@@ -81,18 +79,18 @@
           <input id="filter-owner" type="search" placeholder="Owner" autocomplete="off" />
           <label class="hidden" for="filter-grain">Grain</label>
           <input id="filter-grain" type="search" placeholder="Grain" autocomplete="off" />
-          <label class="hidden" for="filter-cpu">CPU verdict</label>
-          <select id="filter-cpu" aria-label="CPU verdict">
-            <option value="">CPU any</option>
+          <label class="hidden" for="filter-cpu">CPU recommend filter</label>
+          <select id="filter-cpu" aria-label="CPU recommend filter">
+            <option value="">CPU recommend</option>
             <option value="oversized">CPU oversized</option>
             <option value="undersized">CPU undersized</option>
             <option value="ok">CPU ok</option>
             <option value="n/a">CPU no-req</option>
             <option value="none">CPU no recommend</option>
           </select>
-          <label class="hidden" for="filter-mem">Mem verdict</label>
-          <select id="filter-mem" aria-label="Mem verdict">
-            <option value="">Mem any</option>
+          <label class="hidden" for="filter-mem">Mem recommend filter</label>
+          <select id="filter-mem" aria-label="Mem recommend filter">
+            <option value="">Mem recommend</option>
             <option value="oversized">Mem oversized</option>
             <option value="undersized">Mem undersized</option>
             <option value="ok">Mem ok</option>
@@ -101,6 +99,10 @@
           </select>
           <button type="button" class="btn" id="filter-clear">Clear filters</button>
         </div>
+      </div>
+
+      <main id="main">
+        <p id="status" class="status" aria-live="polite"></p>
         <p id="recommend-summary" class="recommend-summary" aria-live="polite"></p>
         <section id="nodes-panel" class="nodes-panel" aria-label="Node capacity snapshots" hidden>
           <header class="nodes-head">
